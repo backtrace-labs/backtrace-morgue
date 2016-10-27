@@ -16,7 +16,7 @@
     "type": "git",
     "url": "git+https://github.com/backtrace-labs/backtrace-morgue.git"
   },
-  "author": "Samy Al Bahra <sbahra@backtrace.io>",
+  "author": "Andrew Kelley <akelley@backtrace.io>",
   "license": "GPL-2.0",
   "bugs": {
     "url": "https://github.com/backtrace-labs/backtrace-morgue/issues"
