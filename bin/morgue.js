@@ -355,22 +355,10 @@ function coronerList(argv, config) {
       process.exit(0);
   }
 
-  coroner.query(universe, project, query, function (error, result) {
-    var rp;
-
-    if (error) {
-      var message = 'Error: ';
-      if (error.message) {
-        message += error.message;
-      } else {
-        message += error;
-      }
-
-      if (error === 'invalid token')
-        message = message + ': try logging in again.';
-
-      console.log(message.error);
-      process.exit();
+  coroner.query(universe, project, query, function (err, result) {
+    if (err) {
+      console.error(("Error: " + err.message).error);
+      process.exit(1);
     }
 
     if (argv.raw) {
@@ -378,7 +366,7 @@ function coronerList(argv, config) {
 
       try {
         pp = JSON.stringify(result);
-      } catch (error) {
+      } catch (err) {
         pp = result;
       }
 
@@ -386,7 +374,7 @@ function coronerList(argv, config) {
       process.exit(0);
     }
 
-    rp = new crdb.Response(result);
+    var rp = new crdb.Response(result);
 
     coronerPrint(query, rp.unpack(), argv.sort, argv.limit, columns);
   });
