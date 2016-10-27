@@ -1,0 +1,40 @@
+{
+  "name": "backtrace-morgue",
+  "version": "1.0.0",
+  "description": "command line interface to the Backtrace object store",
+  "main": "./lib/coroner.js",
+  "keywords": [
+    "backtrace",
+    "crashes",
+    "post-mortem",
+    "debugging"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backtrace-labs/backtrace-morgue.git"
+  },
+  "author": "Backtrace I/O, Inc.",
+  "license": "GPL",
+  "bugs": {
+    "url": "https://github.com/backtrace-labs/backtrace-morgue/issues"
+  },
+  "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
+  "dependencies": {
+    "backtrace-node": "*",
+    "colors": "^1.1.2",
+    "minimist": "^1.2.0",
+    "mkdirp": "^0.5.1",
+    "moment": "^2.15.1",
+    "printf": "^0.2.5",
+    "prompt": "^1.0.0",
+    "streamsink": "^1.2.0",
+    "time-ago": "^0.1.0"
+  },
+  "preferGlobal": "true",
+  "bin": {
+    "morgue": "./bin/morgue.js"
+  }
+}
