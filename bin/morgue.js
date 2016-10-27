@@ -14,9 +14,10 @@ const moment    = require('moment');
 const colors    = require('colors');
 const fs        = require('fs');
 const mkdirp    = require('mkdirp');
-const prompt    = require('prompt');
+const promptLib = require('prompt');
 const path      = require('path');
 const bt        = require('backtrace-node');
+const packageJson = require(path.join(__dirname, "..", "package.json"));
 
 var error = colors.red;
 var ta = timeago();
@@ -80,7 +81,7 @@ function loadConfig(callback) {
         json = JSON.parse(text);
       } catch (err) {
         return callback(new Error("config file invalid JSON: " + err.message));
-      };
+      }
       callback(null, json);
     });
   });
@@ -162,7 +163,7 @@ function coronerDescribe(argv, config) {
 
     cd = result.describe;
     for (i = 0; i < cd.length; i++) {
-      var it = cd[i];
+      let it = cd[i];
 
       if (it.name.length > ml)
         ml = it.name.length;
@@ -178,7 +179,7 @@ function coronerDescribe(argv, config) {
     });
 
     for (i = 0; i < cd.length; i++) {
-      var it = cd[i];
+      let it = cd[i];
       var name, description;
 
       if (filter && it.name.match(filter) === null)
@@ -262,9 +263,9 @@ function coronerList(argv, config) {
     }
   }
 
-  if (!query.filter[0]['timestamp'])
-    query.filter[0]['timestamp'] = [];
-  query.filter[0]['timestamp'].push([ 'greater-than', 0 ]);
+  if (!query.filter[0].timestamp)
+    query.filter[0].timestamp = [];
+  query.filter[0].timestamp.push([ 'greater-than', 0 ]);
 
   if (argv.factor) {
     query.group = [ argv.factor ];
@@ -275,9 +276,7 @@ function coronerList(argv, config) {
       query.select = [];
 
     if (Array.isArray(argv.select) === true) {
-      var i;
-
-      for (i = 0; i < argv.select.length; i++) {
+      for (let i = 0; i < argv.select.length; i++) {
         query.select.push(argv.select[i]);
       }
     } else {
@@ -301,8 +300,8 @@ function coronerList(argv, config) {
       's' : 1
     };
     var age = parseInt(argv.age);
-    var pre = new String(age);
-    var age_string = new String(argv.age);
+    var pre = String(age);
+    var age_string = String(argv.age);
     var iu = age_string.substring(pre.length, age_string.length);
     var target = Date.now() - (age * unit[iu] * 1000);
 
@@ -476,7 +475,7 @@ function callstackPrint(cs) {
     return;
   }
 
-  frames = callstack['frame'];
+  frames = callstack.frame;
   if (frames === undefined) {
     console.log(cs);
     return;
@@ -505,7 +504,7 @@ function callstackPrint(cs) {
 }
 
 function objectPrint(g, object, columns) {
-  var string = new String(g);
+  var string = String(g);
   var field, start, stop, sa;
 
   if (string.length > 28) {
@@ -525,13 +524,13 @@ function objectPrint(g, object, columns) {
 
     for (i = 0; i < object.length; i++) {
       var ob = object[i];
-      var label = printf("#%-7x ", ob.object);
+      let label = printf("#%-7x ", ob.object);
 
       process.stdout.write(label.green.bold);
 
-      if (ob['timestamp']) {
-        process.stdout.write(new Date(ob['timestamp'] * 1000) + '     ' +
-            ta.ago(ob['timestamp'] * 1000).bold + '\n');
+      if (ob.timestamp) {
+        process.stdout.write(new Date(ob.timestamp * 1000) + '     ' +
+            ta.ago(ob.timestamp * 1000).bold + '\n');
       }
 
       for (a in ob) {
@@ -550,9 +549,9 @@ function objectPrint(g, object, columns) {
       /*
        * If a callstack is present then render it in a pretty fashion.
        */
-      if (ob['callstack']) {
+      if (ob.callstack) {
         process.stdout.write('  callstack:'.yellow.bold);
-        callstackPrint(ob['callstack']);
+        callstackPrint(ob.callstack);
       }
     }
   }
@@ -578,12 +577,11 @@ function objectPrint(g, object, columns) {
       console.log('      ' + stop);
   }
 
-  if (object['count'])
-      console.log('count: '.yellow.bold + object['count']);
+  if (object.count)
+      console.log('count: '.yellow.bold + object.count);
 
   for (field in columns) {
     var handler = columns[field];
-    var label;
 
     if (!object[field])
       continue;
@@ -616,9 +614,6 @@ function id_compare(a, b) {
 
 function coronerPrint(query, results, sort, limit, columns) {
   var g;
-
-  if (results == {})
-    return;
 
   if (sort) {
     var array = [];
@@ -662,7 +657,7 @@ function coronerPrint(query, results, sort, limit, columns) {
 
   for (g in results) {
     objectPrint(g, results[g], columns);
-    if (limit && --limit == 0)
+    if (limit && --limit === 0)
       break;
     process.stdout.write('\n');
   }
@@ -689,7 +684,7 @@ function coronerLogin(argv, config) {
     debug: debug,
   });
 
-  prompt.get([{
+  promptLib.get([{
       name: 'username',
       message: 'User',
       required: true,
@@ -701,7 +696,7 @@ function coronerLogin(argv, config) {
       required: true
   }], function (err, result) {
     if (err) {
-      if (err.message == "canceled") {
+      if (err.message === "canceled") {
         process.exit(0);
       } else {
         throw err;
@@ -727,14 +722,23 @@ function coronerLogin(argv, config) {
 }
 
 function main() {
-  var commandName = process.argv[2];
+  var argv = minimist(process.argv.slice(2), {
+    "boolean": ['k', 'debug', 'v', 'version'],
+  });
+
+  if (argv.v || argv.version) {
+    console.log(packageJson.version);
+    process.exit(1);
+  }
+
+  var commandName = argv._[0];
   var command = commands[commandName];
   if (!command) return usage();
 
-  prompt.message = '';
-  prompt.delimiter = ':';
-  prompt.colors = false;
-  prompt.start();
+  promptLib.message = '';
+  promptLib.delimiter = ':';
+  promptLib.colors = false;
+  promptLib.start();
 
   colors.setTheme({
     error: [ 'red', 'bold' ],
@@ -742,10 +746,6 @@ function main() {
     factor: [ 'bold' ],
     label : [ 'bold', 'yellow' ],
     dim: [ '' ]
-  });
-
-  var argv = minimist(process.argv.slice(2), {
-    "boolean": ['k', 'debug'],
   });
 
   loadConfig(function(err, config) {
