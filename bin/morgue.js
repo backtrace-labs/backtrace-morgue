@@ -374,9 +374,13 @@ function coronerList(argv, config) {
       process.exit(0);
     }
 
-    var rp = new crdb.Response(result);
-
+    var rp = new crdb.Response(result.response);
     coronerPrint(query, rp.unpack(), argv.sort, argv.limit, columns);
+
+    var footer = result._.user + ': ' +
+        result._.universe + '/' + result._.project + ' [' + result._.latency +
+        ']';
+    console.log(footer.blue);
   });
 }
 
