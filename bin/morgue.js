@@ -253,7 +253,7 @@ function coronerList(argv, config) {
 
       r = r.split(',');
       if (r.length < 3) {
-        console.log('Error: filter must be of form <column>,<operation>,<value>'.red);
+        console.error('Error: filter must be of form <column>,<operation>,<value>'.red);
         process.exit();
       }
 
@@ -286,6 +286,32 @@ function coronerList(argv, config) {
     query.fold = {
       'timestamp' : [['range'], ['bin']]
     };
+  }
+
+  /*
+   * The fingerprint argument is a convenience function for filtering by
+   * a group.
+   */
+  if (argv.fingerprint) {
+    var length, op, ar;
+
+    if (Array.isArray(argv.fingerprint) === true) {
+      console.error('Error: only one fingerprint argument can be provided'.red);
+      process.exit(1);
+    }
+
+    length = String(argv.fingerprint).length;
+    if (length === 64) {
+      op = 'equal';
+      ar = argv.fingerprint;
+    } else {
+      op = 'regular-expression';
+      ar = '^' + argv.fingerprint;
+    }
+
+    if (!query.filter[0]['fingerprint'])
+      query.filter[0]['fingerprint'] = [];
+    query.filter[0]['fingerprint'].push([op, ar]);
   }
 
   if (argv.age) {
@@ -716,6 +742,7 @@ function coronerLogin(argv, config) {
 function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
+    "string" : [ "fingerprint" ]
   });
 
   if (argv.v || argv.version) {
