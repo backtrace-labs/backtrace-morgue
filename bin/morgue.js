@@ -74,13 +74,17 @@ function saveConfig(coroner, callback) {
 function loadConfig(callback) {
   makeConfigDir(function(err) {
     if (err) return callback(err);
-
     fs.readFile(configFile, {encoding: 'utf8'}, function(err, text) {
       var json;
-      try {
-        json = JSON.parse(text);
-      } catch (err) {
-        return callback(new Error("config file invalid JSON: " + err.message));
+
+      if (text.length > 0) {
+        try {
+          json = JSON.parse(text);
+        } catch (err) {
+          return callback(new Error(err.message));
+        }
+      } else {
+        json = {};
       }
       callback(null, json);
     });
@@ -769,7 +773,7 @@ function main() {
 
   loadConfig(function(err, config) {
     if (err && err.code !== 'ENOENT') {
-      console.error(("Unable to read config" + err.message).error);
+      console.error(("Unable to read configuration: " + err.message).error);
       process.exit(1);
     }
 
