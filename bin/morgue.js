@@ -85,7 +85,7 @@ function loadConfig(callback) {
     fs.readFile(configFile, {encoding: 'utf8'}, function(err, text) {
       var json;
 
-      if (text.length > 0) {
+      if (text && text.length > 0) {
         try {
           json = JSON.parse(text);
         } catch (err) {
