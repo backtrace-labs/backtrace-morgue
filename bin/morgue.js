@@ -34,7 +34,15 @@ bt.initialize({
 });
 
 function usage() {
-  console.error("Usage: morgue <command> [<arguments>]");
+  console.error("Usage: morgue <command> [options]");
+  console.error("");
+  console.error("Options:");
+  console.error("  -v, --version       Print version number and exit");
+  console.error("  --debug             Enable verbose debug printing");
+  console.error("  -k                  Disable SSL verification with CA");
+  console.error("  --timeout ms        Set the timeout on API requests in milliseconds");
+  console.error("");
+  console.error("There are more options available for querying. See documentation for details.");
   process.exit(1);
 }
 
@@ -122,6 +130,7 @@ function coronerDescribe(argv, config) {
     debug: debug,
     config: config.config,
     endpoint: config.endpoint,
+    timeout: argv.timeout,
   });
 
   if (argv._.length < 2) {
@@ -221,6 +230,7 @@ function coronerList(argv, config) {
     debug: debug,
     config: config.config,
     endpoint: config.endpoint,
+    timeout: argv.timeout,
   });
 
   if (argv._.length < 2) {
@@ -313,9 +323,9 @@ function coronerList(argv, config) {
       ar = '^' + argv.fingerprint;
     }
 
-    if (!query.filter[0]['fingerprint'])
-      query.filter[0]['fingerprint'] = [];
-    query.filter[0]['fingerprint'].push([op, ar]);
+    if (!query.filter[0].fingerprint)
+      query.filter[0].fingerprint = [];
+    query.filter[0].fingerprint.push([op, ar]);
   }
 
   if (argv.age) {
@@ -704,6 +714,7 @@ function coronerLogin(argv, config) {
     endpoint: endpoint,
     insecure: insecure,
     debug: debug,
+    timeout: argv.timeout,
   });
 
   promptLib.get([{
