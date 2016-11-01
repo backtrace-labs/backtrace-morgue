@@ -610,7 +610,7 @@ function objectPrint(g, object, columns) {
   }
 
   if (object.count)
-      console.log('count: '.yellow.bold + object.count);
+      console.log('Occurrences: '.yellow.bold + object.count);
 
   for (field in columns) {
     var handler = columns[field];
