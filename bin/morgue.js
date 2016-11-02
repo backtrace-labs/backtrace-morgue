@@ -217,6 +217,7 @@ function coronerDescribe(argv, config) {
 function coronerList(argv, config) {
   abortIfNotLoggedIn(config);
 
+  var d_age = '1M';
   var query = {};
   var universe = null;
   var project = null;
@@ -328,7 +329,10 @@ function coronerList(argv, config) {
     query.filter[0].fingerprint.push([op, ar]);
   }
 
-  if (argv.age) {
+  if (argv.age)
+    d_age = argv.age;
+
+  if (d_age) {
     var now = new Date();
     var unit = {
       'y' : 3600 * 24 * 365,
@@ -339,9 +343,9 @@ function coronerList(argv, config) {
       'm' : 60,
       's' : 1
     };
-    var age = parseInt(argv.age);
+    var age = parseInt(d_age);
     var pre = String(age);
-    var age_string = String(argv.age);
+    var age_string = String(d_age);
     var iu = age_string.substring(pre.length, age_string.length);
     var target = Date.now() - (age * unit[iu] * 1000);
     var oldest = Math.floor(target / 1000);
@@ -443,8 +447,8 @@ function coronerList(argv, config) {
     coronerPrint(query, rp.unpack(), argv.sort, argv.limit, columns);
 
     var footer = result._.user + ': ' +
-        result._.universe + '/' + result._.project + ' [' + result._.latency +
-        ']';
+        result._.universe + '/' + result._.project + ' as of ' + d_age +
+          ' ago [' + result._.latency + ']';
     console.log(footer.blue);
   });
 }
