@@ -344,13 +344,25 @@ function coronerList(argv, config) {
     var age_string = String(argv.age);
     var iu = age_string.substring(pre.length, age_string.length);
     var target = Date.now() - (age * unit[iu] * 1000);
+    var oldest = Math.floor(target / 1000);
 
     query.filter[0].timestamp = [
-      [ 'at-least', target / 1000 ]
+      [ 'at-least', oldest ]
     ];
 
-    range_start = target / 1000;
-    range_stop = Date.now() / 1000;
+    range_start = oldest;
+    range_stop = Math.floor(Date.now() / 1000);
+
+    if (query.fold && query.fold.timestamp) {
+      var ft = query.fold.timestamp;
+      var i;
+
+      for (i = 0; i < ft.length; i++) {
+        if (ft[i][0] === 'bin') {
+          ft[i] = ft[i].concat([32, range_start, range_stop]);
+        }
+      }
+    }
   }
 
   function fold(query, attribute, label, cb) {
@@ -364,12 +376,25 @@ function coronerList(argv, config) {
     }
 
     for (i = 0; i < attribute.length; i++) {
-      argv = attribute[i];
+      var modifiers, j;
+
+      modifiers = attribute[i].split(',');
+      argv = modifiers[0];
+      modifiers.shift();
+
+      for (j = 0; j < modifiers.length; j++) {
+        modifiers[j] = parseInt(modifiers[j]);
+        if (isNaN(modifiers[j]) === true) {
+          console.error('Error: modifiers must be integers.'.error);
+          process.exit(1);
+        }
+      }
 
       if (!query.fold[argv])
         query.fold[argv] = [];
 
-      query.fold[argv].push([label]);
+      query.fold[argv].push([label].concat(modifiers));
+
       columns[label + '(' + argv + ')'] = cb;
     }
   }
