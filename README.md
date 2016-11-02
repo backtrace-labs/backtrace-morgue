@@ -84,8 +84,9 @@ The currently supported operations are `equal`, `regular-expression`,
 Aggregation is expressed through a myriad of command-line options that express
 different aggregation operations. Options are of form `--<option>=<attribute>`.
 
-Aggregation only occurs with queries that have a *factor*. The factor
-option is specified as `--factor=<attribute>`.
+The ``*`` factor is used when aggregations are performed when no factor is
+specified or if an object does not have a valid value associated with the
+factor.
 
 | Option        | Description |
 |---------------|-------------|
