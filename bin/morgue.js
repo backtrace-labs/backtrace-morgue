@@ -644,6 +644,8 @@ function objectPrint(g, object, columns) {
       if (ob.timestamp) {
         process.stdout.write(new Date(ob.timestamp * 1000) + '     ' +
             ta.ago(ob.timestamp * 1000).bold + '\n');
+      } else {
+        process.stdout.write('\n');
       }
 
       for (a in ob) {
