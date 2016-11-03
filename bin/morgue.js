@@ -453,17 +453,19 @@ function coronerList(argv, config) {
   }
 
   if (argv.head)
-    fold(query, argv.head, 'head', headPrint);
+    fold(query, argv.head, 'head', unaryPrint);
   if (argv.histogram)
     fold(query, argv.histogram, 'histogram', histogramPrint);
   if (argv.unique)
-    fold(query, argv.unique, 'unique', uniquePrint);
+    fold(query, argv.unique, 'unique', unaryPrint);
+  if (argv.sum)
+    fold(query, argv.sum, 'sum', unaryPrint);
   if (argv.quantize)
     fold(query, argv.quantize, 'bin', binPrint);
-  if (argv.range)
-    fold(query, argv.range, 'range', rangePrint);
   if (argv.bin)
     fold(query, argv.bin, 'bin', binPrint);
+  if (argv.range)
+    fold(query, argv.range, 'range', rangePrint);
 
   if (argv.query) {
     var pp = JSON.stringify(query);
@@ -566,11 +568,7 @@ function histogramPrint(field) {
   return true;
 }
 
-function uniquePrint(field) {
-  console.log(field[0]);
-}
-
-function headPrint(field) {
+function unaryPrint(field) {
   console.log(field[0]);
 }
 
