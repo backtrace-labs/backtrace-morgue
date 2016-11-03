@@ -19,6 +19,7 @@ const path      = require('path');
 const bt        = require('backtrace-node');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
 
+var callstackError = false;
 var error = colors.red;
 var ta = timeago();
 var range_start = null;
@@ -532,7 +533,12 @@ function callstackPrint(cs) {
   try {
     callstack = JSON.parse(cs);
   } catch (error) {
-    console.log(' ' + callstack);
+    if (callstackError === false) {
+      bt.report(error);
+      callstackError = true;
+    }
+
+    console.log(' ' + cs);
     return;
   }
 
