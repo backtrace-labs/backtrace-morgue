@@ -25,7 +25,7 @@ var ta = timeago();
 var range_start = null;
 var range_stop = null;
 var reverse = 1;
-const configDir = path.join(os.homedir(), ".coroner-node");
+const configDir = path.join(os.homedir(), ".morgue");
 const configFile = path.join(configDir, "current.json");
 
 bt.initialize({
@@ -111,8 +111,48 @@ function abortIfNotLoggedIn(config) {
   process.exit(1);
 }
 
-function coronerGet(argv, coroner) {
+function coronerGet(argv, config) {
+  var universe, project, object, rf;
 
+  abortIfNotLoggedIn(config);
+
+  if (Array.isArray(argv._) === true) {
+    var split;
+
+    split = argv._[1].split('/');
+    if (split.length === 1) {
+      /* Try to automatically derive a path from the one argument. */
+      universe = config.config.universes[0];
+      project = argv._[1];
+    } else {
+      universe = split[0];
+      project = split[1];
+    }
+
+    object = argv._[2];
+  }
+
+  const insecure = !!argv.k;
+  const debug = argv.debug;
+  var coroner = new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout
+  });
+
+  if (argv.resource)
+      rf = argv.resource;
+
+  coroner.fetch(universe, project, object, rf, function(error, result) {
+    if (argv.output) {
+      fs.writeFileSync(argv.output, result);
+      return;
+    }
+
+    process.stdout.write(result);
+  });
 }
 
 function coronerDescribe(argv, config) {
