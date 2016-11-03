@@ -146,8 +146,16 @@ function coronerGet(argv, config) {
       rf = argv.resource;
 
   coroner.fetch(universe, project, object, rf, function(error, result) {
-    if (argv.output) {
-      fs.writeFileSync(argv.output, result);
+    var output = null;
+
+    if (argv.output)
+      output = argv.output;
+    if (argv.o)
+      output = argv.o;
+
+    if (output) {
+      fs.writeFileSync(output, result);
+      console.log(output);
       return;
     }
 
