@@ -337,7 +337,8 @@ function coronerList(argv, config) {
     query.group = [ argv.factor ];
   }
 
-  if (argv.select) {
+  if (argv.template === 'select') {
+  } else if (argv.select) {
     if (!query.select)
       query.select = [];
 
