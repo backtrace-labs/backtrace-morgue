@@ -121,8 +121,11 @@ function coronerGet(argv, config) {
 
     split = argv._[1].split('/');
     if (split.length === 1) {
+      var first;
+
       /* Try to automatically derive a path from the one argument. */
-      universe = config.config.universes[0];
+      for (first in config.config.universes) break;
+      universe = first;
       project = argv._[1];
     } else {
       universe = split[0];
@@ -192,8 +195,11 @@ function coronerDescribe(argv, config) {
 
     split = argv._[1].split('/');
     if (split.length === 1) {
+      var first;
+
       /* Try to automatically derive a path from the one argument. */
-      universe = config.config.universes[0];
+      for (first in config.config.universes) break;
+      universe = first;
       project = argv._[1];
     } else {
       universe = split[0];
@@ -292,8 +298,11 @@ function coronerList(argv, config) {
 
     split = argv._[1].split('/');
     if (split.length === 1) {
+      var first;
+
       /* Try to automatically derive a path from the one argument. */
-      universe = config.config.universes[0];
+      for (first in config.config.universes) break;
+      universe = first;
       project = argv._[1];
     } else {
       universe = split[0];
