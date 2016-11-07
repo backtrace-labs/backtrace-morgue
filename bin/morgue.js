@@ -270,7 +270,6 @@ function coronerList(argv, config) {
   var query = {};
   var universe = null;
   var project = null;
-  var columns = {};
 
   const insecure = !!argv.k;
   const debug = argv.debug;
@@ -304,6 +303,9 @@ function coronerList(argv, config) {
 
   if (argv.reverse)
     reverse = -1;
+
+  if (argv.template)
+    query.template = argv.template;
 
   query.filter = [{}];
   if (argv.filter) {
@@ -447,8 +449,6 @@ function coronerList(argv, config) {
         query.fold[argv] = [];
 
       query.fold[argv].push([label].concat(modifiers));
-
-      columns[label + '(' + argv + ')'] = cb;
     }
   }
 
@@ -495,7 +495,8 @@ function coronerList(argv, config) {
     }
 
     var rp = new crdb.Response(result.response);
-    coronerPrint(query, rp.unpack(), argv.sort, argv.limit, columns);
+    coronerPrint(query, rp.unpack(), result.response,
+        argv.sort, argv.limit);
 
     var footer = result._.user + ': ' +
         result._.universe + '/' + result._.project + ' as of ' + d_age +
@@ -629,7 +630,7 @@ function objectPrint(g, object, columns) {
   process.stdout.write(string.factor + ' ');
 
   /* This means that no aggregation has occurred. */
-  if (Object.keys(columns).length === 0) {
+  if (object.length) {
     var i;
     var a;
 
@@ -669,6 +670,8 @@ function objectPrint(g, object, columns) {
         callstackPrint(ob.callstack);
       }
     }
+
+    return;
   }
 
   var timestamp_bin = object['bin(timestamp)'];
@@ -695,10 +698,18 @@ function objectPrint(g, object, columns) {
   if (object.count)
       console.log('Occurrences: '.yellow.bold + object.count);
 
-  for (field in columns) {
-    var handler = columns[field];
+  for (field in object) {
+    var match;
 
-    if (!object[field])
+    if (field === 'count')
+      continue;
+
+    match = field.indexOf('(');
+    if (match > -1) {
+      match = field.substring(0, match);
+    }
+
+    if (field.indexOf('timestamp') > -1)
       continue;
 
     if (field.indexOf('callstack') > -1) {
@@ -708,7 +719,7 @@ function objectPrint(g, object, columns) {
     }
 
     process.stdout.write(field.label + ': '.yellow.bold);
-    if (handler(object[field], field.label) === false)
+    if (columns[match](object[field], field.label) === false)
       console.log('none');
   }
 }
@@ -727,8 +738,17 @@ function id_compare(a, b) {
   return reverse * ((a < b) - (a > b));
 }
 
-function coronerPrint(query, results, sort, limit, columns) {
+function coronerPrint(query, results, raw, sort, limit, columns) {
   var g;
+  var renderer = {
+    head: unaryPrint,
+    unique: unaryPrint,
+    sum: unaryPrint,
+    histogram: histogramPrint,
+    quantize: binPrint,
+    bin: binPrint,
+    range: rangePrint,
+  };
 
   if (sort) {
     var array = [];
@@ -763,7 +783,7 @@ function coronerPrint(query, results, sort, limit, columns) {
       length = limit;
 
     for (i = 0; i < length; i++) {
-      objectPrint(array[i][0], array[i][1], columns);
+      objectPrint(array[i][0], array[i][1], renderer);
       process.stdout.write('\n');
     }
 
@@ -771,7 +791,7 @@ function coronerPrint(query, results, sort, limit, columns) {
   }
 
   for (g in results) {
-    objectPrint(g, results[g], columns);
+    objectPrint(g, results[g], renderer);
     if (limit && --limit === 0)
       break;
     process.stdout.write('\n');
