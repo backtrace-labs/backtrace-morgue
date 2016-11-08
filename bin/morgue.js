@@ -462,6 +462,8 @@ function coronerList(argv, config) {
     }
   }
 
+  if (argv.tail)
+    fold(query, argv.tail, 'tail', unaryPrint);
   if (argv.head)
     fold(query, argv.head, 'head', unaryPrint);
   if (argv.histogram)
@@ -719,8 +721,14 @@ function objectPrint(g, object, columns) {
       match = field.substring(0, match);
     }
 
-    if (field.indexOf('timestamp') > -1)
+    /*
+     * This is terribly ugly. We special-case management of timestamp for
+     * pretty-printing purposes.
+     */
+    if (field.indexOf('timestamp') > -1 && (field.indexOf('bin(') > -1 ||
+        field.indexOf('range(') > -1)) {
       continue;
+    }
 
     if (field.indexOf('callstack') > -1) {
       process.stdout.write('callstack:'.yellow.bold);
@@ -752,6 +760,7 @@ function coronerPrint(query, results, raw, sort, limit, columns) {
   var g;
   var renderer = {
     head: unaryPrint,
+    tail: unaryPrint,
     unique: unaryPrint,
     sum: unaryPrint,
     histogram: histogramPrint,
