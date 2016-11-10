@@ -6,6 +6,7 @@ const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
 const minimist  = require('minimist');
 const os        = require('os');
+const ip        = require('ip');
 const bar       = require('./bar.js');
 const timeago   = require('time-ago');
 const histogram = require('./histogram.js');
@@ -543,13 +544,7 @@ function fieldFormat(st, format) {
       return st + ' B';
     },
     'ipv4': function() {
-      var i = parseInt(st);
-
-      return
-          ((i >> 24) & 255) + '.' +
-          ((i >> 16) & 255) + '.' +
-          ((i >> 8) & 255) + '.' +
-          (i & 255);
+      return ip.fromLong(parseInt(st));
     },
     'unix_timestamp' : function() {
         return String(new Date(parseInt(st) * 1000));
