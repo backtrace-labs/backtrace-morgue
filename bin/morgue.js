@@ -523,23 +523,31 @@ function fieldFormat(st, format) {
       return printf("%#lx", st);
     },
     'kilobytes' : function() {
-      return printf("%ld kB", st);
+      return st + ' kB';
     },
     'megabytes' : function() {
-      return printf("%ld MB", st);
+      return st + ' MB';
     },
     'gigabytes' : function() {
-      return printf("%ld GB", st);
+      return st + ' GB';
     },
     'bytes' : function() {
-      return printf("%ld B", st);
+      return st + ' B';
+    },
+    'ipv4': function() {
+      var i = parseInt(st);
+
+      return
+          ((i >> 24) & 255) + '.' +
+          ((i >> 16) & 255) + '.' +
+          ((i >> 8) & 255) + '.' +
+          (i & 255);
     },
     'unix_timestamp' : function() {
-        return printf("%s",
-            new Date(parseInt(st) * 1000));
+        return String(new Date(parseInt(st) * 1000));
     },
     'seconds' : function() {
-      return printf("%ld sec", st);
+      return st + ' sec';
     }
   };
 
