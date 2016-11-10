@@ -507,7 +507,7 @@ function coronerList(argv, config) {
     }
 
     var rp = new crdb.Response(result.response);
-    coronerPrint(query, rp.unpack(), result.response,
+    coronerPrint(query, rp, result.response,
         argv.sort, argv.limit);
 
     var footer = result._.user + ': ' +
@@ -517,16 +517,48 @@ function coronerList(argv, config) {
   });
 }
 
+function fieldFormat(st, format) {
+  var rd = {
+    'memory_address' : function() {
+      return printf("%#lx", st);
+    },
+    'kilobytes' : function() {
+      return printf("%ld kB", st);
+    },
+    'megabytes' : function() {
+      return printf("%ld MB", st);
+    },
+    'gigabytes' : function() {
+      return printf("%ld GB", st);
+    },
+    'bytes' : function() {
+      return printf("%ld B", st);
+    },
+    'unix_timestamp' : function() {
+        return printf("%s",
+            new Date(parseInt(st) * 1000));
+    },
+    'seconds' : function() {
+      return printf("%ld sec", st);
+    }
+  };
+
+  if (rd[format])
+    return rd[format]();
+
+  return st;
+}
+
 function rangePrint(field, factor) {
   console.log(field[0] + " - " + field[1] + " (" +
       (field[1] - field[0]) + ")");
 }
 
-function binPrint(field, factor) {
+function binPrint(field, factor, ff) {
   var data = {};
   var j = 0;
   var i;
-  var format = "%12d %12d";
+  var format = "%20s %20s";
 
   if (field.length === 0)
     return false;
@@ -537,7 +569,8 @@ function binPrint(field, factor) {
     if (field[i].length === 0)
       continue;
 
-    label = printf(format, field[i][0], field[i][1]);
+    label = printf(format, fieldFormat(field[i][0], ff),
+       fieldFormat(field[i][1], ff));
     data[label] = field[i][2];
     j++;
   }
@@ -555,7 +588,7 @@ function binPrint(field, factor) {
   return true;
 }
 
-function histogramPrint(field) {
+function histogramPrint(field, unused, format) {
   var data = {};
   var j = 0;
   var i;
@@ -564,7 +597,7 @@ function histogramPrint(field) {
     if (field[i].length === 0)
       continue;
 
-    data[field[i][0]] = field[i][1];
+    data[fieldFormat(field[i][0], format)] = field[i][1];
     j++;
   }
 
@@ -581,8 +614,9 @@ function histogramPrint(field) {
   return true;
 }
 
-function unaryPrint(field) {
-  console.log(field[0]);
+function unaryPrint(field, unused, format) {
+  console.log(fieldFormat(field[0], format));
+  return true;
 }
 
 function callstackPrint(cs) {
@@ -629,7 +663,7 @@ function callstackPrint(cs) {
   process.stdout.write('\n');
 }
 
-function objectPrint(g, object, columns) {
+function objectPrint(g, object, columns, fields) {
   var string = String(g);
   var field, start, stop, sa;
 
@@ -671,7 +705,7 @@ function objectPrint(g, object, columns) {
         if (a === 'callstack')
           continue;
 
-        console.log('  ' + a.yellow.bold + ': ' + ob[a]);
+        console.log('  ' + a.yellow.bold + ': ' + fieldFormat(ob[a], fields[a]));
       }
 
       /*
@@ -730,15 +764,21 @@ function objectPrint(g, object, columns) {
       continue;
     }
 
-    if (field.indexOf('callstack') > -1) {
+    if (fields[field] === 'callstack') {
       process.stdout.write('callstack:'.yellow.bold);
       callstackPrint(object[field]);
       continue;
     }
 
     process.stdout.write(field.label + ': '.yellow.bold);
-    if (columns[match](object[field], field.label) === false)
-      console.log('none');
+
+    if (!columns[match]) {
+      console.log(object[field]);
+      continue;
+    }
+
+    if (columns[match](object[field], field.label, fields[field]) === false)
+      console.log(object[field]);
   }
 }
 
@@ -756,7 +796,9 @@ function id_compare(a, b) {
   return reverse * ((a < b) - (a > b));
 }
 
-function coronerPrint(query, results, raw, sort, limit, columns) {
+function coronerPrint(query, rp, raw, sort, limit, columns) {
+  var results = rp.unpack();
+  var fields = rp.fields();
   var g;
   var renderer = {
     head: unaryPrint,
@@ -802,7 +844,7 @@ function coronerPrint(query, results, raw, sort, limit, columns) {
       length = limit;
 
     for (i = 0; i < length; i++) {
-      objectPrint(array[i][0], array[i][1], renderer);
+      objectPrint(array[i][0], array[i][1], renderer, fields);
       process.stdout.write('\n');
     }
 
@@ -810,7 +852,7 @@ function coronerPrint(query, results, raw, sort, limit, columns) {
   }
 
   for (g in results) {
-    objectPrint(g, results[g], renderer);
+    objectPrint(g, results[g], renderer, fields);
     if (limit && --limit === 0)
       break;
     process.stdout.write('\n');
