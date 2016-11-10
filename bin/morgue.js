@@ -507,6 +507,14 @@ function coronerList(argv, config) {
     }
 
     var rp = new crdb.Response(result.response);
+
+    if (argv.json) {
+      var results = rp.unpack();
+
+      console.log(JSON.stringify(results, null, 2));
+      process.exit(0);
+    }
+
     coronerPrint(query, rp, result.response,
         argv.sort, argv.limit);
 
