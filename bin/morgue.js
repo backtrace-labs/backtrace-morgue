@@ -48,6 +48,42 @@ function usage() {
   process.exit(1);
 }
 
+function nsToUs(tm) {
+  return Math.round((tm[0] * 1000000) + (tm[1] / 1000));
+}
+
+function printSamples(requests, samples, start, stop, concurrency) {
+  var i;
+  var sum = 0;
+  var minimum, maximum, tps;
+
+  start = nsToUs(start);
+  stop = nsToUs(stop);
+
+  for (i = 0; i < samples.length; i++) {
+    var value = parseInt(samples[i]);
+
+    sum += value;
+
+    if (!maximum || value > maximum)
+      maximum = value;
+    if (!minimum || value < minimum)
+      minimum = value;
+  }
+
+  sum = Math.ceil(sum / samples.length);
+
+  tps = Math.floor(requests / ((stop - start) / 1000000));
+
+  process.stdout.write(printf("# %12s %12s %12s %12s %12s %12s %12s\n",
+    "Concurrency", "Requests", "Time", "Minimum", "Average",
+    "Maximum", "Throughput").grey);
+  process.stdout.write(printf("  %12d %12ld %12f %12ld %12ld %12ld %12ld\n",
+    concurrency, requests, (stop - start) / 1000000,
+    minimum, sum, maximum, tps));
+  return;
+}
+
 var commands = {
   error: coronerError,
   list: coronerList,
@@ -488,42 +524,77 @@ function coronerList(argv, config) {
       process.exit(0);
   }
 
-  coroner.query(universe, project, query, function (err, result) {
-    if (err) {
-      console.error(("Error: " + err.message).error);
-      process.exit(1);
+  if (argv.benchmark) {
+    var start, end;
+    var concurrency = 1;
+    var samples = [];
+    var n_samples = 8;
+    var requests = 0;
+    var i;
+
+    if (argv.concurrency)
+      concurrency = parseInt(argv.concurrency);
+
+    if (argv.samples)
+      n_samples = argv.samples;
+
+    var start = process.hrtime();
+
+    for (i = 0; i < concurrency; i++) { 
+      (function queryPr() {
+        requests++;
+
+        coroner.query(universe, project, query, function (err, result) {
+          samples.push(result._.latency);
+
+          if (--n_samples == 0) {
+            printSamples(requests, samples, start, process.hrtime(),
+                concurrency);
+            process.exit(0);
+          }
+
+          coroner.query(universe, project, query, queryPr);
+        });
+      })();
     }
-
-    if (argv.raw) {
-      var pp;
-
-      try {
-        pp = JSON.stringify(result);
-      } catch (err) {
-        pp = result;
+  } else {
+    coroner.query(universe, project, query, function (err, result) {
+      if (err) {
+        console.error(("Error: " + err.message).error);
+        process.exit(1);
       }
 
-      console.log(pp);
-      process.exit(0);
-    }
+      if (argv.raw) {
+        var pp;
 
-    var rp = new crdb.Response(result.response);
+        try {
+          pp = JSON.stringify(result);
+        } catch (err) {
+          pp = result;
+        }
 
-    if (argv.json) {
-      var results = rp.unpack();
+        console.log(pp);
+        process.exit(0);
+      }
 
-      console.log(JSON.stringify(results, null, 2));
-      process.exit(0);
-    }
+      var rp = new crdb.Response(result.response);
 
-    coronerPrint(query, rp, result.response,
-        argv.sort, argv.limit);
+      if (argv.json) {
+        var results = rp.unpack();
 
-    var footer = result._.user + ': ' +
-        result._.universe + '/' + result._.project + ' as of ' + d_age +
-          ' ago [' + result._.latency + ']';
-    console.log(footer.blue);
-  });
+        console.log(JSON.stringify(results, null, 2));
+        process.exit(0);
+      }
+
+      coronerPrint(query, rp, result.response,
+          argv.sort, argv.limit);
+
+      var footer = result._.user + ': ' +
+          result._.universe + '/' + result._.project + ' as of ' + d_age +
+            ' ago [' + result._.latency + ']';
+      console.log(footer.blue);
+    });
+  }
 }
 
 function fieldFormat(st, format) {
