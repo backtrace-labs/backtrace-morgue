@@ -740,7 +740,9 @@ function callstackPrint(cs) {
     if (base > -1) {
       var split = frames[i].split('@');
 
-      if (split[1] && split[1].length > 1) {
+      if (split[1] === ':') {
+        label = split[0];
+      } else if (split[1] && split[1].length > 1) {
         var comma;
 
         base = split[1].lastIndexOf('/');
@@ -748,7 +750,7 @@ function callstackPrint(cs) {
           base = split[1].substring(base + 1, base.length);
 
         comma = base.lastIndexOf(':');
-        if (base.length == comma + 1)
+        if (base.length === comma + 1)
           base = base.substring(0, base.length - 1);
 
         label = split[0] + '@' + base;
