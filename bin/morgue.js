@@ -18,6 +18,7 @@ const mkdirp    = require('mkdirp');
 const promptLib = require('prompt');
 const path      = require('path');
 const bt        = require('backtrace-node');
+const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
 
 var callstackError = false;
@@ -91,6 +92,7 @@ var commands = {
   ls: coronerList,
   describe: coronerDescribe,
   get: coronerGet,
+  put: coronerPut,
   login: coronerLogin,
 };
 
@@ -113,6 +115,16 @@ function saveConfig(coroner, callback) {
       config: coroner.config,
       endpoint: coroner.endpoint,
     };
+
+    if (coroner.config.endpoints.post) {
+      var ep = coroner.config.endpoints.post;
+      var fu = url.parse(coroner.endpoint);
+      var i = 0;
+
+      config.submissionEndpoint = ep[0].protocol + '://' +
+        fu.hostname + ':' + ep[0].port + '/post';
+    }
+
     var text = JSON.stringify(config, null, 2);
     fs.writeFile(configFile, text, callback);
   });
@@ -354,6 +366,100 @@ function coronerDescribe(argv, config) {
       process.stdout.write('\n');
     }
   });
+}
+
+function coronerPut(argv, config) {
+  abortIfNotLoggedIn(config);
+  const insecure = !!argv.k;
+  const debug = argv.debug;
+  var formats = { 'btt' : true, 'minidump' : true, 'json' : true };
+  var universe, project;
+
+  if (!config.submissionEndpoint) {
+    console.error('Error: no submission endpoint found'.error);
+    process.exit(1);
+  }
+
+  if (!argv.format || !formats[argv.format]) {
+    console.error('Error: format must be one of btt, json or minidump'.error);
+    process.exit(1);
+  }
+
+  if (Array.isArray(argv._) === true) {
+    var split;
+
+    split = argv._[1].split('/');
+    if (split.length === 1) {
+      var first;
+
+      /* Try to automatically derive a path from the one argument. */
+      for (first in config.config.universes) break;
+      universe = first;
+      project = argv._[1];
+    } else {
+      universe = split[0];
+      project = split[1];
+    }
+  }
+
+  var files = [];
+
+  /*
+   * Obviously super inefficient, but this is primarily for testing
+   * and benchmarking purposes.
+   */
+  for (var i = 2; i < argv._.length; i++) {
+    try {
+      var body = fs.readFileSync(argv._[i]);
+    } catch (error) {
+      console.error(('Error: failed to open file: ' + argv._[i]).error);
+      process.exit(1);
+    }
+
+    files.push(body);
+  }
+
+  if (files.length === 0) {
+    console.error('Error: one or more files must be specified'.error);
+    process.exit(1);
+  }
+
+  var coroner = new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    config: config.config,
+    endpoint: config.submissionEndpoint,
+    timeout: argv.timeout,
+  });
+
+  var submitted = 0;
+  var success = 0;
+  for (var i = 0; i < files.length; i++) {
+    (function () {
+      var bind = i;
+
+      coroner.put(
+        files[i],
+        {
+          universe: universe,
+          project: project
+        }, function(error, result) {
+          if (error) {
+            console.error(error.error)
+          } else {
+            console.log(argv._[bind + 2]);
+            success++;
+          }
+
+          submitted++;
+          if (submitted === files.length) {
+            if (success === files.length)
+              console.log('Success'.blue);
+            process.exit(0);
+          }
+      });
+    })();
+  }
 }
 
 /**
