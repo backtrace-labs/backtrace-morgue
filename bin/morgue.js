@@ -87,6 +87,7 @@ function printSamples(requests, samples, start, stop, concurrency) {
 var commands = {
   error: coronerError,
   list: coronerList,
+  control: coronerControl,
   ls: coronerList,
   describe: coronerDescribe,
   get: coronerGet,
@@ -148,6 +149,58 @@ function abortIfNotLoggedIn(config) {
   process.exit(1);
 }
 
+function coronerControl(argv, config) {
+  var universe, project;
+
+  abortIfNotLoggedIn(config);
+
+  var coroner = new CoronerClient({
+    insecure: !!argv.k,
+    debug: !!argv.debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout
+  });
+
+  if (Array.isArray(argv._) === true) {
+    var split;
+
+    split = argv._[1].split('/');
+    if (split.length === 1) {
+      var first;
+
+      /* Try to automatically derive a path from the one argument. */
+      for (first in config.config.universes) break;
+      universe = first;
+      project = argv._[1];
+    } else {
+      universe = split[0];
+      project = split[1];
+    }
+  }
+
+  if (argv.smr) {
+    coroner.control({ 'action': 'graceperiod' }, function(error, r) {
+      if (error) {
+        var message = 'Error: ';
+        if (error.message) {
+          message += error.message;
+        } else {
+          message += error;
+        }
+
+        if (error === 'invalid token')
+          message = message + ': try logging in again.';
+
+        console.log(message.error);
+        process.exit();
+      }
+
+      console.log(r);
+    });
+  }
+}
+
 function coronerGet(argv, config) {
   var universe, project, object, rf;
 
@@ -168,9 +221,9 @@ function coronerGet(argv, config) {
       universe = split[0];
       project = split[1];
     }
-
-    object = argv._[2];
   }
+
+  object = argv._[2];
 
   const insecure = !!argv.k;
   const debug = argv.debug;
