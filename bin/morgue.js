@@ -162,7 +162,7 @@ function coronerControl(argv, config) {
     timeout: argv.timeout
   });
 
-  if (Array.isArray(argv._) === true) {
+  if (Array.isArray(argv._) === true && argv._.length > 1) {
     var split;
 
     split = argv._[1].split('/');
@@ -196,7 +196,7 @@ function coronerControl(argv, config) {
         process.exit();
       }
 
-      console.log(r);
+      console.log('Success'.blue);
     });
   }
 }
