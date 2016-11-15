@@ -35,10 +35,6 @@ Logged in.
 
 At this point, you are able to issue queries.
 
-### dashboard
-
-Not implemented yet.
-
 ### describe
 
 ```
@@ -59,7 +55,12 @@ $ morgue describe bidder uname
 
 ### get
 
-Not implemented yet.
+```
+Usage: morgue get <[<universe>/]project> <object id> [-o <output file>]
+```
+
+Downloads the specified object from the Backtrace object store and prints
+to standard output. Optionally, output the file to disk.
 
 ### list
 
@@ -97,7 +98,8 @@ factor.
 | `--count`     | count all non-null values |
 | `--bin`       | provide a linear histogram of values |
 | `--head`      | provide the first value in a factor |
-
+| `--tail`      | provide the last value in a factor |
+| `--object`    | provide the maximum object identifier of a column |
 
 #### Example
 
