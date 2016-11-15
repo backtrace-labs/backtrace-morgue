@@ -503,6 +503,8 @@ function coronerList(argv, config) {
     fold(query, argv.tail, 'tail', unaryPrint);
   if (argv.head)
     fold(query, argv.head, 'head', unaryPrint);
+  if (argv.object)
+    fold(query, argv.object, 'object', noFormatPrint);
   if (argv.histogram)
     fold(query, argv.histogram, 'histogram', histogramPrint);
   if (argv.unique)
@@ -698,6 +700,11 @@ function histogramPrint(field, unused, format) {
 
 function unaryPrint(field, unused, format) {
   console.log(fieldFormat(field[0], format));
+  return true;
+}
+
+function noFormatPrint(field, unused, format) {
+  console.log(field[0]);
   return true;
 }
 
@@ -908,6 +915,7 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
     head: unaryPrint,
     tail: unaryPrint,
     unique: unaryPrint,
+    object: noFormatPrint,
     sum: unaryPrint,
     histogram: histogramPrint,
     quantize: binPrint,
