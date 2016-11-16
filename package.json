@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
-    "backtrace-node": "^0.5.0",
+    "backtrace-node": "~0.5.1",
     "colors": "^1.1.2",
     "ip": "^1.1.4",
     "minimist": "^1.2.0",
