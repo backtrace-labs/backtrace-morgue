@@ -374,6 +374,8 @@ function coronerPut(argv, config) {
   const debug = argv.debug;
   var formats = { 'btt' : true, 'minidump' : true, 'json' : true };
   var universe, project;
+  var concurrency = 1;
+  var n_samples = 32;
 
   if (!config.submissionEndpoint) {
     console.error('Error: no submission endpoint found'.error);
@@ -432,14 +434,24 @@ function coronerPut(argv, config) {
     timeout: argv.timeout,
   });
 
+  if (argv.concurrency)
+    concurrency = parseInt(argv.concurrency);
+
   var submitted = 0;
   var success = 0;
+
+  if (argv.benchmark)
+    process.stderr.write('Warming up...'.blue + '\n');
+
+  if (argv.samples)
+    n_samples = parseInt(argv.samples);
+
   for (var i = 0; i < files.length; i++) {
     (function () {
       var bind = i;
 
       coroner.put(
-        files[i].body,
+        files[bind].body,
         {
           universe: universe,
           project: project,
@@ -448,18 +460,64 @@ function coronerPut(argv, config) {
           if (error) {
             console.error((error + '').error)
           } else {
-            console.log(files[bind].path);
+            if (!argv.benchmark)
+              console.log(files[bind].path);
             success++;
           }
 
           submitted++;
           if (submitted === files.length) {
-            if (success === files.length)
+            if (success === files.length && !argv.benchmark) 
               console.log('Success'.blue);
-            process.exit(0);
+
+            if (!argv.benchmark)
+              process.exit(0);
           }
       });
     })();
+  }
+
+  submitted = 0;
+
+  var samples = [];
+
+  process.stderr.write('Injecting: '.yellow);
+  if (argv.benchmark) {
+    var start = process.hrtime();
+
+    for (var i = 0; i < concurrency; i++) {
+      (function qp(of) {
+        var bind = of % files.length;
+        var s_st = nsToUs(process.hrtime());
+
+        coroner.put(
+          files[bind].body,
+          {
+            universe: universe,
+            project: project,
+            format: argv.format
+          }, function(error, result) {
+            samples.push(nsToUs(process.hrtime()) - s_st);
+
+            if (error) {
+              console.error((error + '').error)
+            } else if (!(submitted % 10)) {
+              process.stderr.write('.'.blue);
+              success++;
+            }
+
+            submitted++;
+            if (submitted === n_samples) {
+              process.stderr.write('.\n');
+              printSamples(submitted, samples, start, process.hrtime(),
+                  concurrency);
+              process.exit(0);
+            }
+
+            qp(of + 1);
+        });
+      })(i);
+    }
   }
 }
 
