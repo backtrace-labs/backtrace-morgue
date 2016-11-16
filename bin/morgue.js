@@ -416,7 +416,7 @@ function coronerPut(argv, config) {
       process.exit(1);
     }
 
-    files.push(body);
+    files.push({ path: argv._[i], body: body });
   }
 
   if (files.length === 0) {
@@ -439,15 +439,16 @@ function coronerPut(argv, config) {
       var bind = i;
 
       coroner.put(
-        files[i],
+        files[i].body,
         {
           universe: universe,
-          project: project
+          project: project,
+          format: argv.format
         }, function(error, result) {
           if (error) {
-            console.error(error.error)
+            console.error((error + '').error)
           } else {
-            console.log(argv._[bind + 2]);
+            console.log(files[bind].path);
             success++;
           }
 
