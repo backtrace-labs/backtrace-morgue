@@ -440,55 +440,56 @@ function coronerPut(argv, config) {
   var submitted = 0;
   var success = 0;
 
-  if (argv.benchmark)
+  if (argv.benchmark) {
     process.stderr.write('Warming up...'.blue + '\n');
 
-  if (argv.samples)
-    n_samples = parseInt(argv.samples);
+    if (argv.samples)
+      n_samples = parseInt(argv.samples);
 
-  for (var i = 0; i < files.length; i++) {
-    (function () {
-      var bind = i;
+    submitted = 0;
 
-      coroner.put(
-        files[bind].body,
-        {
-          universe: universe,
-          project: project,
-          format: argv.format
-        }, function(error, result) {
-          if (error) {
-            console.error((error + '').error)
-          } else {
-            if (!argv.benchmark)
-              console.log(files[bind].path);
-            success++;
-          }
+    var samples = [];
 
-          submitted++;
-          if (submitted === files.length) {
-            if (success === files.length && !argv.benchmark) 
-              console.log('Success'.blue);
+    process.stderr.write('Injecting: '.yellow);
+      var start = process.hrtime();
 
-            if (!argv.benchmark)
-              process.exit(0);
-          }
-      });
-    })();
-  }
+      for (var i = 0; i < concurrency; i++) {
+        (function qp(of) {
+          var bind = of % files.length;
+          var s_st = nsToUs(process.hrtime());
 
-  submitted = 0;
+          coroner.put(
+            files[bind].body,
+            {
+              universe: universe,
+              project: project,
+              format: argv.format
+            }, function(error, result) {
+              samples.push(nsToUs(process.hrtime()) - s_st);
 
-  var samples = [];
+              if (error) {
+                console.error((error + '').error)
+              } else if (!(submitted % 10)) {
+                process.stderr.write('.'.blue);
+                success++;
+              }
 
-  process.stderr.write('Injecting: '.yellow);
-  if (argv.benchmark) {
-    var start = process.hrtime();
+              submitted++;
+              if (submitted === n_samples) {
+                process.stderr.write('.'.blue + '\n');
+                printSamples(submitted, samples, start, process.hrtime(),
+                    concurrency);
+                process.exit(0);
+              }
 
-    for (var i = 0; i < concurrency; i++) {
-      (function qp(of) {
-        var bind = of % files.length;
-        var s_st = nsToUs(process.hrtime());
+              qp(of + 1);
+          });
+        })(i);
+      }
+  } else {
+    for (var i = 0; i < files.length; i++) {
+      (function () {
+        var bind = i;
 
         coroner.put(
           files[bind].body,
@@ -497,28 +498,26 @@ function coronerPut(argv, config) {
             project: project,
             format: argv.format
           }, function(error, result) {
-            samples.push(nsToUs(process.hrtime()) - s_st);
-
             if (error) {
               console.error((error + '').error)
-            } else if (!(submitted % 10)) {
-              process.stderr.write('.'.blue);
+            } else {
+              console.log(files[bind].path);
               success++;
             }
 
             submitted++;
-            if (submitted === n_samples) {
-              process.stderr.write('.\n');
-              printSamples(submitted, samples, start, process.hrtime(),
-                  concurrency);
-              process.exit(0);
-            }
+            if (submitted === files.length) {
+              if (success === files.length)
+                console.log('Success'.blue);
 
-            qp(of + 1);
+              if (!argv.benchmark)
+                process.exit(0);
+            }
         });
-      })(i);
+      })();
     }
   }
+
 }
 
 /**
