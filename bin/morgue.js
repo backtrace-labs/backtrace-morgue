@@ -901,33 +901,10 @@ function callstackPrint(cs) {
       length = frames[i].length + 4;
     }
 
-    var label = frames[i];
-    var base = frames[i].indexOf('@');
-
-    if (base > -1) {
-      var split = frames[i].split('@');
-
-      if (split[1] === ':') {
-        label = split[0];
-      } else if (split[1] && split[1].length > 1) {
-        var comma;
-
-        base = split[1].lastIndexOf('/');
-        if (base && split[1].length > base)
-          base = split[1].substring(base + 1, base.length);
-
-        comma = base.lastIndexOf(':');
-        if (base.length === comma + 1)
-          base = base.substring(0, base.length - 1);
-
-        label = split[0] + '@' + base;
-      }
-    }
-
     if (i === frames.length - 1) {
-      process.stdout.write(label);
+      process.stdout.write(frames[i]);
     } else {
-      process.stdout.write(label + ' ← ');
+      process.stdout.write(frames[i] + ' ← ');
     }
   }
 
