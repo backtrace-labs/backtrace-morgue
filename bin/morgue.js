@@ -32,8 +32,8 @@ const configFile = path.join(configDir, "current.json");
 
 bt.initialize({
   timeout: 5000,
-  endpoint: "https://yolo.sp.backtrace.io:6098",
-  token: "73092adaab1f194c5db5449080d9fda5fab8e319f83fa60d25315d5ea082cfa1"
+  endpoint: "https://backtrace.sp.backtrace.io:6098",
+  token: "2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14"
 });
 
 function usage() {
