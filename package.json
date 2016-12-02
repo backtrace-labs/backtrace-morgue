@@ -1,6 +1,6 @@
 {
   "name": "backtrace-morgue",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "command line interface to the Backtrace object store",
   "main": "./lib/coroner.js",
   "keywords": [
