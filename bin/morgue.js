@@ -375,7 +375,7 @@ function coronerPut(argv, config) {
   abortIfNotLoggedIn(config);
   const insecure = !!argv.k;
   const debug = argv.debug;
-  var formats = { 'btt' : true, 'minidump' : true, 'json' : true };
+  var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
   var universe, project;
   var concurrency = 1;
   var n_samples = 32;
