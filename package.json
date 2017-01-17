@@ -19,6 +19,7 @@
     "url": "https://github.com/backtrace-labs/backtrace-morgue/issues"
   },
   "scripts": {
+    "prepublish": "gulp compile",
     "gulp": "gulp"
   },
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",

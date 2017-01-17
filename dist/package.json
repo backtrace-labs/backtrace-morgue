@@ -1,6 +1,6 @@
 {
   "name": "backtrace-morgue",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "command line interface to the Backtrace object store",
   "main": "./dist/lib/coroner.js",
   "keywords": [
@@ -19,6 +19,7 @@
     "url": "https://github.com/backtrace-labs/backtrace-morgue/issues"
   },
   "scripts": {
+    "prepublish": "gulp compile",
     "gulp": "gulp"
   },
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
