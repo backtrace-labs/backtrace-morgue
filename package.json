@@ -1,8 +1,8 @@
 {
   "name": "backtrace-morgue",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "command line interface to the Backtrace object store",
-  "main": "./lib/coroner.js",
+  "main": "./dist/lib/coroner.js",
   "keywords": [
     "backtrace",
     "crashes",
@@ -17,6 +17,10 @@
   "license": "GPL-2.0",
   "bugs": {
     "url": "https://github.com/backtrace-labs/backtrace-morgue/issues"
+  },
+  "scripts": {
+    "prepublish": "gulp compile",
+    "gulp": "gulp"
   },
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
@@ -33,6 +37,12 @@
   },
   "preferGlobal": "true",
   "bin": {
-    "morgue": "./bin/morgue.js"
+    "morgue": "./dist/bin/morgue.js"
+  },
+  "devDependencies": {
+    "babel-preset-env": "^1.1.8",
+    "del": "^2.2.2",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2"
   }
 }
