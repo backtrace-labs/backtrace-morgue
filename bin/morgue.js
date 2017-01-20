@@ -379,6 +379,7 @@ function coronerPut(argv, config) {
   var universe, project;
   var concurrency = 1;
   var n_samples = 32;
+  var supported_compression = {'gzip' : true, 'deflate' : true};
 
   if (!config.submissionEndpoint) {
     console.error('Error: no submission endpoint found'.error);
@@ -386,7 +387,12 @@ function coronerPut(argv, config) {
   }
 
   if (!argv.format || !formats[argv.format]) {
-    console.error('Error: format must be one of btt, json or minidump'.error);
+    console.error('Error: format must be one of btt, json, symbols or minidump'.error);
+    process.exit(1);
+  }
+
+  if (argv.compression && !supported_compression[argv.compression]) {
+    console.error('Error: supported compression are gzip and deflate'.error);
     process.exit(1);
   }
 
@@ -467,7 +473,7 @@ function coronerPut(argv, config) {
               universe: universe,
               project: project,
               format: argv.format
-            }, function(error, result) {
+            }, argv.compression, function(error, result) {
               samples.push(nsToUs(process.hrtime()) - s_st);
 
               if (error) {
@@ -500,7 +506,7 @@ function coronerPut(argv, config) {
             universe: universe,
             project: project,
             format: argv.format
-          }, function(error, result) {
+          }, argv.compression, function(error, result) {
             if (error) {
               console.error((error + '').error)
             } else {
