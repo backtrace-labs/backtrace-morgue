@@ -1148,6 +1148,9 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
     } else if (array[0][1]['unique(' + sort + ')']) {
       transform = unique_compare;
       sf = 'unique(' + sort + ')';
+    } else if (array[0][1]['sum(' + sort + ')']) {
+      transform = unique_compare;
+      sf = 'sum(' + sort + ')';
     }
 
     array.sort(function(a, b) {
