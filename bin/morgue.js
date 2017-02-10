@@ -380,6 +380,7 @@ function coronerPut(argv, config) {
   var concurrency = 1;
   var n_samples = 32;
   var supported_compression = {'gzip' : true, 'deflate' : true};
+  var kvs = null;
 
   if (!config.submissionEndpoint) {
     console.error('Error: no submission endpoint found'.error);
@@ -394,6 +395,10 @@ function coronerPut(argv, config) {
   if (argv.compression && !supported_compression[argv.compression]) {
     console.error('Error: supported compression are gzip and deflate'.error);
     process.exit(1);
+  }
+
+  if (argv.kv) {
+    kvs = argv.kv;
   }
 
   if (Array.isArray(argv._) === true) {
@@ -505,7 +510,8 @@ function coronerPut(argv, config) {
           {
             universe: universe,
             project: project,
-            format: argv.format
+            format: argv.format,
+            kvs: kvs
           }, argv.compression, function(error, result) {
             if (error) {
               console.error((error + '').error)
