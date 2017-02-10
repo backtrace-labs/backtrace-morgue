@@ -23,6 +23,12 @@ you to upload, download and issue queries on objects with-in the object store.
 
 ## Usage
 
+### login
+
+```
+Usage: morgue login <url>
+```
+
 The first step to using `morgue` is to log into a server.
 
 ```
@@ -61,6 +67,15 @@ Usage: morgue get <[<universe>/]project> <object id> [-o <output file>]
 
 Downloads the specified object from the Backtrace object store and prints
 to standard output. Optionally, output the file to disk.
+
+### put
+
+```
+Usage: morgue put <[<universe>/]project> <file> <--format=btt|minidump|json|symbols> [--compression=gzip|deflate] [--kv=key1:value1,key2:value2,...]
+```
+
+Uploads object file to the Backtrace object store. User has options to upload
+compressed file and add key-values to the object.
 
 ### list
 
@@ -162,10 +177,4 @@ unique(hostname): 1
 bin(process.age): 
             23           24 ▆▆▆▆▆▆▆▆▆▆ 1
             24           25 ▆▆▆▆▆▆▆▆▆▆ 1
-```
-
-### login
-
-```
-Usage: morgue login <url>
 ```
