@@ -48,7 +48,8 @@ function usage() {
   console.error("  -k                  Disable SSL verification with CA");
   console.error("  --timeout ms        Set the timeout on API requests in milliseconds");
   console.error("");
-  console.error("There are more options available for querying. See documentation for details.");
+  console.error("Documentation is available at:");
+  console.error("https://github.com/backtrace-labs/backtrace-morgue#readme");
   process.exit(1);
 }
 
