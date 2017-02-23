@@ -98,6 +98,7 @@ var commands = {
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
+  delete: coronerDelete,
 };
 
 main();
@@ -109,6 +110,32 @@ function coronerError(argv, config) {
   }
 
   throw Error(argv._[1]);
+}
+
+/**
+ * @brief Returns the universe/project pair to use for coroner commands.
+ */
+function coronerParams(argv, config) {
+  var p = {};
+
+  if (Array.isArray(argv._) === true && argv._.length > 1) {
+    var split;
+
+    split = argv._[1].split('/');
+    if (split.length === 1) {
+      var first;
+
+      /* Try to automatically derive a path from the one argument. */
+      for (first in config.config.universes) break;
+      p.universe = first;
+      p.project = argv._[1];
+    } else {
+      p.universe = split[0];
+      p.project = split[1];
+    }
+  }
+
+  return p;
 }
 
 function saveConfig(coroner, callback) {
@@ -166,8 +193,6 @@ function abortIfNotLoggedIn(config) {
 }
 
 function coronerControl(argv, config) {
-  var universe, project;
-
   abortIfNotLoggedIn(config);
 
   var coroner = new CoronerClient({
@@ -177,23 +202,6 @@ function coronerControl(argv, config) {
     endpoint: config.endpoint,
     timeout: argv.timeout
   });
-
-  if (Array.isArray(argv._) === true && argv._.length > 1) {
-    var split;
-
-    split = argv._[1].split('/');
-    if (split.length === 1) {
-      var first;
-
-      /* Try to automatically derive a path from the one argument. */
-      for (first in config.config.universes) break;
-      universe = first;
-      project = argv._[1];
-    } else {
-      universe = split[0];
-      project = split[1];
-    }
-  }
 
   if (argv.smr) {
     coroner.control({ 'action': 'graceperiod' }, function(error, r) {
@@ -218,27 +226,10 @@ function coronerControl(argv, config) {
 }
 
 function coronerGet(argv, config) {
-  var universe, project, object, rf;
+  var p, object, rf;
 
   abortIfNotLoggedIn(config);
-
-  if (Array.isArray(argv._) === true) {
-    var split;
-
-    split = argv._[1].split('/');
-    if (split.length === 1) {
-      var first;
-
-      /* Try to automatically derive a path from the one argument. */
-      for (first in config.config.universes) break;
-      universe = first;
-      project = argv._[1];
-    } else {
-      universe = split[0];
-      project = split[1];
-    }
-  }
-
+  p = coronerParams(argv, config);
   object = argv._[2];
 
   const insecure = !!argv.k;
@@ -254,7 +245,7 @@ function coronerGet(argv, config) {
   if (argv.resource)
       rf = argv.resource;
 
-  coroner.fetch(universe, project, object, rf, function(error, result) {
+  coroner.fetch(p.universe, p.project, object, rf, function(error, result) {
     var output = null;
 
     if (argv.output)
@@ -276,8 +267,7 @@ function coronerDescribe(argv, config) {
   abortIfNotLoggedIn(config);
 
   var query = {};
-  var universe = null;
-  var project = null;
+  var p;
   var filter = null;
 
   const insecure = !!argv.k;
@@ -296,27 +286,11 @@ function coronerDescribe(argv, config) {
     return usage();
   }
 
-  if (Array.isArray(argv._) === true) {
-    var split;
+  p = coronerParams(argv, config);
+  if (Array.isArray(argv._) === true && argv._[2])
+    filter = argv._[2];
 
-    split = argv._[1].split('/');
-    if (split.length === 1) {
-      var first;
-
-      /* Try to automatically derive a path from the one argument. */
-      for (first in config.config.universes) break;
-      universe = first;
-      project = argv._[1];
-    } else {
-      universe = split[0];
-      project = split[1];
-    }
-
-    if (argv._[2])
-      filter = argv._[2];
-  }
-
-  coroner.describe(universe, project, function (error, result) {
+  coroner.describe(p.universe, p.project, function (error, result) {
     var cd, i;
     var ml = 0;
 
@@ -377,7 +351,7 @@ function coronerPut(argv, config) {
   const insecure = !!argv.k;
   const debug = argv.debug;
   var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
-  var universe, project;
+  var p;
   var concurrency = 1;
   var n_samples = 32;
   var supported_compression = {'gzip' : true, 'deflate' : true};
@@ -402,22 +376,8 @@ function coronerPut(argv, config) {
     kvs = argv.kv;
   }
 
-  if (Array.isArray(argv._) === true) {
-    var split;
-
-    split = argv._[1].split('/');
-    if (split.length === 1) {
-      var first;
-
-      /* Try to automatically derive a path from the one argument. */
-      for (first in config.config.universes) break;
-      universe = first;
-      project = argv._[1];
-    } else {
-      universe = split[0];
-      project = split[1];
-    }
-  }
+  p = coronerParams(argv, config);
+  p.format = argv.format;
 
   var files = [];
 
@@ -473,13 +433,7 @@ function coronerPut(argv, config) {
           var bind = of % files.length;
           var s_st = nsToUs(process.hrtime());
 
-          coroner.put(
-            files[bind].body,
-            {
-              universe: universe,
-              project: project,
-              format: argv.format
-            }, argv.compression, function(error, result) {
+          coroner.put(files[bind].body, p, argv.compression, function(error, result) {
               samples.push(nsToUs(process.hrtime()) - s_st);
 
               if (error) {
@@ -506,14 +460,7 @@ function coronerPut(argv, config) {
       (function () {
         var bind = i;
 
-        coroner.put(
-          files[bind].body,
-          {
-            universe: universe,
-            project: project,
-            format: argv.format,
-            kvs: kvs
-          }, argv.compression, function(error, result) {
+        coroner.put(files[bind].body, p, argv.compression, function(error, result) {
             if (error) {
               console.error((error + '').error)
             } else {
@@ -544,8 +491,7 @@ function coronerList(argv, config) {
 
   var d_age = '1M';
   var query = {};
-  var universe = null;
-  var project = null;
+  var p;
 
   const insecure = !!argv.k;
   const debug = argv.debug;
@@ -563,22 +509,7 @@ function coronerList(argv, config) {
     return usage();
   }
 
-  if (Array.isArray(argv._) === true) {
-    var split;
-
-    split = argv._[1].split('/');
-    if (split.length === 1) {
-      var first;
-
-      /* Try to automatically derive a path from the one argument. */
-      for (first in config.config.universes) break;
-      universe = first;
-      project = argv._[1];
-    } else {
-      universe = split[0];
-      project = split[1];
-    }
-  }
+  p = coronerParams(argv, config);
 
   if (argv.reverse)
     reverse = -1;
@@ -779,7 +710,7 @@ function coronerList(argv, config) {
       (function queryPr() {
         requests++;
 
-        coroner.query(universe, project, query, function (err, result) {
+        coroner.query(p.universe, p.project, query, function (err, result) {
           samples.push(result._.latency);
 
           if (--n_samples == 0) {
@@ -788,12 +719,12 @@ function coronerList(argv, config) {
             process.exit(0);
           }
 
-          coroner.query(universe, project, query, queryPr);
+          coroner.query(p.universe, p.project, query, queryPr);
         });
       })();
     }
   } else {
-    coroner.query(universe, project, query, function (err, result) {
+    coroner.query(p.universe, p.project, query, function (err, result) {
       if (err) {
         console.error(("Error: " + err.message).error);
         process.exit(1);
@@ -1240,6 +1171,43 @@ function coronerLogin(argv, config) {
         console.log('Logged in.'.success);
       });
     });
+  });
+}
+
+/**
+ * @brief Implements the delete command.
+ */
+function coronerDelete(argv, config) {
+  const endpoint = argv._[1];
+  const insecure = !!argv.k;
+  const debug = argv.debug;
+  var o, p;
+
+  abortIfNotLoggedIn(config);
+
+  var coroner = new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout,
+  });
+
+  if (argv._.length < 2) {
+    console.error("Missing project and object ID arguments".error);
+    return usage();
+  }
+
+  p = coronerParams(argv, config);
+  o = argv._.slice(2);
+
+  process.stderr.write('Deleting...'.blue + '\n');
+  coroner.delete_objects(p.universe, p.project, o, {}, function(error, result) {
+    if (error) {
+      console.error((error + '').error);
+    } else {
+      console.log('Success'.blue);
+    }
   });
 }
 
