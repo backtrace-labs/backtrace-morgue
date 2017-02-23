@@ -87,7 +87,7 @@ same time.
 Usage: morgue list <[<universe>/]project> [substring]
 ```
 
-### Filters
+#### Filters
 
 The filter option expects a comma-delimited list of the form
 `<attribute>,<operation>,<value>`.
@@ -95,7 +95,7 @@ The filter option expects a comma-delimited list of the form
 The currently supported operations are `equal`, `regular-expression`,
 `at-least`, `greater-than`, `at-most` and `less-than`.
 
-### Aggregations
+#### Aggregations
 
 Aggregation is expressed through a myriad of command-line options that express
 different aggregation operations. Options are of form `--<option>=<attribute>`.
@@ -178,3 +178,14 @@ bin(process.age):
             23           24 ▆▆▆▆▆▆▆▆▆▆ 1
             24           25 ▆▆▆▆▆▆▆▆▆▆ 1
 ```
+
+### delete
+
+Allows deleting objects.
+
+```
+Usage: morgue delete <[universe/]project> <oid1> [... oidN]
+```
+
+Object IDs must be specified; they can be found in `morgue list` output.
+The object ID printed in the example above is `9d33`.
