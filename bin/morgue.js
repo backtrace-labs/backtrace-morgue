@@ -1214,7 +1214,8 @@ function coronerDelete(argv, config) {
 function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
-    "string" : [ "fingerprint" ]
+    /* Don't convert fingerprint or non-optional arguments. */
+    "string" : [ "fingerprint", "_" ]
   });
 
   if (argv.v || argv.version) {
