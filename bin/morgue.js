@@ -99,6 +99,7 @@ var commands = {
   put: coronerPut,
   login: coronerLogin,
   delete: coronerDelete,
+  symbol: coronerSymbol,
 };
 
 main();
@@ -481,6 +482,61 @@ function coronerPut(argv, config) {
     }
   }
 
+}
+
+/**
+ * @brief: Implements the symbol list command.
+ */
+function coronerSymbol(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  const insecure = !!argv.k;
+  const debug = argv.debug;
+
+  var coroner = new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout,
+  });
+
+  if (argv._.length < 2) {
+    console.error("Missing project and universe arguments".error);
+    return usage();
+  }
+
+  var p = coronerParams(argv, config);
+
+  var tag = [];
+  if (argv.tag) {
+    tag.push(argv.tag);
+  } else {
+    tag.push('*');
+  };
+
+  coroner.symfile(p.universe, p.project, tag, function (err, result) {
+    if (err) {
+      console.error(("Error: " + err.message).error);
+      process.exit(1);
+    }
+
+    var output = null;
+
+    if (argv.output)
+      output = argv.output;
+    if (argv.o)
+      output = argv.o;
+
+    var json = JSON.stringify(result);
+    if (output) {
+      fs.writeFileSync(output, json);
+      console.log(output);
+      return;
+    }
+
+    process.stdout.write(json);
+  });
 }
 
 /**
