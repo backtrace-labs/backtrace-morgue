@@ -379,6 +379,9 @@ function coronerPut(argv, config) {
 
   p = coronerParams(argv, config);
   p.format = argv.format;
+  if (p.format === 'symbols' && argv.tag) {
+    p.tag = argv.tag;
+  }
 
   var files = [];
 
