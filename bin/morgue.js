@@ -876,6 +876,11 @@ function callstackPrint(cs) {
   var callstack;
   var frames, i, length;
 
+  if (!cs || cs.length === 0) {
+    console.log('');
+    return;
+  }
+
   try {
     callstack = JSON.parse(cs);
   } catch (error) {
