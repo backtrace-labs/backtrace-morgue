@@ -189,3 +189,12 @@ Usage: morgue delete <[universe/]project> <oid1> [... oidN]
 
 Object IDs must be specified; they can be found in `morgue list` output.
 The object ID printed in the example above is `9d33`.
+
+### symbol
+
+```
+Usage: morgue symbol <[<universe>/]project> [-o <output file>]
+```
+
+Retrieve a list of installed symbols from the Backtrace object store and prints
+to standard output. Optionally, output the file to disk.
