@@ -198,3 +198,12 @@ Usage: morgue symbol <[<universe>/]project> [-o <output file>]
 
 Retrieve a list of installed symbols from the Backtrace object store and prints
 to standard output. Optionally, output the file to disk.
+
+### setup
+
+```
+Usage: morgue setup <url>
+```
+
+If you are using an on-premise version of `coronerd`, use `morgue setup`
+to configure the initial organization and user.
