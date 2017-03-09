@@ -206,4 +206,9 @@ Usage: morgue setup <url>
 ```
 
 If you are using an on-premise version of `coronerd`, use `morgue setup`
-to configure the initial organization and user.
+to configure the initial organization and user. For example, if the server is
+`backtrace.mycompany.com`, then you would run `morgue setup http://backtrace.mycompany.com`.
+We recommend resetting your password after you enable SSL (done by configuring
+your certificates).
+
+
