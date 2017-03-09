@@ -315,6 +315,21 @@ function coronerSetupStart(coroner) {
 }
 
 function coronerSetup(argv, config) {
+  var pu;
+
+  try {
+    pu = url.parse(argv._[1]);
+  } catch (error) {
+    process.stderr.write('Usage: morgue setup <url>\n');
+    process.exit(1);
+  }
+
+  if (pu.protocol !== 'http:' &&
+      pu.protocol !== 'https:') {
+    process.stderr.write('Usage: morgue setup <url>\n');
+    process.exit(1);
+  }
+
   var coroner = new CoronerClient({
     insecure: true,
     debug: !!argv.debug,
