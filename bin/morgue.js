@@ -4,6 +4,7 @@
 
 const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
+const BPG       = require('../lib/bpg.js');
 const minimist  = require('minimist');
 const os        = require('os');
 const ip        = require('ip');
@@ -100,6 +101,7 @@ var commands = {
   login: coronerLogin,
   delete: coronerDelete,
   symbol: coronerSymbol,
+  setup: coronerSetup
 };
 
 main();
@@ -191,6 +193,82 @@ function abortIfNotLoggedIn(config) {
 
   console.error('Must login first.'.error);
   process.exit(1);
+}
+
+function coronerSetupUniverse(coroner) {
+  var coronerd = {};
+  var bpg = {};
+  var model;
+  var required = {};
+
+  coronerd.url = coroner.endpoint;
+  coronerd.session = {};
+  coronerd.session.token = '000000000';
+  if (coroner.config && coroner.config.token)
+    coronerd.session.token = coroner.config.token;
+
+  bpg = new BPG.BPG(coronerd);
+
+  process.stderr.write('Validating configuration objects...'.bold);
+  model = bpg.get();
+  process.stdout.write('done\n\n'.green);
+
+  if (!model.universe || model.universe.length === 0) {
+    console.log('Create an organization'.bold);
+    console.log(
+      'We must first configure the organization that is using the object store.\n' +
+      'Please provide a one word name for the organization using the object store.\n' +
+      'For example, if your company name is "Appleseed Systems I/O", you could\n' +
+      'use the name "appleseed".\n');
+
+    promptLib.get([{
+      name: 'universe',
+      message: 'Organization name',
+      required: true
+    }], function(error, result) {
+      var universe = 
+      if (!model.users || model.users.length === 0)
+        required.users = true;
+    });
+  }
+
+  if (!model.project || model.project.length === 0)
+    required.project = true;
+
+  if (!model.token || model.token.length === 0)
+    required.token = true;
+
+  if (Object.keys(required).length === 0) {
+    process.stderr.write(
+      'System setup is complete.\nPlease use a web browser to complete setup:\n');
+    process.stderr.write((coronerd.url + '\n').cyan.bold);
+  }
+}
+
+function coronerSetup(argv, config) {
+  var coroner = new CoronerClient({
+    insecure: true,
+    debug: !!argv.debug,
+    config: config.config,
+    endpoint: argv._[1],
+    timeout: argv.timeout
+  });
+
+  process.stderr.write('Determining system state...'.bold);
+
+  coroner.get('/api/is_configured', '', function(error, response) {
+    response = parseInt(response + '');
+
+    if (response === 0) {
+      process.stderr.write('unconfigured\n'.red);
+      coronerSetupUniverse(coroner);
+    } else {
+      process.stderr.write('configured\n\n'.green);
+
+      console.log('Please login to continue setup.'.bold);
+      coronerLogin(argv, config, coronerSetupUniverse);
+    }
+  });
 }
 
 function coronerControl(argv, config) {
@@ -1184,7 +1262,7 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
 /**
  * @brief Implements the login command.
  */
-function coronerLogin(argv, config) {
+function coronerLogin(argv, config, cb) {
   const endpoint = argv._[1];
   const insecure = !!argv.k;
   const debug = argv.debug;
@@ -1233,6 +1311,10 @@ function coronerLogin(argv, config) {
         }
 
         console.log('Logged in.'.success);
+
+        if (cb) {
+          cb(coroner);
+        }
       });
     });
   });
