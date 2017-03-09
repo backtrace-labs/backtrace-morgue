@@ -4,6 +4,7 @@
 
 const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
+const BPG       = require('../lib/bpg.js');
 const minimist  = require('minimist');
 const os        = require('os');
 const ip        = require('ip');
@@ -100,6 +101,7 @@ var commands = {
   login: coronerLogin,
   delete: coronerDelete,
   symbol: coronerSymbol,
+  setup: coronerSetup
 };
 
 main();
@@ -191,6 +193,151 @@ function abortIfNotLoggedIn(config) {
 
   console.error('Must login first.'.error);
   process.exit(1);
+}
+
+function coronerSetupNext(coroner, bpg) {
+  var model = bpg.get();
+
+  process.stderr.write('\n');
+
+  if (!model.universe || model.universe.length === 0)
+    return coronerSetupUniverse(coroner, bpg);
+
+  if (!model.users || model.users.length === 0)
+    return coronerSetupUser(coroner, bpg);
+
+  process.stderr.write(
+    'Please use a web browser to complete setup:\n');
+  process.stderr.write((coroner.endpoint + '/config/' + model.universe[0].get('name') + '\n').cyan.bold);
+  return;
+}
+
+function coronerSetupUser(coroner, bpg) {
+  console.log('Create an administrator'.bold);
+  console.log(
+    'We must create an administrator user. This user will be used to configure\n' +
+    'the server as well as perform system-wide administrative tasks.\n');
+
+  promptLib.get([
+  {
+    name: 'username',
+    description: 'Username',
+    pattern: /^[a-z0-9\_]+$/,
+    type: 'string',
+    required: true
+  },
+  {
+    name: 'email',
+    description: 'E-mail address',
+    required: true,
+    type: 'string',
+    pattern: /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/
+  },
+  {
+    name: 'password',
+    description: 'Password',
+    required: true,
+    hidden: true,
+    replace: '*',
+    type: 'string'
+  },
+  {
+    name: 'passwordConfirm',
+    description: 'Confirm password',
+    required: true,
+    hidden: true,
+    replace: '*',
+    type: 'string'
+  },
+  ], function(error, result) {
+    var model = bpg.get();
+
+    if (result.password !== result.passwordConfirm) {
+      process.stderr.write('Passwords do not match.\n'.red);
+      process.exit(1);
+    }
+
+    var user = bpg.new('users');
+    user.set('uid', 0);
+    user.set('superuser', 1);
+    user.set('method', 'password');
+    user.set('universe', model.universe[0].get('id'));
+    user.set('username', result.username);
+    user.set('email', result.email);
+    user.set('password', BPG.blobText(result.password));
+    bpg.create(user);
+    bpg.commit();
+
+    return coronerSetupNext(coroner, bpg);
+  });
+}
+
+function coronerSetupUniverse(coroner, bpg) {
+  console.log('Create an organization'.bold);
+  console.log(
+    'We must first configure the organization that is using the object store.\n' +
+    'Please provide a one word name for the organization using the object store.\n' +
+    'For example, if your company name is "Appleseed Systems I/O", you could\n' +
+    'use the name "appleseed". The name must be lowercase.\n');
+
+  promptLib.get([{
+    name: 'universe',
+    description: 'Organization name',
+    message: 'Must be lowercase and only contains letters.',
+    type: 'string',
+    pattern: /^[a-z0-9]+$/,
+    required: true
+  }], function(error, result) {
+    var universe = bpg.new('universe');
+    universe.set('id', 0);
+    universe.set('name', result.universe);
+    bpg.create(universe);
+    bpg.commit();
+    return coronerSetupNext(coroner, bpg);
+  });
+}
+
+function coronerSetupStart(coroner) {
+  var coronerd = {};
+  var bpg = {};
+  var model;
+  var required = {};
+
+  coronerd.url = coroner.endpoint;
+  coronerd.session = {};
+  coronerd.session.token = '000000000';
+  if (coroner.config && coroner.config.token)
+    coronerd.session.token = coroner.config.token;
+
+  bpg = new BPG.BPG(coronerd);
+
+  return coronerSetupNext(coroner, bpg);
+}
+
+function coronerSetup(argv, config) {
+  var coroner = new CoronerClient({
+    insecure: true,
+    debug: !!argv.debug,
+    config: config.config,
+    endpoint: argv._[1],
+    timeout: argv.timeout
+  });
+
+  process.stderr.write('Determining system state...'.bold);
+
+  coroner.get('/api/is_configured', '', function(error, response) {
+    response = parseInt(response + '');
+
+    if (response === 0) {
+      process.stderr.write('unconfigured\n'.red);
+      return coronerSetupStart(coroner);
+    } else {
+      process.stderr.write('configured\n\n'.green);
+
+      console.log('Please login to continue setup.'.bold);
+      return coronerLogin(argv, config, coronerSetupStart);
+    }
+  });
 }
 
 function coronerControl(argv, config) {
@@ -1184,7 +1331,7 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
 /**
  * @brief Implements the login command.
  */
-function coronerLogin(argv, config) {
+function coronerLogin(argv, config, cb) {
   const endpoint = argv._[1];
   const insecure = !!argv.k;
   const debug = argv.debug;
@@ -1233,6 +1380,10 @@ function coronerLogin(argv, config) {
         }
 
         console.log('Logged in.'.success);
+
+        if (cb) {
+          cb(coroner);
+        }
       });
     });
   });
