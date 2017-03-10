@@ -71,11 +71,16 @@ to standard output. Optionally, output the file to disk.
 ### put
 
 ```
-Usage: morgue put <[<universe>/]project> <file> <--format=btt|minidump|json|symbols> [--compression=gzip|deflate] [--kv=key1:value1,key2:value2,...]
+Usage: morgue put <[<universe>/]project> <file> <--format=btt|minidump|json|symbols> [options]
 ```
 
-Uploads object file to the Backtrace object store. User has options to upload
-compressed file and add key-values to the object.
+Uploads object file to the Backtrace object store. User has the following options
+
+| Option        | Description |
+|---------------|-------------|
+| `--compression=gzip|deflate`| uploaded file is compressed |
+| `--kv=key1:value1,key2:value2,...`| upload key-values |
+| `--form_data`| upload file by multipart/form-data post request |
 
 ### list
 

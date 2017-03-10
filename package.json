@@ -33,6 +33,7 @@
     "moment": "^2.15.1",
     "printf": "^0.2.5",
     "prompt": "^1.0.0",
+    "request": "^2.80.0",
     "streamsink": "^1.2.0",
     "sync-request": "^4.0.1",
     "time-ago": "^0.1.0"
