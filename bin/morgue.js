@@ -513,12 +513,12 @@ function coronerPut(argv, config) {
   abortIfNotLoggedIn(config);
   const insecure = !!argv.k;
   const debug = argv.debug;
+  const form = argv.form_data;
   var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
   var p;
   var concurrency = 1;
   var n_samples = 32;
   var supported_compression = {'gzip' : true, 'deflate' : true};
-  var kvs = null;
 
   if (!config.submissionEndpoint) {
     console.error('Error: no submission endpoint found'.error);
@@ -535,14 +535,13 @@ function coronerPut(argv, config) {
     process.exit(1);
   }
 
-  if (argv.kv) {
-    kvs = argv.kv;
-  }
-
   p = coronerParams(argv, config);
   p.format = argv.format;
   if (p.format === 'symbols' && argv.tag) {
     p.tag = argv.tag;
+  }
+  if (p.format === 'minidump' && argv.kv) {
+    p.kvs = argv.kv;
   }
 
   var files = [];
@@ -626,7 +625,12 @@ function coronerPut(argv, config) {
       (function () {
         var bind = i;
 
-        coroner.put(files[bind].body, p, argv.compression, function(error, result) {
+        if (form) {
+          coroner.put_form(files[bind].path, null, p, putCallBack);
+        } else {
+          coroner.put(files[bind].body, p, argv.compression, putCallBack);
+        }
+        function putCallBack(error, result) {
             if (error) {
               console.error((error + '').error)
             } else {
@@ -642,7 +646,7 @@ function coronerPut(argv, config) {
               if (!argv.benchmark)
                 process.exit(0);
             }
-        });
+        }
       })();
     }
   }
