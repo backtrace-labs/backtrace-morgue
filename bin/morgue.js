@@ -5,6 +5,7 @@
 const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
 const BPG       = require('../lib/bpg.js');
+const Report    = require('../lib/report.js');
 const minimist  = require('minimist');
 const os        = require('os');
 const ip        = require('ip');
@@ -101,7 +102,8 @@ var commands = {
   login: coronerLogin,
   delete: coronerDelete,
   symbol: coronerSymbol,
-  setup: coronerSetup
+  setup: coronerSetup,
+  report: coronerReport
 };
 
 main();
@@ -353,6 +355,21 @@ function coronerSetup(argv, config) {
       return coronerLogin(argv, config, coronerSetupStart);
     }
   });
+}
+
+function coronerReport(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  var coroner = new CoronerClient({
+    insecure: !!argv.k,
+    debug: !!argv.debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout
+  });
+
+  var report = new Report(coroner, 'coronerd');
+  report.generate('./lol.html');
 }
 
 function coronerControl(argv, config) {
