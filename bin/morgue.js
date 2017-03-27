@@ -489,6 +489,13 @@ function coronerDescribe(argv, config) {
       return a.name.localeCompare(b.name);
     });
 
+    
+    if (argv.json) {
+      console.log(JSON.stringify(cd, null, 2));
+      process.exit(0);
+    }
+
+
     for (i = 0; i < cd.length; i++) {
       let it = cd[i];
       var name, description;
