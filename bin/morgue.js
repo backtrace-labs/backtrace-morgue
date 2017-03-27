@@ -857,6 +857,7 @@ function coronerList(argv, config) {
   }
 
   function fold(query, attribute, label, cb) {
+
     var argv, i;
 
     if (!query.fold)
@@ -896,8 +897,9 @@ function coronerList(argv, config) {
     fold(query, argv.object, 'object', noFormatPrint);
   if (argv.histogram)
     fold(query, argv.histogram, 'histogram', histogramPrint);
-  if (argv.unique)
-    fold(query, argv.unique, 'unique', unaryPrint);
+  if (argv.unique) {
+    fold(query, argv.unique, 'unique', noFormatPrint);
+  }
   if (argv.sum)
     fold(query, argv.sum, 'sum', unaryPrint);
   if (argv.quantize)
@@ -1146,6 +1148,7 @@ function callstackPrint(cs) {
 }
 
 function objectPrint(g, object, columns, fields) {
+
   var string = String(g);
   var field, start, stop, sa;
 
@@ -1285,7 +1288,7 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
   var renderer = {
     head: unaryPrint,
     tail: unaryPrint,
-    unique: unaryPrint,
+    unique: noFormatPrint,
     object: noFormatPrint,
     sum: unaryPrint,
     histogram: histogramPrint,
