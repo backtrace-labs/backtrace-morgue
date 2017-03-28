@@ -368,7 +368,9 @@ function coronerReport(argv, config) {
     timeout: argv.timeout
   });
 
-  var report = new Report(coroner, 'coronerd');
+  var p = coronerParams(argv, config);
+
+  var report = new Report(coroner, p.universe, p.project, 'coronerd');
   report.generate('./lol.html');
 }
 
