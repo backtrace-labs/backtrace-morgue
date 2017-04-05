@@ -25,6 +25,7 @@
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
     "backtrace-node": "^0.7.2",
+    "btoa": "^1.1.2",
     "clone": "^2.1.0",
     "colors": "^1.1.2",
     "ip": "^1.1.4",
