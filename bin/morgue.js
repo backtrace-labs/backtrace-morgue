@@ -318,7 +318,7 @@ function coronerSetupStart(coroner) {
 
 function coronerSetup(argv, config) {
   var pu;
-
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!!!argv.k) ? "1" : "0";
   try {
     pu = url.parse(argv._[1]);
   } catch (error) {
