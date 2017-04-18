@@ -198,7 +198,7 @@ The object ID printed in the example above is `9d33`.
 ### flamegraph
 
 ```
-Usage: morgue flamegraph [--filter=<filter expression>] [-o file.svg]
+Usage: morgue flamegraph [--filter=<filter expression>] [--reverse] [--unique] [-o file.svg]
 ```
 
 Generate a flamegraph of callstacks of all objects matching the specified
@@ -206,6 +206,9 @@ filter criteria. The `--filter` option behaves identically to the `list`
 sub-command. This functionality requires `perl` to be installed.
 To learn more about flamegraphs, please see
 http://www.brendangregg.com/flamegraphs.html.
+
+Use `--unique` to only sample unique crashes. Use `--reverse` to begin sampling
+from leaf functions.
 
 ### symbol
 
