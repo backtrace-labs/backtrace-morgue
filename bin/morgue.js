@@ -20,8 +20,11 @@ const mkdirp    = require('mkdirp');
 const promptLib = require('prompt');
 const path      = require('path');
 const bt        = require('backtrace-node');
+const spawn     = require('child_process').spawn;
 const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
+
+var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
 var callstackError = false;
 var error = colors.red;
@@ -864,8 +867,9 @@ function argvQuery(argv) {
 
 function coronerFlamegraph(argv, config) {
   abortIfNotLoggedIn(config);
-  var query;
-  var p;
+  var query, p;
+  var unique = argv.unique;
+  var reverse = argv.reverse;
 
   const insecure = !!argv.k;
   const debug = argv.debug;
@@ -888,6 +892,7 @@ function coronerFlamegraph(argv, config) {
   var aq = argvQuery(argv);
   query = aq.query;
   var d_age = aq.age;
+  var data = '';
 
   query.fold = {
     'callstack' : [['histogram']]
@@ -899,6 +904,7 @@ function coronerFlamegraph(argv, config) {
       process.exit(1);
     }
 
+    var child = spawn(flamegraph);
     var rp = new crdb.Response(result.response);
     rp = rp.unpack();
 
@@ -914,18 +920,41 @@ function coronerFlamegraph(argv, config) {
       }
 
       var count = samples[i][1];
-
       var line = '';
 
-      for (var j = callstack.length - 1; j >= 0; j--) {
-        if (j != callstack.length - 1)
-          line += ';';
+      if (argv.reverse) {
+        for (var j = 0; j < callstack.length; j++) {
+          if (j != 0)
+            line += ';';
 
-        line += callstack[j];
+          line += callstack[j];
+        }
+      } else {
+        for (var j = callstack.length - 1; j >= 0; j--) {
+          if (j != callstack.length - 1)
+            line += ';';
+
+          line += callstack[j];
+        }
       }
 
-      line += ' ' + count;
-console.log(line);
+      if (unique) {
+        line += ' 1';
+      } else {
+        line += ' ' + count;
+      }
+
+      child.stdin.write(line + '\n');
+    }
+
+    child.stdin.end();
+
+    if (argv.o) {
+      
+    } else {
+      child.stdout.on('data', (data) => {
+        process.stdout.write(data + '');
+      });
     }
   });
 }
