@@ -161,6 +161,11 @@ $help && usage();
 
 # internals
 my $ypad1 = $fontsize * 4;      # pad top, include title
+
+if ($ypad1 < 80) {
+	$ypad1 = 80;
+}
+
 my $ypad2 = $fontsize * 2 + 10; # pad bottom, include labels
 my $xpad = 10;                  # pad lefm and right
 my $framepad = 1;		# vertical padding for frames
@@ -219,6 +224,7 @@ if ($colors =~ /^(io|wakeup|red|green|blue|aqua|yellow|purple|orange)$/) {
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <?xml-stylesheet href="https://fonts.googleapis.com/css?family=Source+Code+Pro"?>
 <svg version="1.1" width="$w" height="$h" onload="init(evt)" viewBox="0 0 $w $h" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 SVG
 	}
@@ -281,7 +287,7 @@ SVG
 
 	sub svg {
 		my $self = shift;
-		return "$self->{svg}</svg>\n";
+		return "$self->{svg}<image xlink:href=\"https://backtrace.io/images/logo.png\" x=\"5\" y=\"5\" height=\"19px\" width=\"90px\"/></svg>";
 	}
 	1;
 }
@@ -978,7 +984,7 @@ my ($white, $black, $vvdgrey, $vdgrey, $dgrey) = (
     );
 $im->stringTTF($black, $fonttype, $fontsize + 5, 0.0, int($imagewidth / 2), $fontsize * 2, $titletext, "middle");
 $im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $imageheight - ($ypad2 / 2), " ", "", 'id="details"');
-$im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad, $fontsize * 2,
+$im->stringTTF($black, $fonttype, $fontsize, 0.0, $xpad + 200, $fontsize * 2,
     "Reset Zoom", "", 'id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer"');
 $im->stringTTF($black, $fonttype, $fontsize, 0.0, $imagewidth - $xpad - 100,
     $fontsize * 2, "Search", "", 'id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:1.0;cursor:pointer"');

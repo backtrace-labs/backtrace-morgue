@@ -950,7 +950,16 @@ function coronerFlamegraph(argv, config) {
     child.stdin.end();
 
     if (argv.o) {
-      
+      try {
+        fs.accessSync(argv.o);
+        console.error(('File ' + argv.o + ' already exists.').error);
+        process.exit(1);
+      } catch (error) {
+        /* We are fine, not replacing a file probably. */
+      }
+
+      var stream = fs.createWriteStream(argv.o);
+      child.stdout.pipe(stream);
     } else {
       child.stdout.on('data', (data) => {
         process.stdout.write(data + '');
