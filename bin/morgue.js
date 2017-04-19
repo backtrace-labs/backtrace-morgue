@@ -519,7 +519,6 @@ function coronerDescribe(argv, config) {
       process.exit(0);
     }
 
-
     for (i = 0; i < cd.length; i++) {
       let it = cd[i];
       var name, description;
@@ -749,6 +748,14 @@ function coronerSymbol(argv, config) {
 
     var output = null;
 
+    if (argv.debug)
+      return;
+
+    if (argv.json) {
+      console.log(JSON.stringify(result));
+      return;
+    }
+
     if (argv.output)
       output = argv.output;
     if (argv.o)
@@ -780,7 +787,8 @@ function coronerSymbol(argv, config) {
             'alignment' : 'right'
           },
           7 : {
-            'alignment' : 'right'
+            'width' : 80,
+            'wrapWord' : true
           }
         }
       };
@@ -808,15 +816,22 @@ function coronerSymbol(argv, config) {
         for (var j = 0; j < files.length; j++) {
           var file = files[j];
           var label = '--';
+          var dt;
+
+          if (!argv.a) {
+            dt = ta.ago(file.upload_time * 1000);
+          } else {
+            dt = new Date(file.upload_time * 1000);
+          }
 
           if (file.errors.length > 0) {
-            label = file.errors.join('\n');
+            label = file.errors.join('. ');
           }
 
           data.push([
             file.archive_id,
-            file.upload_time,
-            file.file_size,
+            dt,
+            Math.ceil(file.file_size / 1024) + 'KB',
             file.status,
             file.new_symbols,
             file.duplicate_symbols,
@@ -871,6 +886,7 @@ function coronerSymbol(argv, config) {
 
         for (var j = 0; j < tags[i].files.length; j++) {
           var file = tags[i].files[j];
+          var dt;
 
           if (filter) {
             var string = JSON.stringify(file);
@@ -878,9 +894,15 @@ function coronerSymbol(argv, config) {
               continue;
           }
 
+          if (!argv.a) {
+            dt = ta.ago(file.upload_time * 1000);
+          } else {
+            dt = new Date(file.upload_time * 1000);
+          }
+
           data.push([
             file.archive_id,
-            new Date(file.upload_time * 1000),
+            dt,
             file.debug_file,
             file.debug_identifier,
             Math.ceil(file.file_size / 1024) + 'KB',
