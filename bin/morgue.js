@@ -20,8 +20,11 @@ const mkdirp    = require('mkdirp');
 const promptLib = require('prompt');
 const path      = require('path');
 const bt        = require('backtrace-node');
+const spawn     = require('child_process').spawn;
 const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
+
+var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
 var callstackError = false;
 var error = colors.red;
@@ -94,6 +97,7 @@ function printSamples(requests, samples, start, stop, concurrency) {
 var commands = {
   error: coronerError,
   list: coronerList,
+  flamegraph: coronerFlamegraph,
   control: coronerControl,
   ls: coronerList,
   describe: coronerDescribe,
@@ -318,7 +322,7 @@ function coronerSetupStart(coroner) {
 
 function coronerSetup(argv, config) {
   var pu;
-
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!!!argv.k) ? "1" : "0";
   try {
     pu = url.parse(argv._[1]);
   } catch (error) {
@@ -734,33 +738,9 @@ function coronerSymbol(argv, config) {
   });
 }
 
-/**
- * @brief: Implements the list command.
- */
-function coronerList(argv, config) {
-  abortIfNotLoggedIn(config);
-
-  var d_age = '1M';
+function argvQuery(argv) {
   var query = {};
-  var p;
-
-  const insecure = !!argv.k;
-  const debug = argv.debug;
-
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout,
-  });
-
-  if (argv._.length < 2) {
-    console.error("Missing project and universe arguments".error);
-    return usage();
-  }
-
-  p = coronerParams(argv, config);
+  var d_age = '1M';
 
   if (argv.reverse)
     reverse = -1;
@@ -881,6 +861,142 @@ function coronerList(argv, config) {
       }
     }
   }
+
+  return { query: query, age: d_age };
+}
+
+function coronerFlamegraph(argv, config) {
+  abortIfNotLoggedIn(config);
+  var query, p;
+  var unique = argv.unique;
+  var reverse = argv.reverse;
+
+  const insecure = !!argv.k;
+  const debug = argv.debug;
+
+  var coroner = new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout,
+  });
+
+  if (argv._.length < 2) {
+    console.error("Missing project and universe arguments".error);
+    return usage();
+  }
+
+  p = coronerParams(argv, config);
+
+  var aq = argvQuery(argv);
+  query = aq.query;
+  var d_age = aq.age;
+  var data = '';
+
+  query.fold = {
+    'callstack' : [['histogram']]
+  };
+
+  coroner.query(p.universe, p.project, query, function (err, result) {
+    if (err) {
+      console.error(("Error: " + err.message).error);
+      process.exit(1);
+    }
+
+    var child = spawn(flamegraph);
+    var rp = new crdb.Response(result.response);
+    rp = rp.unpack();
+
+    var samples = rp['*']['histogram(callstack)'];
+
+    for (var i = 0; i < samples.length; i++) {
+      var callstack;
+
+      try {
+        callstack = JSON.parse(samples[i][0]).frame;
+      } catch (error) {
+        continue;
+      }
+
+      var count = samples[i][1];
+      var line = '';
+
+      if (argv.reverse) {
+        for (var j = 0; j < callstack.length; j++) {
+          if (j != 0)
+            line += ';';
+
+          line += callstack[j];
+        }
+      } else {
+        for (var j = callstack.length - 1; j >= 0; j--) {
+          if (j != callstack.length - 1)
+            line += ';';
+
+          line += callstack[j];
+        }
+      }
+
+      if (unique) {
+        line += ' 1';
+      } else {
+        line += ' ' + count;
+      }
+
+      child.stdin.write(line + '\n');
+    }
+
+    child.stdin.end();
+
+    if (argv.o) {
+      try {
+        fs.accessSync(argv.o);
+        console.error(('File ' + argv.o + ' already exists.').error);
+        process.exit(1);
+      } catch (error) {
+        /* We are fine, not replacing a file probably. */
+      }
+
+      var stream = fs.createWriteStream(argv.o);
+      child.stdout.pipe(stream);
+    } else {
+      child.stdout.on('data', (data) => {
+        process.stdout.write(data + '');
+      });
+    }
+  });
+}
+
+/**
+ * @brief: Implements the list command.
+ */
+function coronerList(argv, config) {
+  abortIfNotLoggedIn(config);
+  var query;
+  var p;
+
+  const insecure = !!argv.k;
+  const debug = argv.debug;
+
+  var coroner = new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    config: config.config,
+    endpoint: config.endpoint,
+    timeout: argv.timeout,
+  });
+
+  if (argv._.length < 2) {
+    console.error("Missing project and universe arguments".error);
+    return usage();
+  }
+
+  p = coronerParams(argv, config);
+
+  var aq = argvQuery(argv);
+  query = aq.query;
+  var d_age = aq.age;
 
   function fold(query, attribute, label, cb) {
 
