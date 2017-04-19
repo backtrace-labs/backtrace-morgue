@@ -734,8 +734,11 @@ function coronerSymbol(argv, config) {
       "extract_time",
       "convert_time"
     ];
-  } else if (action === 'status') {
+  } else if (action === 'status' || !action) {
     query.action = 'archives';
+  } else {
+    console.error('Usage: morgue symbol <project> [list | status]'.error);
+    process.exit(1);
   }
 
   coroner.symfile(p.universe, p.project, query, function (err, result) {
