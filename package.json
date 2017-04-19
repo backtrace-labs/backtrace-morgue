@@ -37,6 +37,7 @@
     "request": "^2.80.0",
     "streamsink": "^1.2.0",
     "sync-request": "^4.0.1",
+    "table": "^4.0.1",
     "time-ago": "^0.1.0"
   },
   "preferGlobal": "true",

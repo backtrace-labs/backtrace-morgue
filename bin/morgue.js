@@ -19,6 +19,7 @@ const fs        = require('fs');
 const mkdirp    = require('mkdirp');
 const promptLib = require('prompt');
 const path      = require('path');
+const table     = require('table').table;
 const bt        = require('backtrace-node');
 const spawn     = require('child_process').spawn;
 const url       = require('url');
@@ -691,6 +692,21 @@ function coronerSymbol(argv, config) {
 
   const insecure = !!argv.k;
   const debug = argv.debug;
+  const query = { 'form' : {} };
+  var action = argv._[2];
+  var filter;
+
+  if (argv.tag) {
+    if (Array.isArray(argv.tag)) {
+      query.form.tags = argv.tag;
+    } else {
+      query.form.tags = [argv.tag];
+    }
+  }
+
+  if (argv.filter) {
+    filter = argv.filter;
+  }
 
   var coroner = new CoronerClient({
     insecure: insecure,
@@ -707,14 +723,22 @@ function coronerSymbol(argv, config) {
 
   var p = coronerParams(argv, config);
 
-  var tag = [];
-  if (argv.tag) {
-    tag.push(argv.tag);
-  } else {
-    tag.push('*');
-  };
+  if (action === 'list') {
+    query.action = 'symbols';
+    query.form.values = [
+      "debug_file",
+      "debug_identifier",
+      "archive_id",
+      "file_size",
+      "upload_time",
+      "extract_time",
+      "convert_time"
+    ];
+  } else if (action === 'status') {
+    query.action = 'archives';
+  }
 
-  coroner.symfile(p.universe, p.project, tag, function (err, result) {
+  coroner.symfile(p.universe, p.project, query, function (err, result) {
     if (err) {
       console.error(("Error: " + err.message).error);
       process.exit(1);
@@ -727,14 +751,149 @@ function coronerSymbol(argv, config) {
     if (argv.o)
       output = argv.o;
 
-    var json = JSON.stringify(result);
     if (output) {
+      var json = JSON.stringify(result);
+
       fs.writeFileSync(output, json);
-      console.log(output);
       return;
     }
 
-    process.stdout.write(json);
+    if (action === 'status' || !action) {
+      const tableFormat = {
+        drawHorizontalLine: (index, size) => {
+          return index === 0 || index === 1 || index === size - 1 || index === size;
+        },
+        columns: {
+          2 : {
+            'alignment' : 'right'
+          },
+          4 : {
+            'alignment' : 'right'
+          },
+          5 : {
+            'alignment' : 'right'
+          },
+          6 : {
+            'alignment' : 'right'
+          },
+          7 : {
+            'alignment' : 'right'
+          }
+        }
+      };
+
+      var response = result.response.archives;
+      var title = [
+        'A',
+        'Upload Date',
+        'Size',
+        'Status',
+        'Symbols',
+        'Duplicates',
+        'Invalid',
+        'Errors'
+      ];
+
+      for (var i = 0; i < response.length; i++) {
+        var files = response[i].files;
+        var data = [title];
+
+        files.sort(function(a, b) {
+          return (a.upload_time > b.upload_time) - (b.upload_time > a.upload_time);
+        });
+
+        for (var j = 0; j < files.length; j++) {
+          var file = files[j];
+          var label = '--';
+
+          if (file.errors.length > 0) {
+            label = file.errors.join('\n');
+          }
+
+          data.push([
+            file.archive_id,
+            file.upload_time,
+            file.file_size,
+            file.status,
+            file.new_symbols,
+            file.duplicate_symbols,
+            file.invalid_symbols,
+            label
+          ]);
+        }
+
+        data.push(title);
+        if (data.length > 2) {
+          console.log('Tag: '.yellow + response[i].tag);
+          console.log(table(data, tableFormat));
+        }
+      }
+    }
+
+    if (action === 'list') {
+      const tableFormat = {
+        drawHorizontalLine: (index, size) => {
+          return index === 0 || index === 1 || index === size - 1 || index === size;
+        },
+        columns: {
+          4 : {
+            'alignment' : 'right'
+          },
+          5 : {
+            'alignment' : 'right'
+          },
+          6 : {
+            'alignment' : 'right'
+          }
+        }
+      };
+
+      var tags = result.response.symbols;
+      var titlePrint = false;
+      for (var i = 0; i < tags.length; i++) {
+        var title = [
+          'A',
+          'Upload Date',
+          'Debug File',
+          'GUID',
+          'Size',
+          'Extraction',
+          'Conversion'
+        ];
+        var data = [ title ];
+
+        tags[i].files.sort(function(a, b) {
+          return (a.upload_time > b.upload_time) - (b.upload_time > a.upload_time);
+        });
+
+        for (var j = 0; j < tags[i].files.length; j++) {
+          var file = tags[i].files[j];
+
+          if (filter) {
+            var string = JSON.stringify(file);
+            if (string.indexOf(filter) === -1)
+              continue;
+          }
+
+          data.push([
+            file.archive_id,
+            new Date(file.upload_time * 1000),
+            file.debug_file,
+            file.debug_identifier,
+            Math.ceil(file.file_size / 1024) + 'KB',
+            file.extract_time > 0 ? (file.extract_time + 'ms') : '--',
+            file.convert_time > 0 ? (file.convert_time + 'ms') : '--'
+          ]);
+        }
+
+        data.push(title);
+
+        if (data.length > 2) {
+          console.log('Tag: '.yellow + tags[i].tag);
+          console.log(table(data, tableFormat));
+        }
+      }
+    }
   });
 }
 
