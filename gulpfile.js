@@ -6,6 +6,7 @@ gulp.task('compile', [
   'clean',
   'copy-package-json',
   'compile-lib',
+  'copy-assets',
   'compile-bin',
 ]);
 
@@ -13,6 +14,11 @@ gulp.task('compile-lib', function () {
   return gulp.src('lib/*.js')
   .pipe(babel())
   .pipe(gulp.dest('dist/lib'));
+});
+
+gulp.task('copy-assets', function () {
+  return gulp.src(['assets/**'])
+  .pipe(gulp.dest('dist/assets'));
 });
 
 gulp.task('compile-bin', function () {
