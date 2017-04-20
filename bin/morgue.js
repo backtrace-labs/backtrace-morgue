@@ -376,7 +376,7 @@ function coronerReport(argv, config) {
   var p = coronerParams(argv, config);
 
   var report = new Report(coroner, p.universe, p.project, 'coronerd');
-  report.generate('./lol.html');
+  report.generate('./report.html');
 }
 
 function coronerControl(argv, config) {
