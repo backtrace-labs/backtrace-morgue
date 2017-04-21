@@ -96,6 +96,7 @@ function printSamples(requests, samples, start, stop, concurrency) {
 }
 
 var commands = {
+  bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
   flamegraph: coronerFlamegraph,
@@ -304,25 +305,48 @@ function coronerSetupUniverse(coroner, bpg) {
   });
 }
 
-function coronerSetupStart(coroner) {
-  var coronerd = {};
+function coronerBpgSetup(coroner) {
+  var coronerd = {
+    url: coroner.endpoint,
+    session: { token: '000000000' }
+  };
   var bpg = {};
-  var model;
-  var required = {};
 
-  coronerd.url = coroner.endpoint;
-  coronerd.session = {};
-  coronerd.session.token = '000000000';
   if (coroner.config && coroner.config.token)
     coronerd.session.token = coroner.config.token;
 
   bpg = new BPG.BPG(coronerd);
+  return bpg;
+}
+
+function coronerClient(config, insecure, debug, endpoint, timeout) {
+  return new CoronerClient({
+    insecure: insecure,
+    debug: debug,
+    endpoint: endpoint,
+    timeout: timeout,
+    config: config.config
+  });
+}
+
+function coronerClientArgv(config, argv) {
+  return coronerClient(config, !!argv.k, !!argv.debug, config.endpoint,
+    argv.timeout);
+}
+
+function coronerClientArgvSubmit(config, argv) {
+  return coronerClient(config, !!argv.k, argv.debug,
+    config.submissionEndpoint, argv.timeout);
+}
+
+function coronerSetupStart(coroner) {
+  var bpg = coronerBpgSetup(coroner);
 
   return coronerSetupNext(coroner, bpg);
 }
 
 function coronerSetup(argv, config) {
-  var pu;
+  var coroner, pu;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!!!argv.k) ? "1" : "0";
   try {
     pu = url.parse(argv._[1]);
@@ -337,13 +361,7 @@ function coronerSetup(argv, config) {
     process.exit(1);
   }
 
-  var coroner = new CoronerClient({
-    insecure: true,
-    debug: !!argv.debug,
-    config: config.config,
-    endpoint: argv._[1],
-    timeout: argv.timeout
-  });
+  coroner = coronerClient(config, true, !!argv.debug, argv._[1], argv.timeout);
 
   process.stderr.write('Determining system state...'.bold);
 
@@ -364,14 +382,7 @@ function coronerSetup(argv, config) {
 
 function coronerReport(argv, config) {
   abortIfNotLoggedIn(config);
-
-  var coroner = new CoronerClient({
-    insecure: !!argv.k,
-    debug: !!argv.debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   var p = coronerParams(argv, config);
 
@@ -381,14 +392,7 @@ function coronerReport(argv, config) {
 
 function coronerControl(argv, config) {
   abortIfNotLoggedIn(config);
-
-  var coroner = new CoronerClient({
-    insecure: !!argv.k,
-    debug: !!argv.debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv.smr) {
     coroner.control({ 'action': 'graceperiod' }, function(error, r) {
@@ -419,15 +423,7 @@ function coronerGet(argv, config) {
   p = coronerParams(argv, config);
   object = argv._[2];
 
-  const insecure = !!argv.k;
-  const debug = argv.debug;
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv.resource)
       rf = argv.resource;
@@ -457,16 +453,7 @@ function coronerDescribe(argv, config) {
   var p;
   var filter = null;
 
-  const insecure = !!argv.k;
-  const debug = argv.debug;
-
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout,
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
     console.error("Missing project and universe arguments".error);
@@ -541,8 +528,6 @@ function coronerDescribe(argv, config) {
 
 function coronerPut(argv, config) {
   abortIfNotLoggedIn(config);
-  const insecure = !!argv.k;
-  const debug = argv.debug;
   const form = argv.form_data;
   var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
   var p;
@@ -596,13 +581,7 @@ function coronerPut(argv, config) {
     process.exit(1);
   }
 
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.submissionEndpoint,
-    timeout: argv.timeout,
-  });
+  var coroner = coronerClientArgvSubmit(config, argv);
 
   if (argv.concurrency)
     concurrency = parseInt(argv.concurrency);
@@ -689,8 +668,6 @@ function coronerPut(argv, config) {
 function coronerSymbol(argv, config) {
   abortIfNotLoggedIn(config);
 
-  const insecure = !!argv.k;
-  const debug = argv.debug;
   const query = { 'form' : {} };
   var action = argv._[2];
   var filter;
@@ -707,13 +684,7 @@ function coronerSymbol(argv, config) {
     filter = argv.filter;
   }
 
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout,
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
     console.error("Missing project and universe arguments".error);
@@ -1049,22 +1020,51 @@ function argvQuery(argv) {
   return { query: query, age: d_age };
 }
 
+/*
+ * This is meant primarily for debugging & testing; it could be extended to
+ * offer a CLI-structured way to represent BPG commands.
+ */
+function coronerBpg(argv, config) {
+  abortIfNotLoggedIn(config);
+  var json, request, response;
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner);
+
+  if (!argv.raw) {
+    console.error("Only raw commands are supported".error);
+    return usage();
+  }
+
+  request = argv.raw;
+  if (!request && argv._.length >= 2)
+    request = argv._[1];
+
+  if (!request) {
+    console.error("Missing command argument".error);
+    return usage();
+  }
+
+  request = JSON.parse(request);
+  console.log("POSTing: ", request);
+  response = bpg.post(request);
+  json = JSON.parse(response.body);
+  if (json.results[0].string !== 'success') {
+    var e = json.results[0].string;
+    if (!e)
+      e = json.results[0].text;
+    console.error(e.error);
+  } else {
+    console.log(json);
+  }
+}
+
 function coronerFlamegraph(argv, config) {
   abortIfNotLoggedIn(config);
   var query, p;
   var unique = argv.unique;
   var reverse = argv.reverse;
 
-  const insecure = !!argv.k;
-  const debug = argv.debug;
-
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout,
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
     console.error("Missing project and universe arguments".error);
@@ -1160,16 +1160,7 @@ function coronerList(argv, config) {
   var query;
   var p;
 
-  const insecure = !!argv.k;
-  const debug = argv.debug;
-
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout,
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
     console.error("Missing project and universe arguments".error);
@@ -1681,20 +1672,14 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
  */
 function coronerLogin(argv, config, cb) {
   const endpoint = argv._[1];
-  const insecure = !!argv.k;
-  const debug = argv.debug;
 
   if (!endpoint) {
     console.error("Expected endpoint argument".error);
     return usage();
   }
 
-  const coroner = new CoronerClient({
-    endpoint: endpoint,
-    insecure: insecure,
-    debug: debug,
-    timeout: argv.timeout,
-  });
+  const coroner = coronerClient(config, !!argv.k, argv.debug, endpoint,
+    argv.timeout);
 
   promptLib.get([{
       name: 'username',
@@ -1741,20 +1726,11 @@ function coronerLogin(argv, config, cb) {
  * @brief Implements the delete command.
  */
 function coronerDelete(argv, config) {
-  const endpoint = argv._[1];
-  const insecure = !!argv.k;
-  const debug = argv.debug;
   var o, p;
 
   abortIfNotLoggedIn(config);
 
-  var coroner = new CoronerClient({
-    insecure: insecure,
-    debug: debug,
-    config: config.config,
-    endpoint: config.endpoint,
-    timeout: argv.timeout,
-  });
+  var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
     console.error("Missing project and object ID arguments".error);
