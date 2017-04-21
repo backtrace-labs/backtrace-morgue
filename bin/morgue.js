@@ -323,6 +323,7 @@ function coronerSetupStart(coroner) {
 
 function coronerSetup(argv, config) {
   var pu;
+
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!!!argv.k) ? "1" : "0";
   try {
     pu = url.parse(argv._[1]);
@@ -829,7 +830,7 @@ function coronerSymbol(argv, config) {
           }
 
           data.push([
-            file.archive_id,
+            file.archive_id === 'ffffffffffffffff' ? '--' : file.archive_id,
             dt,
             Math.ceil(file.file_size / 1024) + 'KB',
             file.status,
@@ -901,7 +902,7 @@ function coronerSymbol(argv, config) {
           }
 
           data.push([
-            file.archive_id,
+            file.archive_id === 'ffffffffffffffff' ? '--' : file.archive_id,
             dt,
             file.debug_file,
             file.debug_identifier,
