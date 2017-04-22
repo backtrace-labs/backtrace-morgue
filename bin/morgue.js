@@ -363,6 +363,12 @@ function coronerSetup(argv, config) {
 }
 
 function coronerReport(argv, config) {
+  var options = null;
+  var layout = argv.layout;
+
+  if (!layout)
+    layout = argv.l;
+
   abortIfNotLoggedIn(config);
 
   var coroner = new CoronerClient({
@@ -374,9 +380,31 @@ function coronerReport(argv, config) {
   });
 
   var p = coronerParams(argv, config);
+  var output = 'report.html';
 
-  var report = new Report(coroner, p.universe, p.project, 'coronerd');
-  report.generate('./report.html');
+  if (argv.o) {
+    try {
+      fs.accessSync(argv.o);
+      console.error(('File ' + argv.o + ' already exists.').error);
+      process.exit(1);
+    } catch (error) {
+      /* We are fine, not replacing a file probably. */
+    }
+
+    output = argv.o;
+  }
+
+  if (layout) {
+    try {
+      options = JSON.parse(fs.readFileSync(layout));
+    } catch (error) {
+      console.error(('Error: ' + error).red);
+      process.exit(1);
+    }
+  }
+
+  var report = new Report(coroner, p.universe, p.project, options);
+  report.generate(output);
 }
 
 function coronerControl(argv, config) {
