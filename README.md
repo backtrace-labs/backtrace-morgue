@@ -246,11 +246,12 @@ comments.
 ### symbol
 
 ```
-Usage: morgue symbol <[<universe>/]project> [-o <output file>]
+Usage: morgue symbol <[<universe>/]project> [status | list] [-o <output file>]
 ```
 
-Retrieve a list of installed symbols from the Backtrace object store and prints
-to standard output. Optionally, output the file to disk.
+Retrieve a list of uploaded symbols or symbol archives. By default, `morgue symbol`
+will return a list of uploaded, in-process and symbol processing errors. If `list`
+is used, then a list of uploaded symbols is returned.
 
 ### setup
 
