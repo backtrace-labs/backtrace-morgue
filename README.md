@@ -210,6 +210,39 @@ http://www.brendangregg.com/flamegraphs.html.
 Use `--unique` to only sample unique crashes. Use `--reverse` to begin sampling
 from leaf functions.
 
+### report
+
+```
+Usage: morgue report <project> [-l <layout.json>] [-o <report.html>]
+```
+
+The morgue report command generates a weekly digest of activity on a server.
+The report is output as a stand-alone HTML file that is suitable for e-mail.
+If the `-o` option is not specified, the default filename is `report.html`.
+Reports can be tuned with the help of a JSON specification file passed to the
+`-l` option. An example specification file is below, the `_` keys represent
+comments.
+
+```
+{
+
+  "_" : "Crashes by top attributes over reporting period",
+  "_" : "Multiple queries can be specified with different filters"
+  "top" : [
+    {
+      "title" : null,
+      "attributes" : ["application", "uname.sysname"],
+      "filter" : []
+    }
+  ],
+
+  "feed" : {
+    "_" : "The number of unique groups to show",
+    "limit" : 5
+  }
+}
+```
+
 ### symbol
 
 ```
