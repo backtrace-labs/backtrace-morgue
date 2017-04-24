@@ -260,6 +260,10 @@ function coronerSetupUser(coroner, bpg) {
   ], function(error, result) {
     var model = bpg.get();
 
+    if (!result || !result.username || !result.password) {
+      console.error('\nNo user provided.'.error);
+      process.exit(1);
+    }
     if (result.password !== result.passwordConfirm) {
       process.stderr.write('Passwords do not match.\n'.red);
       process.exit(1);
@@ -296,6 +300,11 @@ function coronerSetupUniverse(coroner, bpg) {
     pattern: /^[a-z0-9]+$/,
     required: true
   }], function(error, result) {
+    if (!result || !result.universe) {
+      console.error('\nNo organization name provided.'.error);
+      process.exit(1);
+    }
+
     var universe = bpg.new('universe');
     universe.set('id', 0);
     universe.set('name', result.universe);
