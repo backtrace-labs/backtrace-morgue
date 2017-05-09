@@ -1211,8 +1211,7 @@ function coronerList(argv, config) {
   query = aq.query;
   var d_age = aq.age;
 
-  function fold(query, attribute, label, cb) {
-
+  function fold(query, attribute, label) {
     var argv, i;
 
     if (!query.fold)
@@ -1244,25 +1243,24 @@ function coronerList(argv, config) {
     }
   }
 
-  if (argv.tail)
-    fold(query, argv.tail, 'tail', unaryPrint);
-  if (argv.head)
-    fold(query, argv.head, 'head', unaryPrint);
-  if (argv.object)
-    fold(query, argv.object, 'object', noFormatPrint);
-  if (argv.histogram)
-    fold(query, argv.histogram, 'histogram', histogramPrint);
-  if (argv.unique) {
-    fold(query, argv.unique, 'unique', noFormatPrint);
-  }
-  if (argv.sum)
-    fold(query, argv.sum, 'sum', unaryPrint);
-  if (argv.quantize)
-    fold(query, argv.quantize, 'bin', binPrint);
-  if (argv.bin)
-    fold(query, argv.bin, 'bin', binPrint);
-  if (argv.range)
-    fold(query, argv.range, 'range', rangePrint);
+  const folds = [
+    [argv.tail, 'tail'],
+    [argv.head, 'head'],
+    [argv.object, 'object'],
+    [argv.histogram, 'histogram'],
+    [argv.unique, 'unique'],
+    [argv.sum, 'sum'],
+    [argv.quantize, 'bin'],
+    [argv.bin, 'bin'],
+    [argv.range, 'range'],
+  ];
+
+  /* Apply requested folds to query */
+  folds.forEach(function(attr_op) {
+    const [attr, op] = attr_op;
+    if (attr)
+      fold(query, attr, op);
+  });
 
   if (argv.query) {
     var pp = JSON.stringify(query);
