@@ -1520,7 +1520,7 @@ function callstackPrint(cs) {
   process.stdout.write('\n');
 }
 
-function objectPrint(g, object, columns, fields) {
+function objectPrint(g, object, renderer, fields) {
 
   var string = String(g);
   var field, start, stop, sa;
@@ -1630,12 +1630,12 @@ function objectPrint(g, object, columns, fields) {
 
     process.stdout.write(field.label + ': '.yellow.bold);
 
-    if (!columns[match]) {
+    if (!renderer[match]) {
       console.log(object[field]);
       continue;
     }
 
-    if (columns[match](object[field], field.label, fields[field]) === false)
+    if (renderer[match](object[field], field.label, fields[field]) === false)
       console.log(object[field]);
   }
 }
