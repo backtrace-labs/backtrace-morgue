@@ -538,7 +538,7 @@ function coronerDescribe(argv, config) {
       return a.name.localeCompare(b.name);
     });
 
-    
+
     if (argv.json) {
       console.log(JSON.stringify(cd, null, 2));
       process.exit(0);
@@ -1288,7 +1288,7 @@ function coronerList(argv, config) {
 
     var start = process.hrtime();
 
-    for (i = 0; i < concurrency; i++) { 
+    for (i = 0; i < concurrency; i++) {
       (function queryPr() {
         requests++;
 
@@ -1345,6 +1345,23 @@ function coronerList(argv, config) {
   }
 }
 
+
+function uint128ToUuid(uint128) {
+  const uuid_sizes = [8, 4, 4, 4, 12];
+  const uint128_pattern = /^[0-9a-f]{32,32}$/;
+  var parts = [];
+
+  if (!uint128_pattern.test(uint128))
+    return uint128;
+
+  for (var i = 0, step = 0, size = uuid_sizes[i];
+      i < uuid_sizes.length;
+      i++, size = uuid_sizes[i], step += size)
+    parts.push(uint128.slice(step, step + size));
+
+  return parts.join("-");
+}
+
 function fieldFormat(st, format) {
   var rd = {
     'memory_address' : function() {
@@ -1370,6 +1387,9 @@ function fieldFormat(st, format) {
     },
     'seconds' : function() {
       return st + ' sec';
+    },
+    'uuid' : function() {
+      return uint128ToUuid(st);
     }
   };
 
