@@ -544,6 +544,7 @@ function coronerDescribe(argv, config) {
       process.exit(0);
     }
 
+    var unused = 0;
     for (i = 0; i < cd.length; i++) {
       let it = cd[i];
       var name, description;
@@ -551,15 +552,32 @@ function coronerDescribe(argv, config) {
       if (filter && it.name.match(filter) === null)
         continue;
 
+      if (!argv.a && it.statistics && it.statistics.used === false) {
+        unused++;
+        continue;
+      }
+
       name = printf("%*s", it.name, ml);
       if (it.custom === true) {
-        process.stdout.write(name.blue + ': ' + it.description);
+        if (it.statistics && it.statistics.used === false) {
+          process.stdout.write((name + ': ' + it.description).grey);
+        } else {
+          process.stdout.write(name.blue + ': ' + it.description);
+        }
       } else {
-        process.stdout.write(name.yellow + ': ' + it.description);
+        if (it.statistics && it.statistics.used === false) {
+          process.stdout.write((name + ': ' + it.description).grey);
+        } else {
+          process.stdout.write(name.yellow + ': ' + it.description);
+        }
       }
       if (it.format)
         process.stdout.write(' ['.grey + it.format.grey + ']'.grey);
       process.stdout.write('\n');
+    }
+
+    if (unused > 0) {
+      console.log(('\nHiding ' + unused + ' unused attributes (-a to list all).').bold.grey);
     }
   });
 }
