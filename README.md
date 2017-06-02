@@ -82,6 +82,26 @@ Uploads object file to the Backtrace object store. User has the following option
 | `--kv=key1:value1,key2:value2,...`| upload key-values |
 | `--form_data`| upload file by multipart/form-data post request |
 
+### modify
+
+```
+Usage: morgue modify <[universe/]project> <object id> [--set ...] [--clear ...]
+
+Modifies attributes of the given object in the manner specified.
+Both options below may be specified more than once.
+
+| Option        | Description |
+|---------------|-------------|
+| `--set`       | Set the given `attribute=value` pair |
+| `--clear`     | Clear the given `attribute` |
+```
+
+#### Example
+
+```
+$ morgue modify --set hostname=fqdn.example.com myproject 0
+```
+
 ### list
 
 Allows you to perform queries on object metadata. You can perform

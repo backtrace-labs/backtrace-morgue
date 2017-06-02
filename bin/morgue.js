@@ -106,6 +106,7 @@ var commands = {
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
+  modify: coronerModify,
   delete: coronerDelete,
   symbol: coronerSymbol,
   setup: coronerSetup,
@@ -579,6 +580,62 @@ function coronerDescribe(argv, config) {
     if (unused > 0) {
       console.log(('\nHiding ' + unused + ' unused attributes (-a to list all).').bold.grey);
     }
+  });
+}
+
+function coronerModify(argv, config) {
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgvSubmit(config, argv);
+  var p = coronerParams(argv, config);
+  var request = {};
+  var object;
+
+  if (argv._.length < 3) {
+    console.error("Missing universe, project, object arguments".error);
+    return usage();
+  }
+
+  object = argv._[2];
+  if (argv.set) {
+    request._set = {};
+    if (Array.isArray(argv.set) == true) {
+      argv.set.forEach(function(o) {
+        /* Make sure to handle the case where multiple =s are in the value. */
+        var kvs = o.split('=');
+        var key = kvs.shift();
+        var val = kvs.join('=');
+        if (key && val) {
+          request._set[key] = val;
+        } else {
+          throw new Error("Invalid set '" + o + "', must be key=val form");
+        }
+      });
+    } else {
+      var [key, val] = argv.set.split('=');
+      if (key && val) {
+        request._set[key] = val;
+      } else {
+        throw new Error("Invalid set '" + argv.set + "', must be key=val form");
+      }
+    }
+  }
+  if (argv.clear) {
+    request._clear = [];
+    if (Array.isArray(argv.clear) == false) {
+      request._clear.push(argv.clear);
+    } else {
+      argv.clear.forEach(function(o) {
+        request._clear.push(o);
+      });
+    }
+  }
+
+  coroner.modify_object(p.universe, p.project, object, null, request, function(error, response) {
+    if (error) {
+      console.error((error + '').error)
+      return;
+    }
+    console.log('OK.'.success);
   });
 }
 
