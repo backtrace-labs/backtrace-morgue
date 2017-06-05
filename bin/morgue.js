@@ -106,6 +106,7 @@ var commands = {
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
+  modify: coronerModify,
   delete: coronerDelete,
   symbol: coronerSymbol,
   setup: coronerSetup,
@@ -580,6 +581,109 @@ function coronerDescribe(argv, config) {
       console.log(('\nHiding ' + unused + ' unused attributes (-a to list all).').bold.grey);
     }
   });
+}
+
+function genModifyRequest(to_set, to_clear) {
+  var request = {};
+
+  if (to_set) {
+    request._set = {};
+    if (Array.isArray(to_set) == true) {
+      argv.set.forEach(function(o) {
+        /* Make sure to handle the case where multiple =s are in the value. */
+        var kvs = o.split('=');
+        var key = kvs.shift();
+        var val = kvs.join('=');
+        if (key && val) {
+          request._set[key] = val;
+        } else {
+          throw new Error("Invalid set '" + o + "', must be key=val form");
+        }
+      });
+    } else {
+      var [key, val] = to_set.split('=');
+      if (key && val) {
+        request._set[key] = val;
+      } else {
+        throw new Error("Invalid set '" + argv.set + "', must be key=val form");
+      }
+    }
+  }
+
+  if (to_clear) {
+    request._clear = [];
+    if (Array.isArray(to_clear) == false) {
+      request._clear.push(to_clear);
+    } else {
+      to_clear.forEach(function(o) {
+        request._clear.push(o);
+      });
+    }
+  }
+
+  return request;
+}
+
+function coronerModify(argv, config) {
+  abortIfNotLoggedIn(config);
+  var submitter = coronerClientArgvSubmit(config, argv);
+  var querier = coronerClientArgv(config, argv);
+  var p = coronerParams(argv, config);
+  var request = genModifyRequest(argv.set, argv.clear);
+  var n_objects;
+  var aq;
+  var tasks = [];
+
+  if (argv._.length < 2) {
+    console.error("Missing universe, project arguments".error);
+    return usage();
+  }
+
+  if (Object.keys(request).length === 0) {
+    console.error("Empty request, specify at least one set or clear.".error);
+    return usage();
+  }
+
+  for (var i = 2; i < argv._.length; i++) {
+    tasks.push(submitter.promise('modify_object', p.universe, p.project,
+      argv._[i], null, request));
+  }
+  n_objects = tasks.length;
+
+  var success_cb = function() {
+    if (n_objects === 0) {
+      console.error('No matching objects.'.error);
+      return;
+    }
+    console.log(('Modification queued for ' + n_objects + ' objects.').success);
+  }
+  var failure_cb = function(error) {
+    console.error(("Error: " + error.message).error);
+  }
+
+  if (n_objects === 0) {
+    /* Object must be returned for query to be chainable. */
+    if (!argv.select && !argv.template)
+      argv.template = 'select';
+    //if (argv.select.indexOf('object') == -1)
+    //  argv.select.push('object');
+    aq = argvQuery(argv);
+
+    querier.promise('query', p.universe, p.project, aq.query).then(function(r) {
+      var rp = new crdb.Response(r.response);
+
+      rp = rp.unpack();
+      rp['*'].forEach(function(o) {
+        tasks.push(submitter.promise('modify_object', p.universe, p.project,
+          o.object, null, request));
+      });
+      n_objects = tasks.length;
+      return Promise.all(tasks);
+    }).then(() => success_cb()).catch((error) => failure_cb(error));
+  } else {
+    Promise.all(tasks).
+      then(() => success_cb()).catch((error) => failure_cb(error));
+  }
 }
 
 function coronerPut(argv, config) {
