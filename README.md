@@ -85,7 +85,8 @@ Uploads object file to the Backtrace object store. User has the following option
 ### modify
 
 ```
-Usage: morgue modify <[universe/]project> <object id> [--set ...] [--clear ...]
+Usage: morgue modify <[universe/]project> (<query>|<object> ...) [--set ...] [--clear ...]
+```
 
 Modifies attributes of the given object in the manner specified.
 Both options below may be specified more than once.
@@ -94,7 +95,6 @@ Both options below may be specified more than once.
 |---------------|-------------|
 | `--set`       | Set the given `attribute=value` pair |
 | `--clear`     | Clear the given `attribute` |
-```
 
 #### Example
 
