@@ -1148,6 +1148,11 @@ function coronerFlamegraph(argv, config) {
     var rp = new crdb.Response(result.response);
     rp = rp.unpack();
 
+    if (!rp['*']) {
+      console.error('Error: no results found.'.red);
+      process.exit(1);
+    }
+
     var samples = rp['*']['histogram(callstack)'];
 
     for (var i = 0; i < samples.length; i++) {
