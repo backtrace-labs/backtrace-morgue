@@ -675,7 +675,7 @@ function coronerModify(argv, config) {
       rp = rp.unpack();
       rp['*'].forEach(function(o) {
         tasks.push(submitter.promise('modify_object', p.universe, p.project,
-          o.object, null, request));
+          o.object.toString(16), null, request));
       });
       n_objects = tasks.length;
       return Promise.all(tasks);
