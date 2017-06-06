@@ -96,10 +96,21 @@ Both options below may be specified more than once.
 | `--set`       | Set the given `attribute=value` pair |
 | `--clear`     | Clear the given `attribute` |
 
+You are also able to modify multiple objects by specifying filters. The
+`--filter` and `--age` arguments are accepted to modify.
+
 #### Example
+
+Set hostname to `fqdn.example.com` for object identifier 0.
 
 ```
 $ morgue modify --set hostname=fqdn.example.com myproject 0
+```
+
+Set custom attribute `reason` to `oom` for all crashes containing `memory_abort`.
+
+```
+$ morgue modify --set reason=oom --filter=callstack,regular-expression,memory_abort
 ```
 
 ### list
