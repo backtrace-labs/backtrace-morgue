@@ -1206,8 +1206,8 @@ function argvQuery(argv) {
 
   if (d_age) {
     var now = Date.now();
-    var target = now - timespecToSeconds(d_age);
-    var oldest = Math.floor(target / 1000);
+    var target = parseInt(now / 1000) - timespecToSeconds(d_age);
+    var oldest = Math.floor(target);
 
     query.filter[0].timestamp = [
       [ 'at-least', oldest ]
