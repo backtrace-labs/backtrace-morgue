@@ -108,6 +108,7 @@ var commands = {
   login: coronerLogin,
   modify: coronerModify,
   delete: coronerDelete,
+  retention: coronerRetention,
   symbol: coronerSymbol,
   setup: coronerSetup,
   report: coronerReport
@@ -315,17 +316,21 @@ function coronerSetupUniverse(coroner, bpg) {
   });
 }
 
-function coronerBpgSetup(coroner) {
+function coronerBpgSetup(coroner, argv) {
   var coronerd = {
     url: coroner.endpoint,
     session: { token: '000000000' }
   };
+  var opts = {};
   var bpg = {};
 
   if (coroner.config && coroner.config.token)
     coronerd.session.token = coroner.config.token;
 
-  bpg = new BPG.BPG(coronerd);
+  if (argv.debug)
+    opts.debug = true;
+
+  bpg = new BPG.BPG(coronerd, opts);
   return bpg;
 }
 
@@ -349,8 +354,8 @@ function coronerClientArgvSubmit(config, argv) {
     config.submissionEndpoint, argv.timeout);
 }
 
-function coronerSetupStart(coroner) {
-  var bpg = coronerBpgSetup(coroner);
+function coronerSetupStart(coroner, argv) {
+  var bpg = coronerBpgSetup(coroner, argv);
 
   return coronerSetupNext(coroner, bpg);
 }
@@ -381,7 +386,7 @@ function coronerSetup(argv, config) {
 
     if (response === 0) {
       process.stderr.write('unconfigured\n'.red);
-      return coronerSetupStart(coroner);
+      return coronerSetupStart(coroner, argv);
     } else {
       process.stderr.write('configured\n\n'.green);
 
@@ -1053,6 +1058,65 @@ function coronerSymbol(argv, config) {
   });
 }
 
+/*
+ * Takes a time specifier and returns the number of seconds.
+ */
+function timespecToSeconds(age_val) {
+  var unit = {
+    'y' : 3600 * 24 * 365,
+    'M' : 3600 * 24 * 30,
+    'w' : 3600 * 24 * 7,
+    'd' : 3600 * 24,
+    'h' : 3600,
+    'm' : 60,
+    's' : 1,
+  };
+  var age, pre, age_string, iu;
+
+  if (typeof age_val === 'number')
+    return age_val;
+
+  age = parseInt(age_val);
+  pre = String(age);
+  age_string = String(age_val);
+  iu = age_string.substring(pre.length, age_string.length);
+  if (!unit[iu])
+    throw new Error("Unknown interval unit '" + iu + "'");
+  return age * unit[iu];
+}
+
+/*
+ * Takes a value in seconds and returns a time specifier.
+ */
+function secondsToTimespec(age_val) {
+  var age = parseInt(age_val);
+  var ts = {};
+
+  /* Handle special zero case. */
+  if (age === 0)
+    return "0s";
+
+  ts['y'] = Math.floor(age / (3600 * 24 * 365));
+  age -= (ts['y'] * 3600 * 24 * 365);
+  ts['M'] = Math.floor(age / (3600 * 24 * 30));
+  age -= (ts['M'] * 3600 * 24 * 30);
+  ts['w'] = Math.floor(age / (3600 * 24 * 7));
+  age -= (ts['w'] * 3600 * 24 * 7);
+  ts['d'] = Math.floor(age / (3600 * 24));
+  age -= (ts['d'] * 3600 * 24);
+  ts['h'] = Math.floor(age / 3600);
+  age -= ts['h'] * 3600;
+  ts['m'] = Math.floor(age / 60);
+  age -= ts['m'] * 60;
+  ts['s'] = age;
+
+  return Object.keys(ts).reduce(function(str, key) {
+    if (ts[key] !== 0)
+      str += ts[key] + key;
+    return str;
+  }, "");
+}
+
 function argvQuery(argv) {
   var query = {};
   var d_age = '1M';
@@ -1141,21 +1205,8 @@ function argvQuery(argv) {
     d_age = argv.age;
 
   if (d_age) {
-    var now = new Date();
-    var unit = {
-      'y' : 3600 * 24 * 365,
-      'M' : 3600 * 24 * 30,
-      'w' : 3600 * 24 * 7,
-      'd' : 3600 * 24,
-      'h' : 3600,
-      'm' : 60,
-      's' : 1
-    };
-    var age = parseInt(d_age);
-    var pre = String(age);
-    var age_string = String(d_age);
-    var iu = age_string.substring(pre.length, age_string.length);
-    var target = Date.now() - (age * unit[iu] * 1000);
+    var now = Date.now();
+    var target = now - timespecToSeconds(d_age);
     var oldest = Math.floor(target / 1000);
 
     query.filter[0].timestamp = [
@@ -1163,7 +1214,7 @@ function argvQuery(argv) {
     ];
 
     range_start = oldest;
-    range_stop = Math.floor(Date.now() / 1000);
+    range_stop = Math.floor(now / 1000);
 
     if (query.fold && query.fold.timestamp) {
       var ft = query.fold.timestamp;
@@ -1180,6 +1231,25 @@ function argvQuery(argv) {
   return { query: query, age: d_age };
 }
 
+function bpgPost(bpg, request, callback) {
+  var response;
+  var json;
+
+  if (typeof request === 'string')
+    request = JSON.parse(request);
+
+  response = bpg.post(request);
+  json = JSON.parse(response.body);
+  if (json.results[0].string !== 'success') {
+    var e = json.results[0].string;
+    if (!e)
+      e = json.results[0].text;
+    callback(e);
+  } else {
+    callback(null, json);
+  }
+}
+
 /*
  * This is meant primarily for debugging & testing; it could be extended to
  * offer a CLI-structured way to represent BPG commands.
@@ -1188,7 +1258,7 @@ function coronerBpg(argv, config) {
   abortIfNotLoggedIn(config);
   var json, request, response;
   var coroner = coronerClientArgv(config, argv);
-  var bpg = coronerBpgSetup(coroner);
+  var bpg = coronerBpgSetup(coroner, argv);
 
   if (!argv.raw) {
     console.error("Only raw commands are supported".error);
@@ -1204,18 +1274,13 @@ function coronerBpg(argv, config) {
     return usage();
   }
 
-  request = JSON.parse(request);
-  console.log("POSTing: ", request);
-  response = bpg.post(request);
-  json = JSON.parse(response.body);
-  if (json.results[0].string !== 'success') {
-    var e = json.results[0].string;
-    if (!e)
-      e = json.results[0].text;
-    console.error(e.error);
-  } else {
-    console.log(json);
-  }
+  bpgPost(bpg, request, function(e, r) {
+    if (e) {
+      console.error(("Error: " + e).error);
+      return;
+    }
+    console.log(r);
+  });
 }
 
 function coronerFlamegraph(argv, config) {
@@ -1898,7 +1963,7 @@ function coronerLogin(argv, config, cb) {
         console.log('Logged in.'.success);
 
         if (cb) {
-          cb(coroner);
+          cb(coroner, argv);
         }
       });
     });
@@ -1931,6 +1996,256 @@ function coronerDelete(argv, config) {
       console.log('Success'.blue);
     }
   });
+}
+
+function retentionUsage() {
+  console.error("Usage: morgue retention <list|set|clear> <name> [options]");
+  console.error("");
+  console.error("Options for set/clear:");
+  console.error("  --type=T         Specify retention type (default: project)");
+  console.error("                   valid: instance, universe, project");
+  console.error("");
+  console.error("Options for set:");
+  console.error("  --max-age=N      Specify time limit for objects, in seconds");
+  process.exit(1);
+}
+
+function bpgObjectFind(objects, type, val, field) {
+  if (!objects[type])
+    return null;
+
+  if (!field) {
+    if (type === "project")
+      field = "pid";
+    else
+      field = "id";
+  }
+
+  /* Shortcut to simply return the first value. */
+  if (val === null)
+    return objects[type][0];
+
+  return objects[type].find(function(o) {
+    return o.get(field) === val;
+  });
+}
+
+function retentionTypeFor(parent_type) {
+  if (parent_type === "universe")
+    return "universe_retention";
+  if (parent_type === "project")
+    return "project_retention";
+  if (parent_type === "instance")
+    return "instance_retention";
+  throw new Error("Invalid parent type '" + parent_type + "'");
+}
+
+function retentionParent(objects, parent_type, name) {
+  return bpgObjectFind(objects, parent_type, name, "name");
+}
+
+function retentionSet(bpg, objects, argv, config) {
+  var act_obj = {};
+  var rules = [{
+    criteria: [{type: "object-age", op: "at-least"}],
+    actions: [{type: "delete-all"}],
+  }];
+  var rtn_ptype = argv.type || "project";
+  var rtn_type = retentionTypeFor(rtn_ptype);
+  var rtn_pname = null;
+  var rtn_parent = null;
+  var rtn_parent_id = null;
+  var obj = null;
+  var max_age = argv["max-age"];
+
+  if (!max_age) {
+    console.error("Max age is a required argument.".error);
+    return retentionUsage();
+  }
+  if (max_age === "null") {
+    /* Special internal value meaning clear the rules. */
+    rules = [];
+  } else {
+    try {
+      rules[0].criteria[0].time = timespecToSeconds(max_age).toString();
+    } catch (e) {
+      console.error(("Invalid max age '" + max_age + "': " + e.message).error);
+      return retentionUsage();
+    }
+  }
+
+  if (rtn_type === "instance") {
+    if (argv._.length > 0) {
+      console.error("Instances do not have names.".error);
+      return retentionUsage();
+    }
+  } else {
+    if (argv._.length != 1) {
+      console.error("Must specify namespace name.".error);
+      return retentionUsage();
+    }
+    rtn_pname = argv._[0];
+  }
+
+  /* Determine whether a create or update is needed. */
+  if (rtn_pname) {
+    var id_attr = rtn_ptype === "project" ? "pid" : "id";
+    rtn_parent = retentionParent(objects, rtn_ptype, rtn_pname);
+    if (!rtn_parent) {
+      console.error("Unknown " + rtn_ptype + " '" + rtn_pname + "'.");
+      return retentionUsage();
+    }
+    rtn_parent_id = rtn_parent.get(id_attr);
+    obj = bpgObjectFind(objects, rtn_type, rtn_parent_id, rtn_ptype);
+  } else {
+    obj = bpgObjectFind(objects, rtn_type, null);
+  }
+
+  act_obj.type = "configuration/" + rtn_type;
+  if (!obj) {
+    act_obj.action = "create";
+    act_obj.object = { rules: JSON.stringify(rules) };
+    if (rtn_parent_id) {
+      act_obj.object[rtn_ptype] = rtn_parent_id;
+    }
+  } else {
+    act_obj.action = "modify";
+    act_obj.fields = { rules: JSON.stringify(rules) };
+    if (rtn_parent_id) {
+      act_obj.key = {};
+      act_obj.key[rtn_ptype] = rtn_parent_id;
+    }
+  }
+
+  bpgPost(bpg, { actions: [act_obj] }, function(e, r) {
+    if (e) {
+      console.error(e.error);
+      return;
+    }
+    console.log(r);
+  });
+}
+
+function retentionClear(bpg, objects, argv, config) {
+
+  /* Currently, this is essentially set(max-age="null"). */
+  if (argv["max-age"]) {
+    console.error("Clear does not take --max-age.".error);
+    return retentionUsage();
+  }
+  argv["max-age"] = "null";
+
+  return retentionSet(bpg, objects, argv, config);
+}
+
+function retentionNoString(reason, argv) {
+  if (!argv || !argv.debug)
+    return null;
+  return "max age: unspecified (" + reason + ")";
+}
+
+function retentionToString(r_obj, argv) {
+  var rules = r_obj.get("rules");
+  var json = JSON.parse(rules);
+  var rule;
+  var criterion;
+
+  if (Array.isArray(json) === false || json.length === 0)
+    return retentionNoString("no rule", argv);
+  rule = json[0];
+  if (Array.isArray(rule.criteria) === false || rule.criteria.length === 0)
+    return retentionNoString("no criterion");
+  criterion = rule.criteria[0];
+  if (!criterion.type || criterion.type !== "object-age")
+    return retentionNoString("wrong criterion");
+
+  return "max age: " + secondsToTimespec(criterion.time);
+}
+
+function retentionList(bpg, objects, argv, config) {
+  var r;
+  var count = 0;
+  var before = 0;
+
+  if (argv._.length > 0) {
+    console.error("List does not take any arguments.".error);
+    return retentionUsage();
+  }
+
+  if ((r = objects["instance_retention"])) {
+    var str = retentionToString(r[0], argv);
+    if (str)
+      console.log("Instance-level: " + str);
+  }
+
+  if ((r = objects["universe_retention"])) {
+    before = count;
+    r.forEach(function(r_obj) {
+      var universe = bpgObjectFind(objects, "universe", r_obj.get("universe"));
+      var str = retentionToString(r_obj, argv);
+      if (str) {
+        if (count === before)
+          console.log("Universe-level:");
+        count++;
+        console.log("  " + universe.get("name") + ": " + str);
+      }
+    });
+  }
+
+  if ((r = objects["project_retention"])) {
+    before = count;
+    r.forEach(function(r_obj) {
+      var project = bpgObjectFind(objects, "project", r_obj.get("project"));
+      var str = retentionToString(r_obj, argv);
+      if (str) {
+        if (count === before)
+          console.log("Project-level:");
+        count++;
+        console.log("  " + project.get("name") + ": " + str);
+      }
+    });
+  }
+
+  if (count === 0) {
+    console.log("No retention policies in effect.");
+  }
+}
+
+/**
+ * @brief Implements the retention command.
+ */
+function coronerRetention(argv, config) {
+  abortIfNotLoggedIn(config);
+  var coroner;
+  var bpg;
+  var subcmd;
+  var fn = null;
+  var subcmd_map = {
+    set: retentionSet,
+    list: retentionList,
+    clear: retentionClear,
+  };
+
+  argv._.shift();
+  if (argv._.length == 0) {
+    console.error("No request specified.".error);
+    return retentionUsage();
+  }
+
+  subcmd = argv._.shift();
+  if (subcmd === "--help" || subcmd == "help")
+    return retentionUsage();
+
+  coroner = coronerClientArgv(config, argv);
+  bpg = coronerBpgSetup(coroner, argv);
+
+  fn = subcmd_map[subcmd];
+  if (fn) {
+    return fn(bpg, bpg.get(), argv, config);
+  }
+
+  console.error(("Invalid retention subcommand '" + subcmd + "'.").error);
+  retentionUsage();
 }
 
 function main() {

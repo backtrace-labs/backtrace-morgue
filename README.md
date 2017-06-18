@@ -274,6 +274,22 @@ comments.
 }
 ```
 
+### retention
+
+```
+Usage: morgue retention <list|set|clear> <name> [options]
+
+Options for set/clear:
+  --type=T         Specify retention type (default: project)
+                   valid: instance, universe, project
+
+Options for set:
+  --max-age=N      Specify time limit for objects, in seconds
+```
+
+Configure the retention policy for a given namespace, which can cover the
+coroner instance, or a specific universe or project.
+
 ### symbol
 
 ```
