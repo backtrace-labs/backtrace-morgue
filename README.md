@@ -274,6 +274,23 @@ comments.
 }
 ```
 
+### reprocess
+
+```
+Usage: morgue reprocess <[universe/]project> [<query>|<object> ...] [--first N] [--last N]
+
+Options for reprocess:
+  --first=N        Specify the first object ID (default: earliest known)
+  --last=N         Specify the last object ID (default: most recent known)
+```
+
+Reprocess the project's objects.  This command can be used to re-execute
+indexing, fingerprinting, and symbolification (where needed).
+
+If a set of objects (or query) is specified, any values for `--first` and
+`--last` are replaced to match the object list.  If no query, object list,
+or range is provided, all objects in the project are reprocessed.
+
 ### retention
 
 ```

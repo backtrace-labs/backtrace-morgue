@@ -108,6 +108,7 @@ var commands = {
   login: coronerLogin,
   modify: coronerModify,
   delete: coronerDelete,
+  reprocess: coronerReprocess,
   retention: coronerRetention,
   symbol: coronerSymbol,
   setup: coronerSetup,
@@ -2208,6 +2209,78 @@ function retentionList(bpg, objects, argv, config) {
 
   if (count === 0) {
     console.log("No retention policies in effect.");
+  }
+}
+
+/**
+ * @brief Implements the reprocess command.
+ */
+function coronerReprocess(argv, config) {
+  abortIfNotLoggedIn(config);
+  var params = coronerParams(argv, config);
+  var coroner;
+  var n_objects;
+  var aq = {};
+
+  if (argv._.length < 2) {
+    console.error("Missing universe, project arguments".error);
+    return usage();
+  }
+
+  params.action = 'reload';
+  if (argv.first)
+    params.first = argv.first.toString(16);
+  if (argv.last)
+    params.last = argv.last.toString(16);
+
+  /* Only generate a query if arguments actually supplied. */
+  if (argv.select || argv.filter || argv.fingerprint || argv.age) {
+    /* Object must be returned for query to be chainable. */
+    if (!argv.select && !argv.template)
+      argv.template = 'select';
+    aq = argvQuery(argv);
+  }
+  coroner = coronerClientArgv(config, argv);
+
+  /* Check for a query parameter to be sent. */
+  n_objects = argv._.length - 2;
+
+  if (n_objects > 0 && aq.query) {
+    console.error("Cannot specify both a query and a set of objects.".error);
+    return usage();
+  }
+
+  var success_cb = function(result) {
+    console.log(('Reprocessing request #' + result.id + ' queued.').success);
+  }
+  var failure_cb = function(error) {
+    console.error(("Error: " + error.message).error);
+  }
+
+  if (aq && aq.query) {
+    params.objects = [];
+    coroner.promise('query', params.universe, params.project, aq.query).then(function(r) {
+      var rp = new crdb.Response(r.response);
+
+      rp = rp.unpack();
+      if (rp['*']) {
+        rp['*'].forEach(function(o) {
+          n_objects++;
+          params.objects.push(o.object.toString(16));
+        });
+      }
+      if (n_objects === 0) {
+        return Promise.reject(new Error("No matching objects."));
+      }
+      return coroner.promise('control', params);
+    }).then((result) => success_cb(result)).catch((error) => failure_cb(error));
+  } else {
+    if (n_objects > 0) {
+      /* May specify just --first or --last, or just all objects. */
+      params.objects = argv._.slice(2);
+    }
+    coroner.promise('control', params).
+      then((result) => success_cb(result)).catch((error) => failure_cb(error));
   }
 }
 
