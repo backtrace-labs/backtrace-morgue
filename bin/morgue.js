@@ -32,6 +32,8 @@ var error = colors.red;
 var ta = timeago();
 var range_start = null;
 var range_stop = null;
+var endpoint;
+var endpointToken;
 var reverse = 1;
 const configDir = path.join(os.homedir(), ".morgue");
 const configFile = path.join(configDir, "current.json");
@@ -201,6 +203,19 @@ function makeConfigDir(callback) {
 
 function abortIfNotLoggedIn(config) {
   if (config && config.config && config.config.token) return;
+
+  /* If an endpoint is specified, then synthensize aa configuration structure. */
+  if (endpoint) {
+    config.config = {};
+
+    /* We rely on host-based authentication if no token is specified. */
+    config.config.token = endpointToken;
+    if (!config.config.token)
+      config.config.token = '00000';
+
+    config.endpoint = endpoint;
+    return;
+  }
 
   console.error('Must login first.'.error);
   process.exit(1);
@@ -2331,6 +2346,14 @@ function main() {
   if (argv.v || argv.version) {
     console.log(packageJson.version);
     process.exit(1);
+  }
+
+  if (argv.endpoint) {
+    endpoint = argv.endpoint;
+  }
+
+  if (argv.token) {
+    endpointToken = argv.token;
   }
 
   var commandName = argv._[0];
