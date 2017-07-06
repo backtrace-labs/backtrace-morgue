@@ -109,6 +109,7 @@ var commands = {
   put: coronerPut,
   login: coronerLogin,
   modify: coronerModify,
+  nuke: coronerNuke,
   delete: coronerDelete,
   reprocess: coronerReprocess,
   retention: coronerRetention,
@@ -410,6 +411,15 @@ function coronerSetup(argv, config) {
       return coronerLogin(argv, config, coronerSetupStart);
     }
   });
+}
+
+function coronerReport(argv, config) {
+  var options = null;
+  var layout = argv.layout;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
 }
 
 function coronerReport(argv, config) {
@@ -1396,6 +1406,78 @@ function coronerFlamegraph(argv, config) {
       });
     }
   });
+}
+
+function coronerNuke(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  var coroner = coronerClientArgv(config, argv);
+  var query, project, universe, un, target;
+  var ru;
+
+  var coronerd = {
+    url: coroner.endpoint,
+    session: { token: '000000000' }
+  };
+  var opts = {};
+  var bpg = {};
+
+  if (coroner.config && coroner.config.token)
+    coronerd.session.token = coroner.config.token;
+
+  if (argv.debug)
+    opts.debug = true;
+
+  bpg = new BPG.BPG(coronerd, opts);
+
+  if (argv.universe)
+    universe = argv.universe;
+  if (argv.project)
+    project = argv.project;
+
+  var model = bpg.get();
+
+  if (universe) {
+    /* Find the universe with the specified name. */
+    for (var i = 0; i < model.universe.length; i++) {
+      if (model.universe[i].get('name') === universe) {
+        un = target = model.universe[i];
+      }
+    }
+  }
+
+  if (!un) {
+    console.error('Error: universe not found.'.error);
+    process.exit(1);
+  }
+
+  if (project) {
+    target = null;
+    for (var i = 0; i < model.project.length; i++) {
+      if (model.project[i].get('name') === project &&
+          model.project[i].get('universe') === un.get('id')) {
+        target = model.project[i];
+        break;
+      }
+    }
+  }
+
+  if (target === null) {
+    console.error('Error: no such object.'.error);
+    process.exit(1);
+  }
+
+  bpg.delete(target, { cascade: true });
+
+  try {
+    bpg.commit();
+  } catch (em) {
+    console.error((em + '').error);
+    process.exit(1);
+  }
+
+  console.log('Success'.blue);
+  process.exit(0);
 }
 
 /**

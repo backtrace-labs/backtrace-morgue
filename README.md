@@ -330,4 +330,12 @@ to configure the initial organization and user. For example, if the server is
 We recommend resetting your password after you enable SSL (done by configuring
 your certificates).
 
+### nuke
+
+```
+Usage: morgue nuke --universe=<universe name> [--project=<project name>]
+```
+
+If you want to nuke an object and all of the dependencies of the object.
+Do not use this operation without making a back-up of your data.
 
