@@ -24,6 +24,7 @@ const bt        = require('backtrace-node');
 const spawn     = require('child_process').spawn;
 const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
+const sprintf   = require('extsprintf').sprintf;
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -63,6 +64,40 @@ function usage() {
 
 function nsToUs(tm) {
   return Math.round((tm[0] * 1000000) + (tm[1] / 1000));
+}
+
+function oidToString(oid) {
+  return oid.toString(16);
+}
+
+function oidFromString(oid) {
+  return parseInt(oid, 16);
+}
+
+function err(msg) {
+  console.log(("Error: " + msg).error);
+  return false;
+}
+
+/* Standardized success/failure callbacks. */
+function std_success_cb(r) {
+  console.log('Success'.blue);
+}
+
+function std_failure_cb(e) {
+  err(e.message);
+}
+
+function objToPath(oid, resource) {
+  var str = oid;
+
+  if (typeof oid !== 'string')
+   str = oidToString(oid);
+
+  if (resource)
+    str += ":" + resource;
+  str += ".bin";
+  return str;
 }
 
 function printSamples(requests, samples, start, stop, concurrency) {
@@ -486,33 +521,141 @@ function coronerControl(argv, config) {
   }
 }
 
+function mkdir_p(path) {
+  try {
+    fs.mkdirSync(path);
+  } catch (e) {
+    if (e.code !== 'EEXIST')
+      throw e;
+  }
+}
+
+function getFname(outpath, outdir, n_objects, oid, resource) {
+  var fname = outpath;
+  if (outdir || n_objects > 1)
+    fname = sprintf("%s/%s", outpath, objToPath(oid, resource));
+  return fname;
+}
+
+function objectRangeOk(first, last) {
+  var f = oidFromString(first);
+  var l = oidFromString(last);
+
+  if (f < 0)
+    return err(sprintf("first(%s) is less than zero", first));
+  if (l < 0)
+    return err(sprintf("last(%s) is less than zero", last));
+  if (f > l)
+    return err(sprintf("first(%s) is greater than last(%s)", first, last));
+  return true;
+}
+
+function pushFirstToLast(objects, first, last) {
+  var f = oidFromString(first);
+  var l = oidFromString(last);
+  for (; f <= l; f++) {
+    objects.push(oidToString(f));
+  }
+}
+
+function argvPushObjectRanges(objects, argv) {
+  var i, f, l, r;
+
+  if (argv.first && argv.last) {
+    if (Array.isArray(argv.first) ^ Array.isArray(argv.last))
+      return err("first and last must be specified the same number of times");
+
+    if (Array.isArray(argv.first) === true) {
+      f = argv.first;
+      l = argv.last;
+    } else {
+      f = [argv.first];
+      l = [argv.last];
+    }
+    if (f.length !== l.length)
+      return err("first and last must be specified the same number of times");
+
+    for (i = 0; i < f.length; i++) {
+      if (objectRangeOk(f, l) === false)
+        return false;
+      pushFirstToLast(objects, f[i], l[i]);
+    }
+  }
+
+  if (argv.objrange) {
+    r = argv.objrange;
+    if (Array.isArray(argv.objrange) === false)
+      r = [argv.objrange];
+
+    for (i = 0; i < r.length; i++) {
+      f, l = r[i].split(",");
+      if (objectRangeOk(f, l) === false)
+        return false;
+      pushFirstToLast(objects, f, l);
+    }
+  }
+  return true;
+}
+
 function coronerGet(argv, config) {
-  var p, object, rf;
+  var coroner, has_outpath, objects, p, outpath, tasks, rf;
 
   abortIfNotLoggedIn(config);
   p = coronerParams(argv, config);
-  object = argv._[2];
+  objects = argv._.slice(2);
+  tasks = [];
+  coroner = coronerClientArgv(config, argv);
+  argvPushObjectRanges(objects, argv);
 
-  var coroner = coronerClientArgv(config, argv);
+  outpath = argv.output;
+  if (!outpath && argv.o)
+    outpath = argv.o;
+  if (!outpath && argv.outdir)
+    outpath = argv.outdir;
+  has_outpath = typeof outpath === 'string';
+
+  if (objects.length > 1) {
+    if (!has_outpath) {
+      console.log('Must specify output directory for multiple objects.'.error);
+      return;
+    }
+    mkdir_p(outpath);
+  }
+
+  if (objects.length === 0) {
+    console.log('Must specify at least one object to get.'.error);
+    return;
+  }
 
   if (argv.resource)
       rf = argv.resource;
 
-  coroner.fetch(p.universe, p.project, object, rf, function(error, result) {
-    var output = null;
+  objects.forEach(function(oid) {
+    tasks.push(coroner.promise('fetch', p.universe, p.project, oid, rf).then(function(r) {
+      var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+      if (fname) {
+        fs.writeFileSync(fname, r);
+        console.log(sprintf('Wrote %ld bytes to %s', r.length, fname).success);
+      } else {
+        process.stdout.write(r);
+      }
+    }).catch(function(e) {
+      /* Allow ignoring (and printing) failures for testing purposes. */
+      var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+      if (!argv.ignorefail || !has_outpath) {
+        e.message = sprintf("%s: %s", fname, e.message);
+        return Promise.reject(e);
+      }
+      console.log(sprintf('Error (ignoring): %s: %s', fname, e.message).error);
+      return Promise.resolve();
+    }));
+  });
 
-    if (argv.output)
-      output = argv.output;
-    if (argv.o)
-      output = argv.o;
-
-    if (output) {
-      fs.writeFileSync(output, result);
-      console.log(output);
-      return;
-    }
-
-    process.stdout.write(result);
+  Promise.all(tasks).then(function() {
+    if (has_outpath)
+      console.log('Success'.success);
+  }).catch(function(e) {
+    console.log(('Error: ' + e.message).error);
   });
 }
 
@@ -688,16 +831,11 @@ function coronerModify(argv, config) {
     }
     console.log(('Modification queued for ' + n_objects + ' objects.').success);
   }
-  var failure_cb = function(error) {
-    console.error(("Error: " + error.message).error);
-  }
 
   if (n_objects === 0) {
     /* Object must be returned for query to be chainable. */
     if (!argv.select && !argv.template)
       argv.template = 'select';
-    //if (argv.select.indexOf('object') == -1)
-    //  argv.select.push('object');
     aq = argvQuery(argv);
 
     querier.promise('query', p.universe, p.project, aq.query).then(function(r) {
@@ -706,14 +844,14 @@ function coronerModify(argv, config) {
       rp = rp.unpack();
       rp['*'].forEach(function(o) {
         tasks.push(submitter.promise('modify_object', p.universe, p.project,
-          o.object.toString(16), null, request));
+          oidToString(o.object), null, request));
       });
       n_objects = tasks.length;
       return Promise.all(tasks);
-    }).then(() => success_cb()).catch((error) => failure_cb(error));
+    }).then(() => success_cb()).catch(std_failure_cb);
   } else {
     Promise.all(tasks).
-      then(() => success_cb()).catch((error) => failure_cb(error));
+      then(() => success_cb()).catch(std_failure_cb);
   }
 }
 
@@ -1141,6 +1279,17 @@ function secondsToTimespec(age_val) {
       str += ts[key] + key;
     return str;
   }, "");
+}
+
+/* Some subcommands don't make sense with folds etc. */
+function argvQueryFilterOnly(argv) {
+  if (argv.select || argv.filter || argv.fingerprint || argv.age) {
+    /* Object must be returned for query to be chainable. */
+    if (!argv.select && !argv.template)
+      argv.template = 'select';
+    return argvQuery(argv);
+  }
+  return null;
 }
 
 function argvQuery(argv) {
@@ -2068,32 +2217,49 @@ function coronerLogin(argv, config, cb) {
   });
 }
 
+function unpackQueryObjects(objects, qresult) {
+  var rp = new crdb.Response(qresult.response);
+  rp = rp.unpack();
+
+  if (rp['*']) {
+    rp['*'].forEach(function(o) {
+      objects.push(oidToString(o.object));
+    });
+  }
+}
+
 /**
  * @brief Implements the delete command.
  */
 function coronerDelete(argv, config) {
-  var o, p;
+  var aq, coroner, o, p;
 
   abortIfNotLoggedIn(config);
 
-  var coroner = coronerClientArgv(config, argv);
-
-  if (argv._.length < 2) {
-    console.error("Missing project and object ID arguments".error);
-    return usage();
-  }
-
+  aq = argvQueryFilterOnly(argv);
+  coroner = coronerClientArgv(config, argv);
   p = coronerParams(argv, config);
   o = argv._.slice(2);
+  argvPushObjectRanges(o, argv);
 
-  process.stderr.write('Deleting...'.blue + '\n');
-  coroner.delete_objects(p.universe, p.project, o, {}, function(error, result) {
-    if (error) {
-      console.error((error + '').error);
-    } else {
-      console.log('Success'.blue);
-    }
-  });
+  if (o.length === 0 && !(aq && aq.query)) {
+    console.log('Must specify objects to be deleted.'.error);
+    return;
+  }
+
+  if (aq && aq.query) {
+    coroner.promise('query', p.universe, p.project, aq.query).then(function(r) {
+      unpackQueryObjects(o, r);
+      if (o.length === 0)
+        return Promise.reject(new Error("No matching objects."));
+      process.stderr.write(sprintf('Deleting %d objects...', o.length).blue + '\n');
+      return coroner.promise('delete_objects', p.universe, p.project, o, {});
+    }).then(std_success_cb).catch(std_failure_cb);
+  } else {
+    process.stderr.write(sprintf('Deleting %d objects...', o.length).blue + '\n');
+    coroner.promise('delete_objects', p.universe, p.project, o, {}).
+      then(std_success_cb).catch(std_failure_cb);
+  }
 }
 
 function retentionUsage() {
@@ -2326,17 +2492,11 @@ function coronerReprocess(argv, config) {
 
   params.action = 'reload';
   if (argv.first)
-    params.first = argv.first.toString(16);
+    params.first = oidToString(argv.first);
   if (argv.last)
-    params.last = argv.last.toString(16);
+    params.last = oidToString(argv.last);
 
-  /* Only generate a query if arguments actually supplied. */
-  if (argv.select || argv.filter || argv.fingerprint || argv.age) {
-    /* Object must be returned for query to be chainable. */
-    if (!argv.select && !argv.template)
-      argv.template = 'select';
-    aq = argvQuery(argv);
-  }
+  aq = argvQueryFilterOnly(argv);
   coroner = coronerClientArgv(config, argv);
 
   /* Check for a query parameter to be sent. */
@@ -2350,34 +2510,22 @@ function coronerReprocess(argv, config) {
   var success_cb = function(result) {
     console.log(('Reprocessing request #' + result.id + ' queued.').success);
   }
-  var failure_cb = function(error) {
-    console.error(("Error: " + error.message).error);
-  }
 
   if (aq && aq.query) {
     params.objects = [];
     coroner.promise('query', params.universe, params.project, aq.query).then(function(r) {
-      var rp = new crdb.Response(r.response);
-
-      rp = rp.unpack();
-      if (rp['*']) {
-        rp['*'].forEach(function(o) {
-          n_objects++;
-          params.objects.push(o.object.toString(16));
-        });
-      }
-      if (n_objects === 0) {
+      unpackQueryObjects(params.objects, r);
+      if (params.objects.length === 0)
         return Promise.reject(new Error("No matching objects."));
-      }
       return coroner.promise('control', params);
-    }).then((result) => success_cb(result)).catch((error) => failure_cb(error));
+    }).then((result) => success_cb(result)).catch(std_failure_cb);
   } else {
     if (n_objects > 0) {
       /* May specify just --first or --last, or just all objects. */
       params.objects = argv._.slice(2);
     }
     coroner.promise('control', params).
-      then((result) => success_cb(result)).catch((error) => failure_cb(error));
+      then((result) => success_cb(result)).catch(std_failure_cb);
   }
 }
 
