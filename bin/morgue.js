@@ -48,7 +48,9 @@ bt.initialize({
   }
 });
 
-function usage() {
+function usage(str) {
+  if (typeof str === 'string')
+    err(str + "\n");
   console.error("Usage: morgue <command> [options]");
   console.error("");
   console.error("Options:");
@@ -75,8 +77,16 @@ function oidFromString(oid) {
 }
 
 function err(msg) {
-  console.log(("Error: " + msg).error);
+  var m = msg.toString();
+  if (m.slice(0, 5) !== "Error")
+    m = "Error: " + m;
+  console.log(m.error);
   return false;
+}
+
+function errx(msg) {
+  err(msg);
+  process.exit(1);
 }
 
 /* Standardized success/failure callbacks. */
@@ -85,7 +95,7 @@ function std_success_cb(r) {
 }
 
 function std_failure_cb(e) {
-  err(e.message);
+  errx(e.message);
 }
 
 function objToPath(oid, resource) {
@@ -157,8 +167,7 @@ main();
 
 function coronerError(argv, config) {
   if (argv._.length < 2) {
-    console.error("Missing error string".error);
-    process.exit(1);
+    errx("Missing error string");
   }
 
   throw Error(argv._[1]);
@@ -253,8 +262,7 @@ function abortIfNotLoggedIn(config) {
     return;
   }
 
-  console.error('Must login first.'.error);
-  process.exit(1);
+  errx("Must login first.");
 }
 
 function coronerSetupNext(coroner, bpg) {
@@ -315,12 +323,10 @@ function coronerSetupUser(coroner, bpg) {
     var model = bpg.get();
 
     if (!result || !result.username || !result.password) {
-      console.error('\nNo user provided.'.error);
-      process.exit(1);
+      errx('No user provided.');
     }
     if (result.password !== result.passwordConfirm) {
-      process.stderr.write('Passwords do not match.\n'.red);
-      process.exit(1);
+      errx('Passwords do not match.');
     }
 
     var user = bpg.new('users');
@@ -355,8 +361,7 @@ function coronerSetupUniverse(coroner, bpg) {
     required: true
   }], function(error, result) {
     if (!result || !result.universe) {
-      console.error('\nNo organization name provided.'.error);
-      process.exit(1);
+      errx('No organization name provided.');
     }
 
     var universe = bpg.new('universe');
@@ -419,14 +424,12 @@ function coronerSetup(argv, config) {
   try {
     pu = url.parse(argv._[1]);
   } catch (error) {
-    process.stderr.write('Usage: morgue setup <url>\n');
-    process.exit(1);
+    errx('Usage: morgue setup <url>');
   }
 
   if (pu.protocol !== 'http:' &&
       pu.protocol !== 'https:') {
-    process.stderr.write('Usage: morgue setup <url>\n');
-    process.exit(1);
+    errx('Usage: morgue setup <url>');
   }
 
   coroner = coronerClient(config, true, !!argv.debug, argv._[1], argv.timeout);
@@ -473,8 +476,7 @@ function coronerReport(argv, config) {
   if (argv.o) {
     try {
       fs.accessSync(argv.o);
-      console.error(('File ' + argv.o + ' already exists.').error);
-      process.exit(1);
+      errx('File ' + argv.o + ' already exists.');
     } catch (error) {
       /* We are fine, not replacing a file probably. */
     }
@@ -486,8 +488,7 @@ function coronerReport(argv, config) {
     try {
       options = JSON.parse(fs.readFileSync(layout));
     } catch (error) {
-      console.error(('Error: ' + error).red);
-      process.exit(1);
+      errx(error);
     }
   }
 
@@ -502,18 +503,12 @@ function coronerControl(argv, config) {
   if (argv.smr) {
     coroner.control({ 'action': 'graceperiod' }, function(error, r) {
       if (error) {
-        var message = 'Error: ';
-        if (error.message) {
-          message += error.message;
-        } else {
-          message += error;
-        }
+        var message = error.message ? error.message : error;
 
         if (error === 'invalid token')
-          message = message + ': try logging in again.';
+          message += ': try logging in again.';
 
-        console.log(message.error);
-        process.exit();
+        errx(message);
       }
 
       console.log('Success'.blue);
@@ -616,15 +611,13 @@ function coronerGet(argv, config) {
 
   if (objects.length > 1) {
     if (!has_outpath) {
-      console.log('Must specify output directory for multiple objects.'.error);
-      return;
+      errx('Must specify output directory for multiple objects.');
     }
     mkdir_p(outpath);
   }
 
   if (objects.length === 0) {
-    console.log('Must specify at least one object to get.'.error);
-    return;
+    errx('Must specify at least one object to get.');
   }
 
   if (argv.resource)
@@ -646,7 +639,7 @@ function coronerGet(argv, config) {
         e.message = sprintf("%s: %s", fname, e.message);
         return Promise.reject(e);
       }
-      console.log(sprintf('Error (ignoring): %s: %s', fname, e.message).error);
+      err(sprintf('%s: %s', fname, e.message));
       return Promise.resolve();
     }));
   });
@@ -655,7 +648,7 @@ function coronerGet(argv, config) {
     if (has_outpath)
       console.log('Success'.success);
   }).catch(function(e) {
-    console.log(('Error: ' + e.message).error);
+    errx(e.message);
   });
 }
 
@@ -669,8 +662,7 @@ function coronerDescribe(argv, config) {
   var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
-    console.error("Missing project and universe arguments".error);
-    return usage();
+    return usage("Missing universe, project arguments.");
   }
 
   p = coronerParams(argv, config);
@@ -692,8 +684,7 @@ function coronerDescribe(argv, config) {
       if (error === 'invalid token')
         message = message + ': try logging in again.';
 
-      console.log(message.error);
-      process.exit();
+      errx(message);
     }
 
     cd = result.describe;
@@ -809,13 +800,11 @@ function coronerModify(argv, config) {
   var tasks = [];
 
   if (argv._.length < 2) {
-    console.error("Missing universe, project arguments".error);
-    return usage();
+    return usage("Missing universe, project arguments.");
   }
 
   if (Object.keys(request).length === 0) {
-    console.error("Empty request, specify at least one set or clear.".error);
-    return usage();
+    return usage("Empty request, specify at least one set or clear.");
   }
 
   for (var i = 2; i < argv._.length; i++) {
@@ -826,8 +815,7 @@ function coronerModify(argv, config) {
 
   var success_cb = function() {
     if (n_objects === 0) {
-      console.error('No matching objects.'.error);
-      return;
+      errx('No matching objects.');
     }
     console.log(('Modification queued for ' + n_objects + ' objects.').success);
   }
@@ -865,18 +853,15 @@ function coronerPut(argv, config) {
   var supported_compression = {'gzip' : true, 'deflate' : true};
 
   if (!config.submissionEndpoint) {
-    console.error('Error: no submission endpoint found'.error);
-    process.exit(1);
+    errx('No submission endpoint found.');
   }
 
   if (!argv.format || !formats[argv.format]) {
-    console.error('Error: format must be one of btt, json, symbols or minidump'.error);
-    process.exit(1);
+    errx('Format must be one of btt, json, symbols or minidump');
   }
 
   if (argv.compression && !supported_compression[argv.compression]) {
-    console.error('Error: supported compression are gzip and deflate'.error);
-    process.exit(1);
+    errx('Supported compression are gzip and deflate');
   }
 
   p = coronerParams(argv, config);
@@ -898,16 +883,14 @@ function coronerPut(argv, config) {
     try {
       var body = fs.readFileSync(argv._[i]);
     } catch (error) {
-      console.error(('Error: failed to open file: ' + argv._[i]).error);
-      process.exit(1);
+      errx('Failed to open file: ' + argv._[i]);
     }
 
     files.push({ path: argv._[i], body: body });
   }
 
   if (files.length === 0) {
-    console.error('Error: one or more files must be specified'.error);
-    process.exit(1);
+    errx('One or more files must be specified.');
   }
 
   var coroner = coronerClientArgvSubmit(config, argv);
@@ -917,6 +900,7 @@ function coronerPut(argv, config) {
 
   var submitted = 0;
   var success = 0;
+  var tasks = [];
 
   if (argv.benchmark) {
     process.stderr.write('Warming up...'.blue + '\n');
@@ -929,66 +913,79 @@ function coronerPut(argv, config) {
     var samples = [];
 
     process.stderr.write('Injecting: '.yellow);
-      var start = process.hrtime();
+    var start = process.hrtime();
 
-      for (var i = 0; i < concurrency; i++) {
-        (function qp(of) {
-          var bind = of % files.length;
-          var s_st = nsToUs(process.hrtime());
-
-          coroner.put(files[bind].body, p, argv.compression, function(error, result) {
-              samples.push(nsToUs(process.hrtime()) - s_st);
-
-              if (error) {
-                console.error((error + '').error)
-              } else if (!(submitted % 10)) {
-                process.stderr.write('.'.blue);
-                success++;
-              }
-
-              submitted++;
-              if (submitted === n_samples) {
-                process.stderr.write('.'.blue + '\n');
-                printSamples(submitted, samples, start, process.hrtime(),
-                    concurrency);
-                process.exit(0);
-              }
-
-              qp(of + 1);
-          });
-        })(i);
-      }
-  } else {
-    for (var i = 0; i < files.length; i++) {
-      (function () {
-        var bind = i;
-
-        if (form) {
-          coroner.put_form(files[bind].path, null, p, putCallBack);
-        } else {
-          coroner.put(files[bind].body, p, argv.compression, putCallBack);
-        }
-        function putCallBack(error, result) {
-            if (error) {
-              console.error((error + '').error)
-            } else {
-              console.log(files[bind].path);
-              success++;
-            }
-
-            submitted++;
-            if (submitted === files.length) {
-              if (success === files.length)
-                console.log('Success'.blue);
-
-              if (!argv.benchmark)
-                process.exit(0);
-            }
-        }
-      })();
+    var submit_cb = function(i) {
+      var fi = i % files.length;
+      /* A previous call completed the full run.  Resolve. */
+      if (submitted === n_samples)
+        return Promise.resolve();
+      submitted++;
+      var st = process.hrtime();
+      return coroner.promise('put', files[fi].body, p, argv.compression).
+        then((r) => success_cb(r, i, st)).catch((e) => failure_cb(e, i, st));
     }
-  }
+    var success_cb = function(r, i, st) {
+      samples.push(nsToUs(process.hrtime()) - st);
+      process.stderr.write('.'.blue);
+      success++;
+      return submit_cb(i);
+    }
+    var failure_cb = function(e, i, st) {
+      samples.push(nsToUs(process.hrtime()) - st);
+      err(e);
+      return submit_cb(i);
+    }
 
+    /*
+     * Kick off the initial tasks for each "thread".  These will continue to
+     * spawn new tasks until the total number of submits reaches n_samples.
+     * Once that happens, the final .then() below will run.
+     */
+    for (var i = 0; i < concurrency; i++) {
+      tasks.push(submit_cb(i));
+    }
+
+    Promise.all(tasks).then((r) => {
+      var failed = n_samples - success;
+      console.log('\n');
+      printSamples(submitted, samples, start, process.hrtime(), concurrency);
+      if (failed === 0)
+        process.exit(0);
+      errx(sprintf("%d of %d submissions failed.", failed, n_samples));
+    }).catch((e) => {
+      errx(e.message);
+    });
+  } else {
+    var success_cb = function(r, path) {
+      console.log(path);
+      success++;
+    }
+    var failure_cb = function(e) {
+      err(e.message);
+    }
+    for (var i = 0; i < files.length; i++) {
+      var path = files[i].path;
+      if (form) {
+        tasks.push(coroner.promise('put_form', path, null, p).
+          then((r) => success_cb(r, path)).catch((e) => failure_cb(e)));
+      } else {
+        tasks.push(coroner.promise('put', files[i].body, p, argv.compression)
+          .then((r) => success_cb(r, path)).catch((e) => failure_cb(e)));
+      }
+    }
+
+    Promise.all(tasks).then((r) => {
+      var failed = n_samples - success;
+      if (failed === 0) {
+        console.log('Success.'.success);
+        process.exit(0);
+      }
+      errx(sprintf("%d of %d submissions failed.", failed, n_samples));
+    }).catch((e) => {
+      errx(e.message);
+    });
+  }
 }
 
 /**
@@ -1016,8 +1013,7 @@ function coronerSymbol(argv, config) {
   var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
-    console.error("Missing project and universe arguments".error);
-    return usage();
+    return usage("Missing project and universe arguments.");
   }
 
   var p = coronerParams(argv, config);
@@ -1036,14 +1032,12 @@ function coronerSymbol(argv, config) {
   } else if (action === 'status' || !action) {
     query.action = 'archives';
   } else {
-    console.error('Usage: morgue symbol <project> [list | status]'.error);
-    process.exit(1);
+    errx('Usage: morgue symbol <project> [list | status]');
   }
 
   coroner.symfile(p.universe, p.project, query, function (err, result) {
     if (err) {
-      console.error(("Error: " + err.message).error);
-      process.exit(1);
+      errx(err.message);
     }
 
     var output = null;
@@ -1314,8 +1308,7 @@ function argvQuery(argv) {
 
       r = r.split(',');
       if (r.length < 3) {
-        console.error('Error: filter must be of form <column>,<operation>,<value>'.red);
-        process.exit();
+        errx('Filter must be of form <column>,<operation>,<value>.');
       }
 
       if (!query.filter[0][r[0]])
@@ -1358,8 +1351,7 @@ function argvQuery(argv) {
     var length, op, ar;
 
     if (Array.isArray(argv.fingerprint) === true) {
-      console.error('Error: only one fingerprint argument can be provided'.red);
-      process.exit(1);
+      errx('Only one fingerprint argument can be specified.');
     }
 
     length = String(argv.fingerprint).length;
@@ -1436,8 +1428,7 @@ function coronerBpg(argv, config) {
   var bpg = coronerBpgSetup(coroner, argv);
 
   if (!argv.raw) {
-    console.error("Only raw commands are supported".error);
-    return usage();
+    return usage("Only raw commands are supported.");
   }
 
   request = argv.raw;
@@ -1445,13 +1436,12 @@ function coronerBpg(argv, config) {
     request = argv._[1];
 
   if (!request) {
-    console.error("Missing command argument".error);
-    return usage();
+    return usage("Missing command argument.");
   }
 
   bpgPost(bpg, request, function(e, r) {
     if (e) {
-      console.error(("Error: " + e).error);
+      err(e);
       return;
     }
     console.log(r);
@@ -1467,8 +1457,7 @@ function coronerFlamegraph(argv, config) {
   var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
-    console.error("Missing project and universe arguments".error);
-    return usage();
+    return usage("Missing project, universe arguments.");
   }
 
   p = coronerParams(argv, config);
@@ -1484,8 +1473,7 @@ function coronerFlamegraph(argv, config) {
 
   coroner.query(p.universe, p.project, query, function (err, result) {
     if (err) {
-      console.error(("Error: " + err.message).error);
-      process.exit(1);
+      errx(err.message);
     }
 
     var child = spawn(flamegraph);
@@ -1493,8 +1481,7 @@ function coronerFlamegraph(argv, config) {
     rp = rp.unpack();
 
     if (!rp['*']) {
-      console.error('Error: no results found.'.red);
-      process.exit(1);
+      errx("No results found.");
     }
 
     var samples = rp['*']['histogram(callstack)'];
@@ -1541,8 +1528,7 @@ function coronerFlamegraph(argv, config) {
     if (argv.o) {
       try {
         fs.accessSync(argv.o);
-        console.error(('File ' + argv.o + ' already exists.').error);
-        process.exit(1);
+        errx('File ' + argv.o + ' already exists.');
       } catch (error) {
         /* We are fine, not replacing a file probably. */
       }
@@ -1596,8 +1582,7 @@ function coronerNuke(argv, config) {
   }
 
   if (!un) {
-    console.error('Error: universe not found.'.error);
-    process.exit(1);
+    errx('Universe not found.');
   }
 
   if (project) {
@@ -1612,8 +1597,7 @@ function coronerNuke(argv, config) {
   }
 
   if (target === null) {
-    console.error('Error: no such object.'.error);
-    process.exit(1);
+    errx('No such object.');
   }
 
   bpg.delete(target, { cascade: true });
@@ -1621,8 +1605,7 @@ function coronerNuke(argv, config) {
   try {
     bpg.commit();
   } catch (em) {
-    console.error((em + '').error);
-    process.exit(1);
+    errx(em);
   }
 
   console.log('Success'.blue);
@@ -1640,8 +1623,7 @@ function coronerList(argv, config) {
   var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
-    console.error("Missing project and universe arguments".error);
-    return usage();
+    return usage("Missing project, universe arguments");
   }
 
   p = coronerParams(argv, config);
@@ -1670,8 +1652,7 @@ function coronerList(argv, config) {
       for (j = 0; j < modifiers.length; j++) {
         modifiers[j] = parseInt(modifiers[j]);
         if (isNaN(modifiers[j]) === true) {
-          console.error('Error: modifiers must be integers.'.error);
-          process.exit(1);
+          errx('Modifiers must be integers.');
         }
       }
 
@@ -1745,8 +1726,7 @@ function coronerList(argv, config) {
   } else {
     coroner.query(p.universe, p.project, query, function (err, result) {
       if (err) {
-        console.error(("Error: " + err.message).error);
-        process.exit(1);
+        errx(err.message);
       }
 
       if (argv.raw) {
@@ -2169,8 +2149,7 @@ function coronerLogin(argv, config, cb) {
   const endpoint = argv._[1];
 
   if (!endpoint) {
-    console.error("Expected endpoint argument".error);
-    return usage();
+    return usage("Expected endpoint argument.");
   }
 
   const coroner = coronerClient(config, !!argv.k, argv.debug, endpoint,
@@ -2197,14 +2176,12 @@ function coronerLogin(argv, config, cb) {
 
     coroner.login(result.username, result.password, function(err) {
       if (err) {
-        console.error(("Unable to authenticate: " + err.message).error);
-        process.exit(1);
+        errx("Unable to authenticate: " + err.message + ".");
       }
 
       saveConfig(coroner, function(err) {
         if (err) {
-          console.error(("Unable to save config: " + err.message).error);
-          process.exit(1);
+          errx("Unable to save config: " + err.message + ".");
         }
 
         console.log('Logged in.'.success);
@@ -2243,8 +2220,7 @@ function coronerDelete(argv, config) {
   argvPushObjectRanges(o, argv);
 
   if (o.length === 0 && !(aq && aq.query)) {
-    console.log('Must specify objects to be deleted.'.error);
-    return;
+    errx('Must specify objects to be deleted.');
   }
 
   if (aq && aq.query) {
@@ -2262,7 +2238,9 @@ function coronerDelete(argv, config) {
   }
 }
 
-function retentionUsage() {
+function retentionUsage(str) {
+  if (str)
+    err(str + "\n");
   console.error("Usage: morgue retention <list|set|clear> <name> [options]");
   console.error("");
   console.error("Options for set/clear:");
@@ -2323,8 +2301,7 @@ function retentionSet(bpg, objects, argv, config) {
   var max_age = argv["max-age"];
 
   if (!max_age) {
-    console.error("Max age is a required argument.".error);
-    return retentionUsage();
+    return retentionUsage("Max age is a required argument.");
   }
   if (max_age === "null") {
     /* Special internal value meaning clear the rules. */
@@ -2333,20 +2310,17 @@ function retentionSet(bpg, objects, argv, config) {
     try {
       rules[0].criteria[0].time = timespecToSeconds(max_age).toString();
     } catch (e) {
-      console.error(("Invalid max age '" + max_age + "': " + e.message).error);
-      return retentionUsage();
+      return retentionUsage("Invalid max age '" + max_age + "': " + e.message);
     }
   }
 
   if (rtn_type === "instance") {
     if (argv._.length > 0) {
-      console.error("Instances do not have names.".error);
-      return retentionUsage();
+      return retentionUsage("Instances do not have names.");
     }
   } else {
     if (argv._.length != 1) {
-      console.error("Must specify namespace name.".error);
-      return retentionUsage();
+      return retentionUsage("Must specify namespace name.");
     }
     rtn_pname = argv._[0];
   }
@@ -2356,8 +2330,7 @@ function retentionSet(bpg, objects, argv, config) {
     var id_attr = rtn_ptype === "project" ? "pid" : "id";
     rtn_parent = retentionParent(objects, rtn_ptype, rtn_pname);
     if (!rtn_parent) {
-      console.error("Unknown " + rtn_ptype + " '" + rtn_pname + "'.");
-      return retentionUsage();
+      return retentionUsage("Unknown " + rtn_ptype + " '" + rtn_pname + "'.");
     }
     rtn_parent_id = rtn_parent.get(id_attr);
     obj = bpgObjectFind(objects, rtn_type, rtn_parent_id, rtn_ptype);
@@ -2383,7 +2356,7 @@ function retentionSet(bpg, objects, argv, config) {
 
   bpgPost(bpg, { actions: [act_obj] }, function(e, r) {
     if (e) {
-      console.error(e.error);
+      err(e);
       return;
     }
     console.log(r);
@@ -2394,8 +2367,7 @@ function retentionClear(bpg, objects, argv, config) {
 
   /* Currently, this is essentially set(max-age="null"). */
   if (argv["max-age"]) {
-    console.error("Clear does not take --max-age.".error);
-    return retentionUsage();
+    return retentionUsage("Clear does not take --max-age.");
   }
   argv["max-age"] = "null";
 
@@ -2432,8 +2404,7 @@ function retentionList(bpg, objects, argv, config) {
   var before = 0;
 
   if (argv._.length > 0) {
-    console.error("List does not take any arguments.".error);
-    return retentionUsage();
+    return retentionUsage("List does not take any arguments.");
   }
 
   if ((r = objects["instance_retention"])) {
@@ -2486,8 +2457,7 @@ function coronerReprocess(argv, config) {
   var aq = {};
 
   if (argv._.length < 2) {
-    console.error("Missing universe, project arguments".error);
-    return usage();
+    return usage("Missing universe, project arguments.");
   }
 
   params.action = 'reload';
@@ -2503,8 +2473,7 @@ function coronerReprocess(argv, config) {
   n_objects = argv._.length - 2;
 
   if (n_objects > 0 && aq.query) {
-    console.error("Cannot specify both a query and a set of objects.".error);
-    return usage();
+    return usage("Cannot specify both a query and a set of objects.");
   }
 
   var success_cb = function(result) {
@@ -2546,8 +2515,7 @@ function coronerRetention(argv, config) {
 
   argv._.shift();
   if (argv._.length == 0) {
-    console.error("No request specified.".error);
-    return retentionUsage();
+    return retentionUsage("No request specified.");
   }
 
   subcmd = argv._.shift();
@@ -2562,8 +2530,7 @@ function coronerRetention(argv, config) {
     return fn(bpg, bpg.get(), argv, config);
   }
 
-  console.error(("Invalid retention subcommand '" + subcmd + "'.").error);
-  retentionUsage();
+  retentionUsage("Invalid retention subcommand '" + subcmd + "'.");
 }
 
 function main() {
@@ -2605,8 +2572,7 @@ function main() {
 
   loadConfig(function(err, config) {
     if (err && err.code !== 'ENOENT') {
-      console.error(("Unable to read configuration: " + err.message).error);
-      process.exit(1);
+      errx("Unable to read configuration: " + err.message + ".");
     }
 
     command(argv, config);
