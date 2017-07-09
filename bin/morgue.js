@@ -2210,6 +2210,9 @@ function unpackQueryObjects(objects, qresult) {
  */
 function coronerDelete(argv, config) {
   var aq, coroner, o, p;
+  var tasks = [];
+  var chunklen = argv.chunklen || 16384;
+  var params = {};
 
   abortIfNotLoggedIn(config);
 
@@ -2223,18 +2226,36 @@ function coronerDelete(argv, config) {
     errx('Must specify objects to be deleted.');
   }
 
+  if (argv.sync) {
+    params.sync = true;
+    if (!argv.timeout) {
+      /* Set longer 5 minute timeout in case of heavy load. */
+      coroner.timeout = 300 * 1000;
+    }
+  }
+
+  var delete_fn = function() {
+    var n_objects = o.length;
+    if (n_objects === 0)
+      return Promise.reject(new Error("No matching objects."));
+    while (o.length > 0) {
+      var objs = o.splice(0, Math.min.apply(Math, [o.length, chunklen]));
+      tasks.push(coroner.promise('delete_objects', p.universe, p.project,
+        objs, params));
+    }
+    process.stderr.write(sprintf('Deleting %d objects in %d requests...',
+      n_objects, tasks.length).blue + '\n');
+
+    return Promise.all(tasks);
+  }
+
   if (aq && aq.query) {
     coroner.promise('query', p.universe, p.project, aq.query).then(function(r) {
       unpackQueryObjects(o, r);
-      if (o.length === 0)
-        return Promise.reject(new Error("No matching objects."));
-      process.stderr.write(sprintf('Deleting %d objects...', o.length).blue + '\n');
-      return coroner.promise('delete_objects', p.universe, p.project, o, {});
+      return delete_fn();
     }).then(std_success_cb).catch(std_failure_cb);
   } else {
-    process.stderr.write(sprintf('Deleting %d objects...', o.length).blue + '\n');
-    coroner.promise('delete_objects', p.universe, p.project, o, {}).
-      then(std_success_cb).catch(std_failure_cb);
+    delete_fn().then(std_success_cb).catch(std_failure_cb);
   }
 }
 
