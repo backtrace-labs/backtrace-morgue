@@ -1406,19 +1406,16 @@ function argvQuery(argv) {
 }
 
 function bpgPost(bpg, request, callback) {
-  var response;
-  var json;
+  var json, msg, response;
 
   if (typeof request === 'string')
     request = JSON.parse(request);
 
   response = bpg.post(request);
   json = JSON.parse(response.body);
-  if (json.results[0].string !== 'success') {
-    var e = json.results[0].string;
-    if (!e)
-      e = json.results[0].text;
-    callback(e);
+  msg = json.results[0].string || json.results[0].text;
+  if (msg !== 'success') {
+    callback(msg);
   } else {
     callback(null, json);
   }
@@ -2387,7 +2384,7 @@ function retentionSet(bpg, objects, argv, config) {
       err(e);
       return;
     }
-    console.log(r);
+    console.log((r.results[0].text || r.results[0].string).success);
   });
 }
 
