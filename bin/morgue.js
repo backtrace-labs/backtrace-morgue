@@ -593,7 +593,7 @@ function argvPushObjectRanges(objects, argv) {
 }
 
 function coronerGet(argv, config) {
-  var coroner, has_outpath, objects, p, outpath, tasks, rf;
+  var coroner, has_outpath, objects, p, outpath, tasks, rf, success;
 
   abortIfNotLoggedIn(config);
   p = coronerParams(argv, config);
@@ -623,9 +623,11 @@ function coronerGet(argv, config) {
   if (argv.resource)
       rf = argv.resource;
 
+  success = 0;
   objects.forEach(function(oid) {
     tasks.push(coroner.promise('fetch', p.universe, p.project, oid, rf).then(function(r) {
       var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+      success++;
       if (fname) {
         fs.writeFileSync(fname, r);
         console.log(sprintf('Wrote %ld bytes to %s', r.length, fname).success);
@@ -646,7 +648,7 @@ function coronerGet(argv, config) {
 
   Promise.all(tasks).then(function() {
     if (has_outpath)
-      console.log('Success'.success);
+      console.log(sprintf('Fetched %d of %d objects.', success, objects.length).success);
   }).catch(function(e) {
     errx(e.message);
   });
