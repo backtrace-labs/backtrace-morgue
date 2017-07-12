@@ -913,6 +913,7 @@ function coronerPut(argv, config) {
     submitted = 0;
 
     var samples = [];
+    var objects = [];
 
     process.stderr.write('Injecting: '.yellow);
     var start = process.hrtime();
@@ -931,6 +932,8 @@ function coronerPut(argv, config) {
       samples.push(nsToUs(process.hrtime()) - st);
       process.stderr.write('.'.blue);
       success++;
+      if (argv.printids)
+        objects.push(r.object);
       return submit_cb(i);
     }
     var failure_cb = function(e, i, st) {
@@ -952,6 +955,8 @@ function coronerPut(argv, config) {
       var failed = n_samples - success;
       console.log('\n');
       printSamples(submitted, samples, start, process.hrtime(), concurrency);
+      if (argv.printids)
+        console.log(sprintf('Object IDs: %s', JSON.stringify(objects)).blue);
       if (failed === 0)
         process.exit(0);
       errx(sprintf("%d of %d submissions failed.", failed, n_samples));
