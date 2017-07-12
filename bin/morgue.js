@@ -2562,7 +2562,7 @@ function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
     /* Don't convert fingerprint or non-optional arguments. */
-    "string" : [ "fingerprint", "_" ]
+    "string" : [ "first", "last", "fingerprint", "_" ]
   });
 
   if (argv.v || argv.version) {
