@@ -2263,6 +2263,58 @@ function coronerDelete(argv, config) {
   }
 }
 
+/**
+ * @brief Implements the reprocess command.
+ */
+function coronerReprocess(argv, config) {
+  abortIfNotLoggedIn(config);
+  var params = coronerParams(argv, config);
+  var coroner;
+  var n_objects;
+  var aq = {};
+
+  if (argv._.length < 2) {
+    return usage("Missing universe, project arguments.");
+  }
+
+  params.action = 'reload';
+  if (argv.first)
+    params.first = oidToString(argv.first);
+  if (argv.last)
+    params.last = oidToString(argv.last);
+
+  aq = argvQueryFilterOnly(argv);
+  coroner = coronerClientArgv(config, argv);
+
+  /* Check for a query parameter to be sent. */
+  n_objects = argv._.length - 2;
+
+  if (n_objects > 0 && aq.query) {
+    return usage("Cannot specify both a query and a set of objects.");
+  }
+
+  var success_cb = function(result) {
+    console.log(('Reprocessing request #' + result.id + ' queued.').success);
+  }
+
+  if (aq && aq.query) {
+    params.objects = [];
+    coroner.promise('query', params.universe, params.project, aq.query).then(function(r) {
+      unpackQueryObjects(params.objects, r);
+      if (params.objects.length === 0)
+        return Promise.reject(new Error("No matching objects."));
+      return coroner.promise('control', params);
+    }).then((result) => success_cb(result)).catch(std_failure_cb);
+  } else {
+    if (n_objects > 0) {
+      /* May specify just --first or --last, or just all objects. */
+      params.objects = argv._.slice(2);
+    }
+    coroner.promise('control', params).
+      then((result) => success_cb(result)).catch(std_failure_cb);
+  }
+}
+
 function retentionUsage(str) {
   if (str)
     err(str + "\n");
@@ -2471,56 +2523,126 @@ function retentionList(bpg, objects, argv, config) {
   }
 }
 
-/**
- * @brief Implements the reprocess command.
- */
-function coronerReprocess(argv, config) {
-  abortIfNotLoggedIn(config);
-  var params = coronerParams(argv, config);
-  var coroner;
-  var n_objects;
-  var aq = {};
+function usageRetentionStatus(str) {
+  if (str)
+    console.log(str.error);
+  console.log("Usage: retention status [--type universe|project] [name]".error);
+  console.log("Specifying a type requires a name without a slash.");
+  return;
+}
 
-  if (argv._.length < 2) {
-    return usage("Missing universe, project arguments.");
-  }
+function critToString(c) {
+  var str = c.type;
 
-  params.action = 'reload';
-  if (argv.first)
-    params.first = oidToString(argv.first);
-  if (argv.last)
-    params.last = oidToString(argv.last);
-
-  aq = argvQueryFilterOnly(argv);
-  coroner = coronerClientArgv(config, argv);
-
-  /* Check for a query parameter to be sent. */
-  n_objects = argv._.length - 2;
-
-  if (n_objects > 0 && aq.query) {
-    return usage("Cannot specify both a query and a set of objects.");
-  }
-
-  var success_cb = function(result) {
-    console.log(('Reprocessing request #' + result.id + ' queued.').success);
-  }
-
-  if (aq && aq.query) {
-    params.objects = [];
-    coroner.promise('query', params.universe, params.project, aq.query).then(function(r) {
-      unpackQueryObjects(params.objects, r);
-      if (params.objects.length === 0)
-        return Promise.reject(new Error("No matching objects."));
-      return coroner.promise('control', params);
-    }).then((result) => success_cb(result)).catch(std_failure_cb);
-  } else {
-    if (n_objects > 0) {
-      /* May specify just --first or --last, or just all objects. */
-      params.objects = argv._.slice(2);
+  if (c.type === "object-age") {
+    var n_o = c.next_object;
+    str += " " + c.op + " " + c.value + ";";
+    if (n_o.namespace !== null) {
+      str += " next namespace " + n_o.namespace + " oid " + n_o.object_id;
+      str += " expires at " + n_o.expiry_time;
+    } else {
+      str += " idle, awaiting new objects";
     }
-    coroner.promise('control', params).
-      then((result) => success_cb(result)).catch(std_failure_cb);
   }
+  return str;
+}
+
+function retentionSkip(obj, level, name) {
+  if (level === "universe" && name === "users")
+    return true;
+  if (typeof name === 'string' && name.indexOf("_") === 0)
+    return true;
+  return false;
+}
+
+function retentionSublevel(level) {
+  if (level === "instance")
+    return "universe";
+  else if (level === "universe")
+    return "project";
+  else
+    return null;
+}
+
+function retentionStatusDump(obj, name, level, indent) {
+  var crit, header, i, rule;
+  var spaces = '';
+
+  if (retentionSkip(obj, level, name))
+    return;
+
+  for (i = 0; i < indent; i++)
+    spaces += ' ';
+  header = spaces + level;
+  if (name)
+    header += " " + name;
+  console.log(header + ": policy state: " + obj.state);
+  spaces += '  ';
+
+  if (obj.state !== "not installed") {
+    rule = obj.rules[0];
+    crit = rule.criteria[0];
+    if (rule.actions[0].type === "delete-all" && crit.type === "object-age") {
+      console.log(spaces + critToString(crit));
+    }
+  }
+  if (typeof obj.children === 'object') {
+    var keys = Object.keys(obj.children);
+    var sublevel = retentionSublevel(level);
+    for (i = 0; sublevel !== null && i < keys.length; i++) {
+      retentionStatusDump(obj.children[keys[i]], keys[i], sublevel, indent + 2);
+    }
+  }
+}
+
+/**
+ * retention status [--type universe|project] [name]
+ * -> api/control?action=rpstatus, parse response JSON
+ */
+function retentionStatus(coroner, argv, config) {
+  var params = { action: 'rpstatus' };
+  var name = argv._[0];
+  var type = argv.type;
+  var level = "instance";
+
+  if (argv.recursive)
+    params.recursive = true;
+
+  if (argv._.length > 1)
+    return usageRetentionStatus();
+
+  if (type != undefined) {
+    if (type !== 'project' && type !== 'universe')
+      return usageRetentionStatus();
+    if (name === undefined)
+      return usageRetentionStatus();
+    if (name.indexOf("/") == -1)
+      return usageRetentionStatus("Type specified, so name must not contain /");
+  }
+
+  if (name !== undefined) {
+    var p = coronerParams({"_":[null, name]}, config);
+    var tmp;
+    /* coronerParams parses name; check type for any needed overrides. */
+    if (type === 'project') {
+      p.project = name;
+    } else if (type === 'universe') {
+      p.universe = name;
+      delete p.project;
+    }
+    if (p.project !== undefined)
+      level = "project";
+    else if (p.universe !== undefined)
+      level = "universe";
+    Object.assign(params, p);
+  }
+
+  coroner.promise('control', params).then(function (r) {
+    if (argv.raw)
+      console.log(JSON.stringify(r, null, 4));
+    else
+      retentionStatusDump(r, null, level, 0);
+  }).catch(std_failure_cb);
 }
 
 /**
@@ -2548,6 +2670,10 @@ function coronerRetention(argv, config) {
     return retentionUsage();
 
   coroner = coronerClientArgv(config, argv);
+  /* Special case for retention status which doesn't use BPG. */
+  if (subcmd === 'status')
+    return retentionStatus(coroner, argv, config);
+
   bpg = coronerBpgSetup(coroner, argv);
 
   fn = subcmd_map[subcmd];
