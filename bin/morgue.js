@@ -706,7 +706,6 @@ function coronerDescribe(argv, config) {
       return a.name.localeCompare(b.name);
     });
 
-
     if (argv.json) {
       console.log(JSON.stringify(cd, null, 2));
       process.exit(0);
@@ -718,6 +717,9 @@ function coronerDescribe(argv, config) {
       var name, description;
 
       if (filter && it.name.match(filter) === null)
+        continue;
+
+      if (argv.u && it.custom === false)
         continue;
 
       if (!argv.a && it.statistics && it.statistics.used === false) {
@@ -739,8 +741,26 @@ function coronerDescribe(argv, config) {
           process.stdout.write(name.yellow + ': ' + it.description);
         }
       }
+
       if (it.format)
         process.stdout.write(' ['.grey + it.format.grey + ']'.grey);
+
+      if (argv.l && it.filter) {
+        var sp = Array(ml).join(" ");
+        process.stdout.write('\n');
+
+        process.stdout.write(printf("%*s: ", "Group", ml).grey + it.group + '\n');
+
+        process.stdout.write(printf("%*s:\n", "Filter", ml).grey);
+        for (var j = 0; j < it.filter.length; j++) {
+          process.stdout.write(sp + it.filter[j] + '\n');
+        }
+
+        process.stdout.write(printf("%*s:\n", "Aggregate", ml).grey);
+        for (var j = 0; j < it.filter.length; j++) {
+          process.stdout.write(sp + it.filter[j] + '\n');
+        }
+      }
       process.stdout.write('\n');
     }
 
