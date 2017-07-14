@@ -25,6 +25,7 @@ const spawn     = require('child_process').spawn;
 const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
 const sprintf   = require('extsprintf').sprintf;
+const chrono = require('chrono-node');
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -1338,6 +1339,9 @@ function argvQuery(argv) {
         errx('Filter must be of form <column>,<operation>,<value>.');
       }
 
+      if (r[0] === 'timestamp')
+        errx('use --age or --time to filter on timestamp');
+
       if (!query.filter[0][r[0]])
         query.filter[0][r[0]] = [];
       query.filter[0][r[0]].push([r[1], r[2]]);
@@ -1346,7 +1350,35 @@ function argvQuery(argv) {
 
   if (!query.filter[0].timestamp)
     query.filter[0].timestamp = [];
-  query.filter[0].timestamp.push([ 'greater-than', 0 ]);
+
+  if (argv.time) {
+    var tm = chrono.parse(argv.time);
+
+    if (tm.length > 1)
+      errx('only a single date or range is permitted.'.error);
+
+    if (!tm[0].start)
+      errx('date specification lacks start date'.error);
+
+    if (!tm[0].end)
+      errx('date specification lacks end date'.error);
+
+    var ts_s = tm[0].start.date();
+    ts_s = parseInt(ts_s / 1000);
+
+    var ts_e;
+    if (tm[0].end)
+      ts_e = parseInt(tm[0].end.date() / 1000);
+
+    query.filter[0].timestamp = [
+      [ 'at-least', ts_s ], 
+      [ 'less-than', ts_e ]
+    ];
+
+    d_age = null;
+  } else {
+    query.filter[0].timestamp.push([ 'greater-than', 0 ]);
+  }
 
   if (argv.factor) {
     query.group = [ argv.factor ];
@@ -1778,9 +1810,16 @@ function coronerList(argv, config) {
       coronerPrint(query, rp, result.response,
           argv.sort, argv.limit);
 
+      var date_label;
+      if (d_age) {
+        date_label = 'as of ' + d_age + ' ago';
+      } else {
+        date_label = 'with a time range of ' + argv.time;
+      }
+
       var footer = result._.user + ': ' +
-          result._.universe + '/' + result._.project + ' as of ' + d_age +
-            ' ago [' + result._.latency + ']';
+          result._.universe + '/' + result._.project + date_label +
+            ' [' + result._.latency + ']';
       console.log(footer.blue);
     });
   }
@@ -2037,13 +2076,13 @@ function objectPrint(g, object, renderer, fields) {
   }
 
   if (timestamp_range) {
-    console.log('Date: '.label + start);
+    console.log('First Occurrence: '.label + start);
     if (timestamp_range[0] !== timestamp_range[1])
-      console.log('      ' + stop);
+      console.log(' Last Occurrence: '.label + stop);
   }
 
   if (object.count)
-      console.log('Occurrences: '.yellow.bold + object.count);
+      console.log('     Occurrences: '.yellow.bold + object.count);
 
   for (field in object) {
     var match;
