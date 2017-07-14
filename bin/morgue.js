@@ -1818,7 +1818,7 @@ function coronerList(argv, config) {
       }
 
       var footer = result._.user + ': ' +
-          result._.universe + '/' + result._.project + date_label +
+          result._.universe + '/' + result._.project + ' ' + date_label +
             ' [' + result._.latency + ']';
       console.log(footer.blue);
     });
