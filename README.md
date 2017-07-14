@@ -97,7 +97,7 @@ Both options below may be specified more than once.
 | `--clear`     | Clear the given `attribute` |
 
 You are also able to modify multiple objects by specifying filters. The
-`--filter` and `--age` arguments are accepted to modify.
+`--filter`, `--age` and `--time` arguments are accepted to modify.
 
 #### Example
 
@@ -143,6 +143,8 @@ factor.
 
 | Option        | Description |
 |---------------|-------------|
+| `--age`       | Specify a relative timestamp to now. `1h` ago, or `1d` ago. |
+| `--time`      | Specify a range using [Chrono](https://github.com/wanasit/chrono#readme). |
 | `--unique`    | provide a count of distinct values |
 | `--histogram` | provide all distinct values |
 | `--sum`       | sum all values |
