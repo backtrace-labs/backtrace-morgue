@@ -1262,13 +1262,13 @@ function timespecToSeconds(age_val) {
   if (typeof age_val === 'number')
     return age_val;
 
-  age = parseInt(age_val);
+  age = parseFloat(age_val);
   pre = String(age);
   age_string = String(age_val);
   iu = age_string.substring(pre.length, age_string.length);
   if (!unit[iu])
     throw new Error("Unknown interval unit '" + iu + "'");
-  return age * unit[iu];
+  return parseInt(age * unit[iu]);
 }
 
 /*
