@@ -817,6 +817,7 @@ function enqueueModify(submitter, argv, params, obj, req) {
   var p = params.project;
 
   return submitter.promise('modify_object', u, p, obj, null, req).then(function(r) {
+    params.success++;
     if (argv.verbose) {
       console.log(sprintf("Queued modification for %s.", r.object).success);
     }
@@ -856,13 +857,15 @@ function coronerModify(argv, config) {
   for (var i = 0; i < objects.length; i++) {
     tasks.push(enqueueModify(submitter, argv, p, objects[i], request));
   }
+  p.success = 0;
   n_objects = tasks.length;
 
   var success_cb = function() {
     if (n_objects === 0) {
       errx('No matching objects.');
     }
-    console.log(('Modification queued for ' + n_objects + ' objects.').success);
+    console.log(('Modification successfully queued for ' +
+      p.success + ' of ' + n_objects + ' objects.').success);
   }
 
   if (n_objects === 0) {
@@ -876,8 +879,7 @@ function coronerModify(argv, config) {
 
       rp = rp.unpack();
       rp['*'].forEach(function(o) {
-        tasks.push(submitter.promise('modify_object', p.universe, p.project,
-          oidToString(o.object), null, request));
+        tasks.push(enqueueModify(submitter, argv, p, oidToString(o.object), request));
       });
       n_objects = tasks.length;
       return Promise.all(tasks);
