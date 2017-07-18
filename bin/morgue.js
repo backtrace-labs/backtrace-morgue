@@ -2592,13 +2592,21 @@ function usageRetentionStatus(str) {
 
 function critToString(c) {
   var str = c.type;
+  var expiry_ts;
+  var expiry_time = 0;
 
   if (c.type === "object-age") {
     var n_o = c.next_object;
     str += " " + c.op + " " + c.value + ";";
     if (n_o.namespace !== null) {
       str += " next namespace " + n_o.namespace + " oid " + n_o.object_id;
-      str += " expires at " + n_o.expiry_time;
+      expiry_ts = parseInt(n_o.expiry_time);
+      if (expiry_ts && expiry_ts > 0) {
+        expiry_time = new Date(expiry_ts * 1000);
+        str += " expires at " + expiry_time.toString();
+      } else {
+        str += " no expiry";
+      }
     } else {
       str += " idle, awaiting new objects";
     }
