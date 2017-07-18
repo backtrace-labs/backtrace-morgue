@@ -456,15 +456,6 @@ function coronerReport(argv, config) {
   var options = null;
   var layout = argv.layout;
 
-  abortIfNotLoggedIn(config);
-  var coroner = coronerClientArgv(config, argv);
-
-}
-
-function coronerReport(argv, config) {
-  var options = null;
-  var layout = argv.layout;
-
   if (!layout)
     layout = argv.l;
 
