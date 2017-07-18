@@ -812,6 +812,24 @@ function genModifyRequest(to_set, to_clear) {
   return request;
 }
 
+function enqueueModify(submitter, argv, params, obj, req) {
+  var u = params.universe;
+  var p = params.project;
+
+  return submitter.promise('modify_object', u, p, obj, null, req).then(function(r) {
+    if (argv.verbose) {
+      console.log(sprintf("Queued modification for %s.", r.object).success);
+    }
+  }).catch(function(e) {
+    if (!argv.ignorefail) {
+      e.message = sprintf("%s: %s", obj, e.message);
+      return Promise.reject(e);
+    }
+    err(sprintf("%s: %s", obj, e.message));
+    return Promise.resolve();
+  });
+}
+
 function coronerModify(argv, config) {
   abortIfNotLoggedIn(config);
   var submitter = coronerClientArgvSubmit(config, argv);
@@ -820,6 +838,7 @@ function coronerModify(argv, config) {
   var request = genModifyRequest(argv.set, argv.clear);
   var n_objects;
   var aq;
+  var objects = [];
   var tasks = [];
 
   if (argv._.length < 2) {
@@ -830,9 +849,12 @@ function coronerModify(argv, config) {
     return usage("Empty request, specify at least one set or clear.");
   }
 
-  for (var i = 2; i < argv._.length; i++) {
-    tasks.push(submitter.promise('modify_object', p.universe, p.project,
-      argv._[i], null, request));
+  argvPushObjectRanges(objects, argv);
+  for (var i = 2; i < argv._.length; i++)
+    objects.push(argv._[i]);
+
+  for (var i = 0; i < objects.length; i++) {
+    tasks.push(enqueueModify(submitter, argv, p, objects[i], request));
   }
   n_objects = tasks.length;
 
