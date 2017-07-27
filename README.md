@@ -130,7 +130,7 @@ The filter option expects a comma-delimited list of the form
 
 The currently supported operations are `equal`, `regular-expression`,
 `inverse-regular-expression`, `at-least`, `greater-than`, `at-most`,
-`less-than`, `contains`, and `not-contains`.
+`less-than`, `contains`, `not-contains`, `is-set`, and `is-not-set`.
 
 #### Aggregations
 
