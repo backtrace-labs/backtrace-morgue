@@ -1735,6 +1735,8 @@ function coronerList(argv, config) {
   }
 
   const folds = [
+    [argv.last, 'last'],
+    [argv.first, 'first'],
     [argv.tail, 'tail'],
     [argv.head, 'head'],
     [argv.object, 'object'],
@@ -2156,6 +2158,8 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
   var fields = rp.fields();
   var g;
   var renderer = {
+    first: unaryPrint,
+    last: unaryPrint,
     head: unaryPrint,
     tail: unaryPrint,
     unique: noFormatPrint,
