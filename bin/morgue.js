@@ -2266,7 +2266,8 @@ function coronerLogin(argv, config, cb) {
           errx("Unable to save config: " + err.message + ".");
         }
 
-        console.log('Logged in.'.success);
+        console.log('Logged in'.success + ' ' +
+          ('[' + coroner.config.token + ']').grey);
 
         if (cb) {
           cb(coroner, argv);
