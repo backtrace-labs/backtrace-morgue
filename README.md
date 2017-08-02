@@ -313,12 +313,13 @@ coroner instance, or a specific universe or project.
 ### symbol
 
 ```
-Usage: morgue symbol <[<universe>/]project> [status | list] [-o <output file>]
+Usage: morgue symbol <[<universe>/]project> [status | list | missing] [-o <output file>]
 ```
 
 Retrieve a list of uploaded symbols or symbol archives. By default, `morgue symbol`
 will return a list of uploaded, in-process and symbol processing errors. If `list`
-is used, then a list of uploaded symbols is returned.
+is used, then a list of uploaded symbols is returned. If `missing` is used, then
+the set of missing symbols for the project are included.
 
 ### setup
 
