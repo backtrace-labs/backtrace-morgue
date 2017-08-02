@@ -1074,8 +1074,10 @@ function coronerSymbol(argv, config) {
     ];
   } else if (action === 'status' || !action) {
     query.action = 'archives';
+  } else if (action === 'missing') {
+    query.action = 'missing_symbols';
   } else {
-    errx('Usage: morgue symbol <project> [list | status]');
+    errx('Usage: morgue symbol <project> [list | missing | status]');
   }
 
   coroner.symfile(p.universe, p.project, query, function (err, result) {
@@ -1183,6 +1185,52 @@ function coronerSymbol(argv, config) {
           console.log(table(data, tableFormat));
         }
       }
+    }
+
+    if (action === 'missing') {
+      const tableFormat = {
+        drawHorizontalLine: (index, size) => {
+          return index === 0 || index === 1 || index === size - 1 || index === size;
+        },
+        columns: {
+          0 : {
+            'alignment' : 'right'
+          }
+        }
+      };
+
+      var response = result.response.archives;
+      var title = [
+        'First appearance',
+        'Debug File',
+        'Debug Identifier'
+      ];
+
+      {
+        var files = result.response.missing_symbols;
+        var data = [title];
+
+        files.sort(function(a, b) {
+          return (a.timestamp > b.timestamp) - (b.timestamp > a.timestamp);
+        });
+
+        for (var j = 0; j < files.length; j++) {
+          var file = files[j];
+          var dt;
+
+          if (!argv.a) {
+            dt = ta.ago(file.timestamp * 1000);
+          } else {
+            dt = new Date(file.timestamp * 1000);
+          }
+
+          data.push([dt, file.debug_file, file.debug_id]);
+        }
+
+        data.push(title);
+      }
+
+      console.log(table(data, tableFormat));
     }
 
     if (action === 'list') {
