@@ -517,10 +517,49 @@ function mkdir_p(path) {
   }
 }
 
-function getFname(outpath, outdir, n_objects, oid, resource) {
+function contentDisposition(http_result) {
+  var cd = {};
+
+  if (!http_result || typeof http_result !== 'object' ||
+      !http_result.headers || typeof http_result.headers !== 'object') {
+    return {};
+  }
+
+  http_result.headers['content-disposition'].split(";").forEach(function(k) {
+    var i, v;
+
+    k = k.trim();
+    i = k.indexOf("=");
+    v = true;
+
+    if (i !== -1) {
+      v = k.slice(i + 1);
+      if (v[0] === v[v.length - 1])
+        v = v.slice(1, v.length - 1);
+      k = k.slice(0, i);
+    }
+    cd[k] = v;
+  });
+
+  return cd;
+}
+
+function getFname(http_result, outpath, outdir, n_objects, oid, resource) {
   var fname = outpath;
-  if (outdir || n_objects > 1)
-    fname = sprintf("%s/%s", outpath, objToPath(oid, resource));
+  var cd = contentDisposition(http_result);
+  var bname;
+
+  if (outdir || n_objects > 1) {
+    bname = cd["filename"] || objToPath(oid, resource);
+    fname = sprintf("%s/%s", outpath, bname);
+  } else if (fname === "-") {
+    /* Treat as standard output. */
+    fname = null;
+  } else if (!fname) {
+    /* Use path provided by content-disposition, if available. */
+    fname = cd["filename"] || objToPath(oid, resource);
+  }
+
   return fname;
 }
 
@@ -599,7 +638,7 @@ function coronerGet(argv, config) {
     outpath = argv.o;
   if (!outpath && argv.outdir)
     outpath = argv.outdir;
-  has_outpath = typeof outpath === 'string';
+  has_outpath = typeof outpath === 'string' && outpath !== '-';
 
   if (objects.length > 1) {
     if (!has_outpath) {
@@ -617,18 +656,18 @@ function coronerGet(argv, config) {
 
   success = 0;
   objects.forEach(function(oid) {
-    tasks.push(coroner.promise('fetch', p.universe, p.project, oid, rf).then(function(r) {
-      var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+    tasks.push(coroner.promise('http_fetch', p.universe, p.project, oid, rf).then(function(hr) {
+      var fname = getFname(hr, outpath, argv.outdir, objects.length, oid, rf);
       success++;
       if (fname) {
-        fs.writeFileSync(fname, r);
-        console.log(sprintf('Wrote %ld bytes to %s', r.length, fname).success);
+        fs.writeFileSync(fname, hr.bodyData);
+        console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
       } else {
-        process.stdout.write(r);
+        process.stdout.write(hr.bodyData);
       }
     }).catch(function(e) {
       /* Allow ignoring (and printing) failures for testing purposes. */
-      var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+      var fname = getFname(null, outpath, argv.outdir, objects.length, oid, rf);
       if (!argv.ignorefail || !has_outpath) {
         e.message = sprintf("%s: %s", fname, e.message);
         return Promise.reject(e);
