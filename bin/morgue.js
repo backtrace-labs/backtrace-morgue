@@ -624,7 +624,7 @@ function argvPushObjectRanges(objects, argv) {
 }
 
 function coronerGet(argv, config) {
-  var coroner, has_outpath, objects, p, outpath, tasks, rf, success;
+  var coroner, has_outpath, objects, p, outpath, tasks, rf, st, success;
 
   abortIfNotLoggedIn(config);
   p = coronerParams(argv, config);
@@ -640,14 +640,20 @@ function coronerGet(argv, config) {
     outpath = argv.outdir;
   has_outpath = typeof outpath === 'string' && outpath !== '-';
 
+  try { st = fs.statSync(outpath); } catch (e) {}
   if (objects.length > 1) {
     if (!has_outpath) {
       errx('Must specify output directory for multiple objects.');
     }
+    if (st && st.isDirectory() === false) {
+      errx("Specified path exists and is not a directory.");
+    }
     mkdir_p(outpath);
-  }
-
-  if (objects.length === 0) {
+  } else if (objects.length === 1) {
+    if (st && st.isFile() === false) {
+      errx("Specified path exists and is not a file.");
+    }
+  } else {
     errx('Must specify at least one object to get.');
   }
 
