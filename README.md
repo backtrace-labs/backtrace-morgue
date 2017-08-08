@@ -310,6 +310,18 @@ Options for set:
 Configure the retention policy for a given namespace, which can cover the
 coroner instance, or a specific universe or project.
 
+#### Example
+
+```
+$ morgue retention clear a_project
+success
+$ morgue retention set blackhole --max-age=3600
+$ morgue retention list
+Project-level:
+  blackhole: max age: 1h
+$
+```
+
 ### symbol
 
 ```
