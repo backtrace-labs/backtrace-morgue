@@ -517,10 +517,49 @@ function mkdir_p(path) {
   }
 }
 
-function getFname(outpath, outdir, n_objects, oid, resource) {
+function contentDisposition(http_result) {
+  var cd = {};
+
+  if (!http_result || typeof http_result !== 'object' ||
+      !http_result.headers || typeof http_result.headers !== 'object') {
+    return {};
+  }
+
+  http_result.headers['content-disposition'].split(";").forEach(function(k) {
+    var i, v;
+
+    k = k.trim();
+    i = k.indexOf("=");
+    v = true;
+
+    if (i !== -1) {
+      v = k.slice(i + 1);
+      if (v[0] === v[v.length - 1])
+        v = v.slice(1, v.length - 1);
+      k = k.slice(0, i);
+    }
+    cd[k] = v;
+  });
+
+  return cd;
+}
+
+function getFname(http_result, outpath, outdir, n_objects, oid, resource) {
   var fname = outpath;
-  if (outdir || n_objects > 1)
-    fname = sprintf("%s/%s", outpath, objToPath(oid, resource));
+  var cd = contentDisposition(http_result);
+  var bname;
+
+  if (outdir || n_objects > 1) {
+    bname = cd["filename"] || objToPath(oid, resource);
+    fname = sprintf("%s/%s", outpath, bname);
+  } else if (fname === "-") {
+    /* Treat as standard output. */
+    fname = null;
+  } else if (!fname) {
+    /* Use path provided by content-disposition, if available. */
+    fname = cd["filename"] || objToPath(oid, resource);
+  }
+
   return fname;
 }
 
@@ -585,7 +624,7 @@ function argvPushObjectRanges(objects, argv) {
 }
 
 function coronerGet(argv, config) {
-  var coroner, has_outpath, objects, p, outpath, tasks, rf, success;
+  var coroner, has_outpath, objects, p, outpath, tasks, rf, st, success;
 
   abortIfNotLoggedIn(config);
   p = coronerParams(argv, config);
@@ -599,16 +638,22 @@ function coronerGet(argv, config) {
     outpath = argv.o;
   if (!outpath && argv.outdir)
     outpath = argv.outdir;
-  has_outpath = typeof outpath === 'string';
+  has_outpath = typeof outpath === 'string' && outpath !== '-';
 
+  try { st = fs.statSync(outpath); } catch (e) {}
   if (objects.length > 1) {
     if (!has_outpath) {
       errx('Must specify output directory for multiple objects.');
     }
+    if (st && st.isDirectory() === false) {
+      errx("Specified path exists and is not a directory.");
+    }
     mkdir_p(outpath);
-  }
-
-  if (objects.length === 0) {
+  } else if (objects.length === 1) {
+    if (st && st.isFile() === false) {
+      errx("Specified path exists and is not a file.");
+    }
+  } else {
     errx('Must specify at least one object to get.');
   }
 
@@ -617,18 +662,18 @@ function coronerGet(argv, config) {
 
   success = 0;
   objects.forEach(function(oid) {
-    tasks.push(coroner.promise('fetch', p.universe, p.project, oid, rf).then(function(r) {
-      var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+    tasks.push(coroner.promise('http_fetch', p.universe, p.project, oid, rf).then(function(hr) {
+      var fname = getFname(hr, outpath, argv.outdir, objects.length, oid, rf);
       success++;
       if (fname) {
-        fs.writeFileSync(fname, r);
-        console.log(sprintf('Wrote %ld bytes to %s', r.length, fname).success);
+        fs.writeFileSync(fname, hr.bodyData);
+        console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
       } else {
-        process.stdout.write(r);
+        process.stdout.write(hr.bodyData);
       }
     }).catch(function(e) {
       /* Allow ignoring (and printing) failures for testing purposes. */
-      var fname = getFname(outpath, argv.outdir, objects.length, oid, rf);
+      var fname = getFname(null, outpath, argv.outdir, objects.length, oid, rf);
       if (!argv.ignorefail || !has_outpath) {
         e.message = sprintf("%s: %s", fname, e.message);
         return Promise.reject(e);
@@ -1074,8 +1119,10 @@ function coronerSymbol(argv, config) {
     ];
   } else if (action === 'status' || !action) {
     query.action = 'archives';
+  } else if (action === 'missing') {
+    query.action = 'missing_symbols';
   } else {
-    errx('Usage: morgue symbol <project> [list | status]');
+    errx('Usage: morgue symbol <project> [list | missing | status]');
   }
 
   coroner.symfile(p.universe, p.project, query, function (err, result) {
@@ -1183,6 +1230,52 @@ function coronerSymbol(argv, config) {
           console.log(table(data, tableFormat));
         }
       }
+    }
+
+    if (action === 'missing') {
+      const tableFormat = {
+        drawHorizontalLine: (index, size) => {
+          return index === 0 || index === 1 || index === size - 1 || index === size;
+        },
+        columns: {
+          0 : {
+            'alignment' : 'right'
+          }
+        }
+      };
+
+      var response = result.response.archives;
+      var title = [
+        'First appearance',
+        'Debug File',
+        'Debug Identifier'
+      ];
+
+      {
+        var files = result.response.missing_symbols;
+        var data = [title];
+
+        files.sort(function(a, b) {
+          return (a.timestamp > b.timestamp) - (b.timestamp > a.timestamp);
+        });
+
+        for (var j = 0; j < files.length; j++) {
+          var file = files[j];
+          var dt;
+
+          if (!argv.a) {
+            dt = ta.ago(file.timestamp * 1000);
+          } else {
+            dt = new Date(file.timestamp * 1000);
+          }
+
+          data.push([dt, file.debug_file, file.debug_id]);
+        }
+
+        data.push(title);
+      }
+
+      console.log(table(data, tableFormat));
     }
 
     if (action === 'list') {
@@ -2266,7 +2359,8 @@ function coronerLogin(argv, config, cb) {
           errx("Unable to save config: " + err.message + ".");
         }
 
-        console.log('Logged in.'.success);
+        console.log('Logged in'.success + ' ' +
+          ('[' + coroner.config.token + ']').grey);
 
         if (cb) {
           cb(coroner, argv);
