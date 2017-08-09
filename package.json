@@ -33,6 +33,7 @@
     "minimist": "^1.2.0",
     "mkdirp": "^0.5.1",
     "moment": "^2.15.1",
+    "moment-timezone": "^0.5.13",
     "printf": "^0.2.5",
     "prompt": "^1.0.0",
     "request": "^2.80.0",

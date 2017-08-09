@@ -13,6 +13,7 @@ const timeago   = require('time-ago');
 const histogram = require('./histogram.js');
 const printf    = require('printf');
 const moment    = require('moment');
+const moment_tz = require('moment-timezone');
 const colors    = require('colors');
 const fs        = require('fs');
 const mkdirp    = require('mkdirp');
@@ -495,27 +496,57 @@ function coronerReport(argv, config) {
       process.exit(0);
     }
 
+    model.report.sort(function(a, b) {
+      var a_d = a.get('id');
+      var b_d = b.get('id');
+
+      return (a_d > b_d) - (a_d < b_d);
+    });
+
     for (var i = 0; i < model.report.length; i++) {
       var report = model.report[i];
-      var filters = 'none';
-      var histograms = 'none';
+      var widgets;
+
+      try {
+        widgets = JSON.stringify(JSON.parse(model.report[i].get('widgets')));
+      } catch (error) {
+        widgets = 'invalid: ' + model.report[i].get('widgets');
+      }
 
       console.log(('[' + report.get('id') + '] ' +
           report.get('title')).bold);
 
-      console.log('    recipients: ' + report.get('rcpt'));
-      console.log('        period: ' + report.get('period'));
-      console.log('           day: ' + report.get('day'));
-      console.log('          hour: ' + report.get('hour'));
-      console.log('      timezone: ' + report.get('timezone'));
-      console.log('       filters: ' + filters);
-      console.log('    histograms: ' + histograms);
+      console.log('    Recipients: ' + report.get('rcpt'));
+      console.log('        Period: ' + report.get('period'));
+      console.log('           Day: ' + report.get('day'));
+      console.log('          Hour: ' + report.get('hour'));
+      console.log('      Timezone: ' + report.get('timezone'));
+      console.log('       Widgets: ' + widgets);
     }
 
     process.exit(0); 
   }
 
-  if (action == 'create') {
+  if (action === 'delete') {
+    var id = argv._[3];
+
+    if (!id)
+      errx('Usage: morgue report delete <id>');
+
+    for (var i = 0; i < model.report.length; i++) {
+      if (model.report[i].get('id') == id) {
+        console.log(('Deleting report [' +
+            model.report[i].get('title') + ']...').yellow);
+        bpg.delete(model.report[i]);
+        bpg.commit();
+        process.exit(0);
+      }
+    }
+
+    errx('Report not found');
+  }
+
+  if (action === 'create') {
     var rcpt = argv.rcpt;
     var title = argv.title;
     var day = argv.day;
@@ -537,8 +568,8 @@ function coronerReport(argv, config) {
     }
 
     if (!timezone) {
-      console.log('Warning: no timezone specified, defaulting to your timezone'.yellow);
-      timezone = 'New_York'; /* XXX */
+      timezone = moment_tz.tz.guess();
+      console.log(('Warning: no timezone specified, defaulting to ' + timezone).yellow);
     }
 
     if (!hour) {
@@ -548,7 +579,9 @@ function coronerReport(argv, config) {
 
     if (!day) {
       day = 1;
-      console.log('Warning: no day specified, defaulting to Monday'.yellow);
+
+      if (period !== 'day')
+        console.log('Warning: no day specified, defaulting to Monday'.yellow);
     }
 
     var report = bpg.new('report');
