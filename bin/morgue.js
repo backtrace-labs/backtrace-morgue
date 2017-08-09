@@ -5,7 +5,6 @@
 const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
 const BPG       = require('../lib/bpg.js');
-const Report    = require('../lib/report.js');
 const minimist  = require('minimist');
 const os        = require('os');
 const ip        = require('ip');
@@ -147,6 +146,7 @@ var commands = {
   bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
+  report: coronerReport,
   flamegraph: coronerFlamegraph,
   control: coronerControl,
   ls: coronerList,
@@ -161,7 +161,6 @@ var commands = {
   retention: coronerRetention,
   symbol: coronerSymbol,
   setup: coronerSetup,
-  report: coronerReport
 };
 
 main();
@@ -454,38 +453,121 @@ function coronerSetup(argv, config) {
 
 function coronerReport(argv, config) {
   var options = null;
-  var layout = argv.layout;
-
-  if (!layout)
-    layout = argv.l;
+  var project, universe, pid, un, target;
 
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
   var p = coronerParams(argv, config);
-  var output = 'report.html';
 
-  if (argv.o) {
-    try {
-      fs.accessSync(argv.o);
-      errx('File ' + argv.o + ' already exists.');
-    } catch (error) {
-      /* We are fine, not replacing a file probably. */
-    }
+  /* The sub-command. */
+  var action = argv._[2];
 
-    output = argv.o;
-  }
+  universe = p.universe;
+  project = p.project;
 
-  if (layout) {
-    try {
-      options = JSON.parse(fs.readFileSync(layout));
-    } catch (error) {
-      errx(error);
+  var bpg = coronerBpgSetup(coroner, argv);
+  var model = bpg.get();
+
+  /* Find the universe with the specified name. */
+  for (var i = 0; i < model.universe.length; i++) {
+    if (model.universe[i].get('name') === universe) {
+      un = target = model.universe[i];
     }
   }
 
-  var report = new Report(coroner, p.universe, p.project, options);
-  report.generate(output);
+  for (var i = 0; i < model.project.length; i++) {
+    if (model.project[i].get('name') === project &&
+        model.project[i].get('universe') === un.get('id')) {
+      pid = model.project[i].get('pid');
+      break;
+    }
+  }
+
+  if (!pid)
+    errx('project not found');
+
+  if (action == 'list') {
+    /* Print all report objects. */
+
+    if (!model.report) {
+      console.log('No scheduled reports found.'.blue);
+      process.exit(0);
+    }
+
+    for (var i = 0; i < model.report.length; i++) {
+      var report = model.report[i];
+      var filters = 'none';
+      var histograms = 'none';
+
+      console.log(('[' + report.get('id') + '] ' +
+          report.get('title')).bold);
+
+      console.log('    recipients: ' + report.get('rcpt'));
+      console.log('        period: ' + report.get('period'));
+      console.log('           day: ' + report.get('day'));
+      console.log('          hour: ' + report.get('hour'));
+      console.log('      timezone: ' + report.get('timezone'));
+      console.log('       filters: ' + filters);
+      console.log('    histograms: ' + histograms);
+    }
+
+    process.exit(0); 
+  }
+
+  if (action == 'create') {
+    var rcpt = argv.rcpt;
+    var title = argv.title;
+    var day = argv.day;
+    var period = argv.period;
+    var timezone = argv.timezone;
+    var hour = argv.hour;
+    var histogram = argv.histogram;
+    var widgets = {};
+
+    if (!title)
+      errx('must provide a report title with --title');
+
+    if (!rcpt)
+      errx('must provide a recipient list with --rcpt');
+
+    if (!period) {
+      console.log('Warning: no period specified, defaulting to weekly'.yellow);
+      period = 'week';
+    }
+
+    if (!timezone) {
+      console.log('Warning: no timezone specified, defaulting to your timezone'.yellow);
+      timezone = 'New_York'; /* XXX */
+    }
+
+    if (!hour) {
+      console.log('Warning: no hour specified, defaulting to 9AM'.yellow);
+      hour = 9;
+    }
+
+    if (!day) {
+      day = 1;
+      console.log('Warning: no day specified, defaulting to Monday'.yellow);
+    }
+
+    var report = bpg.new('report');
+    report.set('id', 0);
+    report.set('project', pid);
+    report.set('owner', config.config.uid);
+    report.set('title', title);
+    report.set('rcpt', rcpt); /* XXX */
+    report.set('day', day);
+    report.set('period', period);
+    report.set('timezone', timezone);
+    report.set('hour', hour);
+    report.set('widgets', JSON.stringify(widgets));
+    report.set('metadata', '{}');
+    bpg.create(report);
+    bpg.commit();
+
+    console.log('Report successfully created.'.blue);
+  }
 }
 
 function coronerControl(argv, config) {
