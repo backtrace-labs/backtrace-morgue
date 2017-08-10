@@ -1531,7 +1531,7 @@ function secondsToTimespec(age_val) {
 
 /* Some subcommands don't make sense with folds etc. */
 function argvQueryFilterOnly(argv) {
-  if (argv.select || argv.filter || argv.fingerprint || argv.age) {
+  if (argv.select || argv.filter || argv.fingerprint || argv.age || argv.time) {
     /* Object must be returned for query to be chainable. */
     if (!argv.select && !argv.template)
       argv.template = 'select';
