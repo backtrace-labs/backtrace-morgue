@@ -297,11 +297,14 @@ or range is provided, all objects in the project are reprocessed.
 ### retention
 
 ```
-Usage: morgue retention <list|set|clear> <name> [options]
+Usage: morgue retention <list|set|status|clear> <name> [options]
 
 Options for set/clear:
   --type=T         Specify retention type (default: project)
                    valid: instance, universe, project
+
+Options for status:
+  [--type=<universe|project> <name>]
 
 Options for set:
   --max-age=N      Specify time limit for objects, in seconds
