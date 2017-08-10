@@ -547,7 +547,6 @@ function coronerReport(argv, config) {
   }
 
   if (action === 'create') {
-    var rcpt = argv.rcpt;
     var title = argv.title;
     var day = argv.day;
     var period = argv.period;
@@ -555,12 +554,46 @@ function coronerReport(argv, config) {
     var hour = argv.hour;
     var histogram = argv.histogram;
     var widgets = {};
+    var limit = argv.limit;
+    var aq = argvQuery(argv);
+    var rcpt = '';
+
+    if (!limit)
+      limit = 5;
+
+    if (!argv.rcpt)
+      errx('must provide a recipient list with --rcpt');
+
+    if (Array.isArray(argv.rcpt)) {
+      rcpt = argv.rcpt.join(' ');
+    } else {
+      rcpt += argv.rcpt;
+    }
+
+    widgets.top = [];
+    widgets.top[0] = { attributes : [] };
+
+    if (Array.isArray(argv.histogram)) {
+      for (var i = 0; i < argv.histogram.length; i++) {
+        widgets.top[0].attributes.push(argv.histogram[i]);
+      }
+    } else {
+        widgets.top[0].attributes.push(argv.histogram);
+    }
+
+    widgets.feed = {};
+    widgets.feed.limit = limit;
+
+    if (aq.query && aq.query.filter) {
+      /* Don't filter on timestamp. */
+      for (var i = 0; i < aq.query.filter.length; i++)
+        delete(aq.query.filter[i].timestamp);
+
+      widgets.filter = aq.query.filter;
+    }
 
     if (!title)
       errx('must provide a report title with --title');
-
-    if (!rcpt)
-      errx('must provide a recipient list with --rcpt');
 
     if (!period) {
       console.log('Warning: no period specified, defaulting to weekly'.yellow);
