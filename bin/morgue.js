@@ -595,7 +595,10 @@ function coronerReport(argv, config) {
     report.set('timezone', timezone);
     report.set('hour', hour);
     report.set('widgets', JSON.stringify(widgets));
-    report.set('metadata', '{}');
+
+    if (argv.metadata)
+      report.set('metadata', argv.metadata);
+
     bpg.create(report);
     bpg.commit();
 
