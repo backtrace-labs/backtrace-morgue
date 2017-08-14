@@ -546,6 +546,32 @@ function coronerReport(argv, config) {
     errx('Report not found');
   }
 
+  if (action === 'send') {
+    var id = argv._[3];
+    var rcpt = argv._[4];
+
+    if (!id || !rcpt)
+      errx('Usage: morgue report send <id> <e-mail>');
+
+    coroner.reportSend(p.universe, p.project,
+      {
+        'action': 'send',
+        'form': {
+          'id': id,
+          'rcpt' : rcpt
+        }
+      },
+      function(error, rp) {
+        if (error) {
+          console.error(rp.error);
+          process.exit(1);
+        }
+
+        console.log('Report scheduled for immediate sending.'.blue);
+        process.exit(0);
+    });
+  }
+
   if (action === 'create') {
     var title = argv.title;
     var day = argv.day;

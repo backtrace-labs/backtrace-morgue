@@ -246,35 +246,43 @@ from leaf functions.
 
 ### report
 
-```
-Usage: morgue report <project> [-l <layout.json>] [-o <report.html>]
-```
-
-The morgue report command generates a weekly digest of activity on a server.
-The report is output as a stand-alone HTML file that is suitable for e-mail.
-If the `-o` option is not specified, the default filename is `report.html`.
-Reports can be tuned with the help of a JSON specification file passed to the
-`-l` option. An example specification file is below, the `_` keys represent
-comments.
+Create and manage scheduled reports.
 
 ```
-{
+Usage: morgue report <project> <list | create | delete | send>
+```
 
-  "_" : "Crashes by top attributes over reporting period",
-  "_" : "Multiple queries can be specified with different filters"
-  "top" : [
-    {
-      "title" : null,
-      "attributes" : ["application", "uname.sysname"],
-      "filter" : []
-    }
-  ],
+#### create
 
-  "feed" : {
-    "_" : "The number of unique groups to show",
-    "limit" : 5
-  }
-}
+```
+Usage: morgue report <project> create
+  <--rcpt=...>
+  <--title=...>
+  [--filter=...]
+  [--fingerprint=...]
+  [--histogram=...]
+  [--hour=...]
+  [--day=...]
+  --period=<week | day>
+```
+
+Example:
+```
+$ morgue report MyProject create --rcpt=null@backtrace.io
+    --rcpt=list@backtrace.io --filter=environment,equal,prod
+    --title="Production Crashes weekly" --period=week
+```
+
+#### delete
+
+```
+Usage: morgue report <project> delete <report integer identifier>
+```
+
+#### list
+
+```
+Usage: morgue report <project> list
 ```
 
 ### reprocess
