@@ -562,10 +562,8 @@ function coronerReport(argv, config) {
         }
       },
       function(error, rp) {
-        if (error) {
-          console.error(rp.error);
-          process.exit(1);
-        }
+        if (error)
+          errx(error);
 
         console.log('Report scheduled for immediate sending.'.blue);
         process.exit(0);
