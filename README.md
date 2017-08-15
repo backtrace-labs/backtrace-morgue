@@ -62,11 +62,17 @@ $ morgue describe bidder uname
 ### get
 
 ```
-Usage: morgue get <[<universe>/]project> <object id> [-o <output file>]
+Usage: morgue get <[<universe>/]project> [options] <object id> [-o <output file>]
 ```
 
 Downloads the specified object from the Backtrace object store and prints
 to standard output. Optionally, output the file to disk.
+
+The following options are available:
+
+| Option        | Description |
+|---------------|-------------|
+| `--resource=name`| Fetch the specified resource rather than the object. |
 
 ### put
 
@@ -112,6 +118,35 @@ Set custom attribute `reason` to `oom` for all crashes containing `memory_abort`
 ```
 $ morgue modify --set reason=oom --filter=callstack,regular-expression,memory_abort
 ```
+
+### attachment
+
+```
+Usage: morgue attachment <add|get|list|delete> ...
+
+  morgue attachment add [options] <[universe/]project> <oid> <filename>
+
+    --content-type=CT    Specify Content-Type for attachment.
+                         The server may auto-detect this.
+    --attachment-name=N  Use this name for the attachment name.
+                         Default is the same as the filename.
+
+  morgue attachment get [options] <[universe/]project> <oid>
+
+    Must specify one of:
+    --attachment-id=ID   Attachment ID to delete.
+    --attachment-name=N  Attachment name to delete.
+
+  morgue attachment list [options] <[universe/]project> <oid>
+
+  morgue attachment delete [options] <[universe/]project <oid>
+
+    Must specify one of:
+    --attachment-id=ID   Attachment ID to delete.
+    --attachment-name=N  Attachment name to delete.
+```
+
+Manage attachments associated with an object.
 
 ### list
 

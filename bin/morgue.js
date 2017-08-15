@@ -144,6 +144,7 @@ function printSamples(requests, samples, start, stop, concurrency) {
 }
 
 var commands = {
+  attachment: coronerAttachment,
   bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
@@ -961,8 +962,41 @@ function argvPushObjectRanges(objects, argv) {
   return true;
 }
 
+function outpathCheck(argv, n_objects) {
+  var r, st;
+
+  r = {};
+  r.path = argv.output;
+  if (!r.path && argv.o)
+    r.path = argv.o;
+  if (!r.path && argv.outdir)
+    r.path = argv.outdir;
+  r.has = typeof r.path === 'string' && r.path !== '-';
+
+  if (!r.has)
+    return r;
+
+  try { st = fs.statSync(r.path); } catch (e) {}
+  if (n_objects > 1) {
+    if (!r.has) {
+      errx('Must specify output directory for multiple objects.');
+    }
+    if (st && st.isDirectory() === false) {
+      errx("Specified path exists and is not a directory.");
+    }
+    mkdir_p(r.path);
+  } else if (n_objects === 1) {
+    if (st && st.isFile() === false) {
+      errx("Specified path exists and is not a file.");
+    }
+  } else {
+    errx('Must specify at least one object to get.');
+  }
+  return r;
+}
+
 function coronerGet(argv, config) {
-  var coroner, has_outpath, objects, p, outpath, tasks, rf, st, success;
+  var coroner, objects, out, p, params, tasks, st, success;
 
   abortIfNotLoggedIn(config);
   p = coronerParams(argv, config);
@@ -971,37 +1005,15 @@ function coronerGet(argv, config) {
   coroner = coronerClientArgv(config, argv);
   argvPushObjectRanges(objects, argv);
 
-  outpath = argv.output;
-  if (!outpath && argv.o)
-    outpath = argv.o;
-  if (!outpath && argv.outdir)
-    outpath = argv.outdir;
-  has_outpath = typeof outpath === 'string' && outpath !== '-';
-
-  try { st = fs.statSync(outpath); } catch (e) {}
-  if (objects.length > 1) {
-    if (!has_outpath) {
-      errx('Must specify output directory for multiple objects.');
-    }
-    if (st && st.isDirectory() === false) {
-      errx("Specified path exists and is not a directory.");
-    }
-    mkdir_p(outpath);
-  } else if (objects.length === 1) {
-    if (st && st.isFile() === false) {
-      errx("Specified path exists and is not a file.");
-    }
-  } else {
-    errx('Must specify at least one object to get.');
-  }
-
+  out = outpathCheck(argv, objects.length);
+  params = {};
   if (argv.resource)
-      rf = argv.resource;
+    params.resource = argv.resource;
 
   success = 0;
   objects.forEach(function(oid) {
-    tasks.push(coroner.promise('http_fetch', p.universe, p.project, oid, rf).then(function(hr) {
-      var fname = getFname(hr, outpath, argv.outdir, objects.length, oid, rf);
+    tasks.push(coroner.promise('http_fetch', p.universe, p.project, oid, params).then(function(hr) {
+      var fname = getFname(hr, out.path, argv.outdir, objects.length, oid, params);
       success++;
       if (fname) {
         fs.writeFileSync(fname, hr.bodyData);
@@ -1011,8 +1023,8 @@ function coronerGet(argv, config) {
       }
     }).catch(function(e) {
       /* Allow ignoring (and printing) failures for testing purposes. */
-      var fname = getFname(null, outpath, argv.outdir, objects.length, oid, rf);
-      if (!argv.ignorefail || !has_outpath) {
+      var fname = getFname(null, out.path, argv.outdir, objects.length, oid, params);
+      if (!argv.ignorefail || !out.has) {
         e.message = sprintf("%s: %s", fname, e.message);
         return Promise.reject(e);
       }
@@ -1022,7 +1034,7 @@ function coronerGet(argv, config) {
   });
 
   Promise.all(tasks).then(function() {
-    if (has_outpath)
+    if (out.has)
       console.log(sprintf('Fetched %d of %d objects.', success, objects.length).success);
   }).catch(function(e) {
     errx(e.message);
@@ -1262,6 +1274,183 @@ function coronerModify(argv, config) {
     Promise.all(tasks).
       then(() => success_cb()).catch(std_failure_cb);
   }
+}
+
+function attachmentUsage(error_str) {
+  if (typeof error_str === 'string')
+    err(error_str + '\n');
+  console.log("Usage: morgue attachment <add|get|list|delete> ...".error);
+  console.log("");
+  console.log("  morgue attachment add [options] <[universe/]project> <oid> <filename>".blue);
+  console.log("");
+  console.log("    --content-type=CT    Specify Content-Type for attachment.");
+  console.log("                         The server may auto-detect this.");
+  console.log("    --attachment-name=N  Use this name for the attachment name.");
+  console.log("                         Default is the same as the filename.");
+  console.log("");
+  console.log("  morgue attachment get [options] <[universe/]project> <oid>".blue);
+  console.log("");
+  console.log("    Must specify one of:");
+  console.log("    --attachment-id=ID   Attachment ID to delete.");
+  console.log("    --attachment-name=N  Attachment name to delete.");
+  console.log("");
+  console.log("  morgue attachment list [options] <[universe/]project> <oid>".blue);
+  console.log("");
+  console.log("  morgue attachment delete [options] <[universe/]project <oid>".blue);
+  console.log("");
+  console.log("    Must specify one of:");
+  console.log("    --attachment-id=ID   Attachment ID to delete.");
+  console.log("    --attachment-name=N  Attachment name to delete.");
+  process.exit(1);
+}
+
+function attachmentAdd(argv, config, params) {
+  var body, coroner, fname, name, object, p, u;
+  var opts = {
+    /* Data is user-provided, and must be passed through as is. */
+    binary: true,
+  };
+
+  if (!config.submissionEndpoint) {
+    errx('No submission endpoint found.');
+  }
+  coroner = coronerClientArgvSubmit(config, argv);
+
+  if (argv._.length < 2) {
+    if (argv._.length < 1) {
+      attachUsage('Must specify object ID to attach to.');
+    } else {
+      attachUsage('Must specify file name to attach.');
+    }
+  }
+
+  object = argv._.shift();
+  fname = argv._.shift();
+  name = path.basename(argv.attachment_name || fname);
+  body = fs.readFileSync(fname);
+
+  if (argv.content_type) {
+    opts.content_type = argv.content_type;
+  }
+
+  u = params.universe;
+  p = params.project;
+  coroner.promise('attach', u, p, object, name, null, opts, body).then((r) => {
+    console.log(sprintf("Attached '%s' to object %d as id %d.",
+      r.attachment_name, r.object, r.attachment_id).success);
+  }).catch(std_failure_cb);
+}
+
+function attachmentGet(argv, config, params) {
+  var coroner, oid, out, p, u;
+
+  if (argv._.length != 1)
+    attachmentUsage("Must specify object id.");
+
+  out = outpathCheck(argv, 1);
+  if (argv["attachment-name"])
+    params.attachment_name = argv["attachment-name"];
+  else if (argv["attachment-id"])
+    params.attachment_id = argv["attachment-id"];
+  else
+    attachmentUsage("Must specify attachment by name or id.");
+
+  coroner = coronerClientArgv(config, argv);
+  oid = argv._[0];
+  u = params.universe;
+  p = params.project;
+  coroner.promise('http_fetch', u, p, oid, params).then(function(hr) {
+    var fname = getFname(hr, out.path, argv.outdir, 1, oid, params);
+    if (fname) {
+      fs.writeFileSync(fname, hr.bodyData);
+      console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
+    } else {
+      process.stdout.write(hr.bodyData);
+    }
+  }).catch(function(e) {
+    /* Allow ignoring (and printing) failures for testing purposes. */
+    var fname = getFname(null, out.path, argv.outdir, 1, oid, params);
+    if (!argv.ignorefail || !out.has) {
+      e.message = sprintf("%s: %s", fname, e.message);
+      return Promise.reject(e);
+    }
+    err(sprintf('%s: %s', fname, e.message));
+    return Promise.resolve();
+  });
+}
+
+function attachmentList(argv, config, params) {
+  var coroner, object, p, u;
+
+  if (argv._.length < 1) {
+    attachmentsUsage('Must specify object ID to attach to.');
+  }
+
+  coroner = coronerClientArgv(config, argv);
+  object = argv._.shift();
+  p = params.project;
+  u = params.universe;
+  coroner.promise('attachments', u, p, object, null).then((r) => {
+    var jr = JSON.parse(r);
+    console.log(JSON.stringify(jr, null, 4));
+  }).catch(std_failure_cb);
+}
+
+function attachmentDelete(argv, config, params) {
+  var coroner, p, u;
+  var delparams = {};
+  var req = [{}];
+
+  coroner = coronerClientArgv(config, argv);
+  if (argv.sync) {
+    delparams.sync = true;
+    if (!argv.timeout) {
+      /* Set longer 5 minute timeout in case of heavy load. */
+      coroner.timeout = 300 * 1000;
+    }
+  }
+
+  req[0].id = argv._.shift();
+  if (argv["attachment-name"])
+    req[0].attachment_name = argv["attachment-name"];
+  else if (argv["attachment-id"])
+    req[0].attachment_id = argv["attachment-id"];
+  else
+    attachmentUsage("Must specify attachment by name or id.");
+
+  p = params.project;
+  u = params.project;
+  coroner.promise('delete_objects', u, p, req, delparams).
+    then(std_success_cb).catch(std_failure_cb);
+}
+
+function coronerAttachment(argv, config) {
+  abortIfNotLoggedIn(config);
+  var fn, object, params, subcmd;
+  var coroner = coronerClientArgv(config, argv);
+  var subcmds = {
+    add: attachmentAdd,
+    list: attachmentList,
+    get: attachmentGet,
+    delete: attachmentDelete,
+  };
+
+  if (argv._.length < 3)
+    attachmentUsage("Not enough arguments specified.");
+
+  argv._.shift();
+  /* Extract u/p at this point since they'll be in the correct position. */
+  params = coronerParams(argv, config);
+  subcmd = argv._.shift();
+  fn = subcmds[subcmd];
+  if (!fn)
+    attachmentUsage("No such subcommand " + subcmd);
+
+  if (typeof params.universe !== 'string' || typeof params.project !== 'string')
+    attachmentUsage();
+
+  argv._.shift();
+  fn(argv, config, params);
 }
 
 function coronerPut(argv, config) {
@@ -3482,8 +3671,8 @@ function coronerRetention(argv, config) {
 function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
-    /* Don't convert fingerprint or non-optional arguments. */
-    "string" : [ "first", "last", "fingerprint", "_" ]
+    /* Don't convert arguments that are often hex strings. */
+    "string" : [ "first", "last", "fingerprint", "attachment-id", "_" ]
   });
 
   if (argv.v || argv.version) {
