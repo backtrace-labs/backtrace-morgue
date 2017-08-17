@@ -584,6 +584,7 @@ function coronerReport(argv, config) {
     var limit = argv.limit;
     var aq = argvQuery(argv);
     var rcpt = '';
+    var include_users = false;
 
     if (!limit)
       limit = 5;
@@ -644,6 +645,9 @@ function coronerReport(argv, config) {
         console.log('Warning: no day specified, defaulting to Monday'.yellow);
     }
 
+    if (argv['include-users'])
+      include_users = true;
+
     var report = bpg.new('report');
     report.set('id', 0);
     report.set('project', pid);
@@ -651,6 +655,7 @@ function coronerReport(argv, config) {
     report.set('title', title);
     report.set('rcpt', rcpt); /* XXX */
     report.set('day', day);
+    report.set('include_users', include_users ? 1 : 0);
     report.set('period', period);
     report.set('timezone', timezone);
     report.set('hour', hour);
