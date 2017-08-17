@@ -507,6 +507,9 @@ function coronerReport(argv, config) {
       var report = model.report[i];
       var widgets;
 
+      if (report.get('project') != pid)
+        continue;
+
       try {
         widgets = JSON.stringify(JSON.parse(model.report[i].get('widgets')));
       } catch (error) {
