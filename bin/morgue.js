@@ -1635,7 +1635,7 @@ function coronerScrubber(argv, config) {
     if (!name)
       errx('must provide a scrubber name with --name');
 
-    if (!enable)
+    if (enable === undefined)
       errx('must provide a scrubber enable with --enable');
 
     if (!regexp)
