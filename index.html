@@ -257,10 +257,11 @@ $ morgue retention list
 Project-level:
   blackhole: max age: 1h
 $</pre><h3>symbol</h3>
-<pre>Usage: morgue symbol &lt;<span class="hljs-meta">[&lt;universe&gt;/]project&gt; [status | list | missing] [-o &lt;output file&gt;]</span></pre><p>Retrieve a list of uploaded symbols or symbol archives. By default, <code>morgue symbol</code>
-will return a list of uploaded, in-process and symbol processing errors. If <code>list</code>
-is used, then a list of uploaded symbols is returned. If <code>missing</code> is used, then
-the set of missing symbols for the project are included.</p>
+<pre>Usage: morgue symbol &lt;<span class="hljs-meta">[&lt;universe&gt;/]project&gt; [summary | list | missing | archives] [-o &lt;output file&gt;]</span></pre><p>Retrieve a list of uploaded symbols or symbol archives. By default, <code>morgue symbol</code>
+will return a summary of uploaded archives, available symbols and missing symbols.
+If <code>archvies</code> is used, a list of uploaded, in-process and symbol processing errors
+are outputted. If <code>list</code> is used, then a list of uploaded symbols is returned. If
+<code>missing</code> is used, then the set of missing symbols for the project are included.</p>
 <h3>scrubber</h3>
 <p>Create, modify and delete data scrubbers.</p>
 <pre>Usage: morgue scrubber &lt;project&gt; &lt;list | <span class="hljs-type">create</span> | <span class="hljs-type">modify</span> | <span class="hljs-type">delete</span>&gt;</pre><p>Use <code>--name</code> to identify the scrubber. Use <code>--regexp</code> to specify the pattern to
