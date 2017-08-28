@@ -161,6 +161,7 @@ var commands = {
   reprocess: coronerReprocess,
   retention: coronerRetention,
   symbol: coronerSymbol,
+  scrubber: coronerScrubber,
   setup: coronerSetup,
 };
 
@@ -1582,6 +1583,176 @@ function coronerSymbol(argv, config) {
       }
     }
   });
+}
+
+function coronerScrubber(argv, config) {
+  var options = null;
+  var project, universe, pid, un, target;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  var p = coronerParams(argv, config);
+
+  /* The sub-command. */
+  var action = argv._[2];
+
+  universe = p.universe;
+  project = p.project;
+
+  var bpg = coronerBpgSetup(coroner, argv);
+  var model = bpg.get();
+
+  /* Find the universe with the specified name. */
+  for (var i = 0; i < model.universe.length; i++) {
+    if (model.universe[i].get('name') === universe) {
+      un = target = model.universe[i];
+    }
+  }
+
+  for (var i = 0; i < model.project.length; i++) {
+    if (model.project[i].get('name') === project &&
+        model.project[i].get('universe') === un.get('id')) {
+      pid = model.project[i].get('pid');
+      break;
+    }
+  }
+
+  if (!pid)
+    errx('project not found');
+
+  if (action == 'list') {
+    /* Print all scrubbers. */
+
+    if (!model.scrubber) {
+      console.log('No scrubber found.'.blue);
+      process.exit(0);
+    }
+
+    for (var i = 0; i < model.scrubber.length; i++) {
+      var scrubber = model.scrubber[i];
+      var widgets;
+
+      if (scrubber.get('project') != pid)
+        continue;
+
+      console.log(('[' + scrubber.get('id') + '] ' +
+          scrubber.get('name')).bold);
+
+      console.log('        regexp: ' + scrubber.get('regexp'));
+      console.log('       builtin: ' + scrubber.get('builtin'));
+      console.log('        format: ' + scrubber.get('format'));
+      console.log('        target: ' + scrubber.get('target'));
+      console.log('        enable: ' + scrubber.get('enable'));
+    }
+
+    process.exit(0);
+  }
+
+  if (action === 'delete') {
+    var id = argv._[3];
+
+    if (!id)
+      errx('Usage: morgue <[universe/]project> scrubber delete <id>');
+
+    for (var i = 0; i < model.scrubber.length; i++) {
+      if (model.scrubber[i].get('id') == id) {
+        console.log(('Deleting scrubber [' +
+            model.scrubber[i].get('name') + ']...').yellow);
+        bpg.delete(model.scrubber[i]);
+        bpg.commit();
+        process.exit(0);
+      }
+    }
+
+    errx('Scrubber not found');
+  }
+
+  if (action === 'create') {
+    var name = argv.name;
+    var regexp = argv.regexp;
+    var builtin = argv.builtin;
+    var format = argv.format;
+    var target = argv.target;
+    var enable = argv.enable;
+
+    if (!regexp && !builtin)
+      errx('must provide either regexp or builtin');
+    if (regexp && builtin)
+      errx('either regexp or builtin is provided but not both');
+
+    if (!name)
+      errx('must provide a scrubber name with --name');
+
+    if (enable === undefined)
+      errx('must provide a scrubber enable with --enable');
+
+    if (!regexp)
+      regexp = '';
+    if (!builtin)
+      builtin = '';
+    if (!format)
+      format = 'minidump';
+    if (!target)
+      target = 'memory';
+
+    var scrubber = bpg.new('scrubber');
+    scrubber.set('id', 0);
+    scrubber.set('project', pid);
+    scrubber.set('name', name);
+    scrubber.set('regexp', regexp);
+    scrubber.set('builtin', builtin);
+    scrubber.set('format', format);
+    scrubber.set('target', target);
+    scrubber.set('enable', enable);
+
+    bpg.create(scrubber);
+    bpg.commit();
+
+    console.log('Scrubber successfully created.'.blue);
+  }
+
+  if (action === 'modify') {
+    var scrubber;
+    var id = argv._[3];
+
+    if (!id)
+      errx('Usage: morgue <[universe/]project> scrubber modify <id>');
+
+    if (!argv.name && !argv.regexp && !argv.builtin && !argv.format &&
+        !argv.target && argv.enable === undefined) {
+      errx('no scrubber member is specified');
+    }
+
+    for (var i = 0; i < model.scrubber.length; i++) {
+      if (model.scrubber[i].get('id') == id) {
+        scrubber = model.scrubber[i];
+        break;
+      }
+    }
+
+    if (!scrubber)
+      errx('Scrubber not found');
+
+    var delta = {};
+    if (argv.name)
+      delta.name = argv.name;
+    if (argv.regexp)
+      delta.regexp = argv.regexp;
+    if (argv.builtin)
+      errx('builtin is not modifiable');
+    if (argv.format)
+      delta.format = argv.format;
+    if (argv.target)
+      delta.target = argv.target;
+    if (!(argv.enable === undefined))
+      delta.enable = argv.enable;
+
+    bpg.modify(scrubber, delta);
+    bpg.commit();
+
+    console.log('Scrubber successfully modified.'.blue);
+  }
 }
 
 /*
