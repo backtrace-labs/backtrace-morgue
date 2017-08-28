@@ -1289,7 +1289,10 @@ function coronerSymbol(argv, config) {
 
   var p = coronerParams(argv, config);
 
-  if (action === 'list') {
+  if (action === 'status' || action == 'summary' || !action) {
+    query.action = 'summary';
+    action = 'summary';
+  } else if (action === 'list') {
     query.action = 'symbols';
     query.form.values = [
       "debug_file",
@@ -1300,12 +1303,13 @@ function coronerSymbol(argv, config) {
       "extract_time",
       "convert_time"
     ];
-  } else if (action === 'status' || !action) {
+  } else if (action === 'archives') {
     query.action = 'archives';
   } else if (action === 'missing') {
     query.action = 'missing_symbols';
+
   } else {
-    errx('Usage: morgue symbol <project> [list | missing | status]');
+    errx('Usage: morgue symbol <project> [archives | list | missing | status]');
   }
 
   coroner.symfile(p.universe, p.project, query, function (err, result) {
@@ -1335,7 +1339,52 @@ function coronerSymbol(argv, config) {
       return;
     }
 
-    if (action === 'status' || !action) {
+    if (action === 'summary') {
+      const tableFormat = {
+        columns: {
+          2: {
+            'alignment': 'right'
+          }
+        }
+      };
+      var response = result.response.summary;
+      var title = [
+        'First Update',
+        'Most Recent Update',
+        'Count'
+      ];
+      var data = [title];
+
+      data[1] = [
+        new Date(response.archives.first_updated_time * 1000),
+        new Date(response.archives.last_updated_time * 1000),
+        response.archives.count
+      ];
+
+      console.log('Archives'.bold);
+      console.log(table(data, tableFormat));
+
+      data[1] = [
+        new Date(response.symbols.first_updated_time * 1000),
+        new Date(response.symbols.last_updated_time * 1000),
+        response.symbols.count
+      ];
+
+      console.log('Symbols'.bold);
+      console.log(table(data, tableFormat));
+
+      data[1] = [
+        new Date(response.missing_symbols.first_crash_time * 1000),
+        new Date(response.missing_symbols.last_crash_time * 1000),
+        response.missing_symbols.count
+      ];
+
+      console.log('Missing Symbols'.bold);
+      console.log(table(data, tableFormat));
+      process.exit(0);
+    }
+
+    if (action === 'archives') {
       const tableFormat = {
         drawHorizontalLine: (index, size) => {
           return index === 0 || index === 1 || index === size - 1 || index === size;
