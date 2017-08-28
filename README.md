@@ -344,6 +344,21 @@ will return a list of uploaded, in-process and symbol processing errors. If `lis
 is used, then a list of uploaded symbols is returned. If `missing` is used, then
 the set of missing symbols for the project are included.
 
+### scrubber
+
+Create, modify and delete data scrubbers.
+
+```
+Usage: morgue scrubber <project> <list | create | modify | delete>
+```
+
+Use `--name` to identify the scrubber. Use `--regexp` to specify the pattern to
+match and scrub. Use `--builtin` to specify a builtin scrubber, `ssn`, `ccn` and
+`key` are currently supported for social security number, credit card number and
+encryption key. `--regexp` and `--builtin` are mutually exclusive. Use `--enable`
+to activate the scrubber, 0 disables the scrubber while other integer values
+enable it.
+
 ### setup
 
 ```
