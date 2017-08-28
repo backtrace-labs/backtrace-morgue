@@ -1310,7 +1310,7 @@ function coronerSymbol(argv, config) {
     query.action = 'missing_symbols';
 
   } else {
-    errx('Usage: morgue symbol <project> [archives | list | missing | status]');
+    errx('Usage: morgue symbol <project> [archives | list | missing | summary]');
   }
 
   coroner.symfile(p.universe, p.project, query, function (err, result) {

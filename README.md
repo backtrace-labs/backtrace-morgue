@@ -336,13 +336,14 @@ $
 ### symbol
 
 ```
-Usage: morgue symbol <[<universe>/]project> [status | list | missing] [-o <output file>]
+Usage: morgue symbol <[<universe>/]project> [summary | list | missing | archives] [-o <output file>]
 ```
 
 Retrieve a list of uploaded symbols or symbol archives. By default, `morgue symbol`
-will return a list of uploaded, in-process and symbol processing errors. If `list`
-is used, then a list of uploaded symbols is returned. If `missing` is used, then
-the set of missing symbols for the project are included.
+will return a summary of uploaded archives, available symbols and missing symbols.
+If `archvies` is used, a list of uploaded, in-process and symbol processing errors
+are outputted. If `list` is used, then a list of uploaded symbols is returned. If
+`missing` is used, then the set of missing symbols for the project are included.
 
 ### scrubber
 
