@@ -1356,32 +1356,39 @@ function coronerSymbol(argv, config) {
       ];
       var data = [title];
 
-      data[1] = [
-        new Date(response.archives.first_updated_time * 1000),
-        new Date(response.archives.last_updated_time * 1000),
-        response.archives.count
-      ];
+      if (response.archives && response.archives.count) {
+        data[1] = [
+          new Date(response.archives.first_updated_time * 1000),
+          new Date(response.archives.last_updated_time * 1000),
+          response.archives.count
+        ];
 
-      console.log('Archives'.bold);
-      console.log(table(data, tableFormat));
+        console.log('Archives'.bold);
+        console.log(table(data, tableFormat));
+      }
 
-      data[1] = [
-        new Date(response.symbols.first_updated_time * 1000),
-        new Date(response.symbols.last_updated_time * 1000),
-        response.symbols.count
-      ];
+      if (response.symbols && response.symbols.count) {
+        data[1] = [
+          new Date(response.symbols.first_updated_time * 1000),
+          new Date(response.symbols.last_updated_time * 1000),
+          response.symbols.count
+        ];
 
-      console.log('Symbols'.bold);
-      console.log(table(data, tableFormat));
+        console.log('Symbols'.bold);
+        console.log(table(data, tableFormat));
+      }
 
-      data[1] = [
-        new Date(response.missing_symbols.first_crash_time * 1000),
-        new Date(response.missing_symbols.last_crash_time * 1000),
-        response.missing_symbols.count
-      ];
+      if (response.missing_symbols && response.missing_symbols.count) {
+        data[1] = [
+          new Date(response.missing_symbols.first_crash_time * 1000),
+          new Date(response.missing_symbols.last_crash_time * 1000),
+          response.missing_symbols.count
+        ];
 
-      console.log('Missing Symbols'.bold);
-      console.log(table(data, tableFormat));
+        console.log('Missing Symbols'.bold);
+        console.log(table(data, tableFormat));
+      }
+
       process.exit(0);
     }
 
