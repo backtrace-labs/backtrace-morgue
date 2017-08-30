@@ -1604,6 +1604,9 @@ function coronerScrubber(argv, config) {
   /* The sub-command. */
   var action = argv._[2];
 
+  if (action === undefined) {
+    errx('Usage: morgue scrubber <[universe/]project> list | create | modify | delete');
+  }
   universe = p.universe;
   project = p.project;
 
@@ -1660,14 +1663,18 @@ function coronerScrubber(argv, config) {
     var id = argv._[3];
 
     if (!id)
-      errx('Usage: morgue <[universe/]project> scrubber delete <id>');
+      errx('Usage: morgue scrubber <[universe/]project> delete <id>');
 
     for (var i = 0; i < model.scrubber.length; i++) {
       if (model.scrubber[i].get('id') == id) {
         console.log(('Deleting scrubber [' +
             model.scrubber[i].get('name') + ']...').yellow);
         bpg.delete(model.scrubber[i]);
-        bpg.commit();
+        try {
+          bpg.commit();
+        } catch (em) {
+          errx(em);
+        }
         process.exit(0);
       }
     }
@@ -1683,38 +1690,76 @@ function coronerScrubber(argv, config) {
     var target = argv.target;
     var enable = argv.enable;
 
-    if (!regexp && !builtin)
-      errx('must provide either regexp or builtin');
-    if (regexp && builtin)
-      errx('either regexp or builtin is provided but not both');
+    if (!builtin || builtin !== 'all') {
+      if (!regexp && !builtin)
+        errx('must provide either regexp or builtin');
+      if (regexp && builtin)
+        errx('either regexp or builtin is provided but not both');
 
-    if (!name)
-      errx('must provide a scrubber name with --name');
+      if (!name)
+        errx('must provide a scrubber name with --name');
 
-    if (enable === undefined)
-      errx('must provide a scrubber enable with --enable');
+      if (enable === undefined)
+        errx('must provide a scrubber enable with --enable');
+    }
 
-    if (!regexp)
-      regexp = '';
-    if (!builtin)
-      builtin = '';
-    if (!format)
-      format = 'minidump';
-    if (!target)
-      target = 'memory';
+    if (regexp === undefined)
+      regexp = null;
+    if (builtin === undefined)
+      builtin = null;
+    if (format === undefined)
+      format = 'all';
+    if (target === undefined)
+      target = 'all';
 
-    var scrubber = bpg.new('scrubber');
-    scrubber.set('id', 0);
-    scrubber.set('project', pid);
-    scrubber.set('name', name);
-    scrubber.set('regexp', regexp);
-    scrubber.set('builtin', builtin);
-    scrubber.set('format', format);
-    scrubber.set('target', target);
-    scrubber.set('enable', enable);
+    if (builtin === 'all') {
+      var builtin_scrubbers = [
+        { name: 'social_security', builtin: 'ssn' },
+        { name: 'credit_card', builtin: 'ccn' },
+        { name: 'encryption_key', builtin: 'key' },
+        { name: 'environment_variable', builtin: 'env' },
+      ];
 
-    bpg.create(scrubber);
-    bpg.commit();
+      if (enable === undefined)
+        enable = 1;
+      for (var i = 0; i < builtin_scrubbers.length; i++) {
+        var scrubber = bpg.new('scrubber');
+
+        scrubber.set('id', 0);
+        scrubber.set('project', pid);
+        scrubber.set('name', builtin_scrubbers[i].name);
+        scrubber.set('regexp', null);
+        scrubber.set('builtin', builtin_scrubbers[i].builtin);
+        scrubber.set('format', format);
+        scrubber.set('target', target);
+        scrubber.set('enable', enable);
+
+        bpg.create(scrubber);
+        try {
+          bpg.commit();
+        } catch (em) {
+          console.log(builtin_scrubbers[i].name + ' ' +  em);
+        }
+      }
+    } else {
+      var scrubber = bpg.new('scrubber');
+
+      scrubber.set('id', 0);
+      scrubber.set('project', pid);
+      scrubber.set('name', name);
+      scrubber.set('regexp', regexp);
+      scrubber.set('builtin', builtin);
+      scrubber.set('format', format);
+      scrubber.set('target', target);
+      scrubber.set('enable', enable);
+
+      bpg.create(scrubber);
+      try {
+        bpg.commit();
+      } catch (em) {
+        errx(em);
+      }
+    }
 
     console.log('Scrubber successfully created.'.blue);
   }
@@ -1724,10 +1769,11 @@ function coronerScrubber(argv, config) {
     var id = argv._[3];
 
     if (!id)
-      errx('Usage: morgue <[universe/]project> scrubber modify <id>');
+      errx('Usage: morgue scrubber <[universe/]project> modify <id>');
 
-    if (!argv.name && !argv.regexp && !argv.builtin && !argv.format &&
-        !argv.target && argv.enable === undefined) {
+    if (!argv.name && !argv.regexp && !argv.builtin &&
+        argv.format === undefined  && argv.target === undefined  &&
+        argv.enable === undefined) {
       errx('no scrubber member is specified');
     }
 
@@ -1752,11 +1798,15 @@ function coronerScrubber(argv, config) {
       delta.format = argv.format;
     if (argv.target)
       delta.target = argv.target;
-    if (!(argv.enable === undefined))
+    if (argv.enable !== undefined)
       delta.enable = argv.enable;
 
     bpg.modify(scrubber, delta);
-    bpg.commit();
+    try {
+      bpg.commit();
+    } catch (em) {
+      errx(em);
+    }
 
     console.log('Scrubber successfully modified.'.blue);
   }

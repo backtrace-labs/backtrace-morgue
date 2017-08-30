@@ -354,11 +354,12 @@ Usage: morgue scrubber <project> <list | create | modify | delete>
 ```
 
 Use `--name` to identify the scrubber. Use `--regexp` to specify the pattern to
-match and scrub. Use `--builtin` to specify a builtin scrubber, `ssn`, `ccn` and
-`key` are currently supported for social security number, credit card number and
-encryption key. `--regexp` and `--builtin` are mutually exclusive. Use `--enable`
-to activate the scrubber, 0 disables the scrubber while other integer values
-enable it.
+match and scrub. Use `--builtin` to specify a builtin scrubber, `ssn`, `ccn`,
+`key` and `env` are currently supported for social security number, credit card
+number, encryption key and environment variable. If `--builtin=all` in `create`
+subcommand, all supported builtin scrubbers are created. `--regexp` and
+`--builtin` are mutually exclusive. Use `--enable` to activate the scrubber, 0
+disables the scrubber while other integer values enable it.
 
 ### setup
 
