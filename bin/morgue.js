@@ -1453,13 +1453,77 @@ function coronerAttachment(argv, config) {
   fn(argv, config, params);
 }
 
+function put_benchmark(coroner, argv, files, p) {
+  var samples = [];
+  var objects = [];
+  var concurrency = 1;
+  var n_samples = 32;
+  var submitted = 0;
+  var success = 0;
+
+  process.stderr.write('Warming up...'.blue + '\n');
+
+  if (argv.samples)
+    n_samples = parseInt(argv.samples);
+
+  if (argv.concurrency)
+    concurrency = parseInt(argv.concurrency);
+
+  process.stderr.write('Injecting: '.yellow);
+  var start = process.hrtime();
+
+  var submit_cb = function(i) {
+    var fi = i % files.length;
+    /* A previous call completed the full run.  Resolve. */
+    if (submitted === n_samples)
+      return Promise.resolve();
+    submitted++;
+    var st = process.hrtime();
+    return coroner.promise('put', files[fi].body, p, argv.compression).
+      then((r) => success_cb(r, i, st)).catch((e) => failure_cb(e, i, st));
+  }
+  var success_cb = function(r, i, st) {
+    samples.push(nsToUs(process.hrtime()) - st);
+    process.stderr.write('.'.blue);
+    success++;
+    if (argv.printids)
+      objects.push(r.object);
+    return submit_cb(i);
+  }
+  var failure_cb = function(e, i, st) {
+    samples.push(nsToUs(process.hrtime()) - st);
+    err(e);
+    return submit_cb(i);
+  }
+
+  /*
+   * Kick off the initial tasks for each "thread".  These will continue to
+   * spawn new tasks until the total number of submits reaches n_samples.
+   * Once that happens, the final .then() below will run.
+   */
+  for (var i = 0; i < concurrency; i++) {
+    tasks.push(submit_cb(i));
+  }
+
+  Promise.all(tasks).then((r) => {
+    var failed = n_samples - success;
+    console.log('\n');
+    printSamples(submitted, samples, start, process.hrtime(), concurrency);
+    if (argv.printids)
+      console.log(sprintf('Object IDs: %s', JSON.stringify(objects)).blue);
+    if (failed === 0)
+      process.exit(0);
+    errx(sprintf("%d of %d submissions failed.", failed, n_samples));
+  }).catch((e) => {
+    errx(e.message);
+  });
+}
+
 function coronerPut(argv, config) {
   abortIfNotLoggedIn(config);
   const form = argv.form_data;
   var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
   var p;
-  var concurrency = 1;
-  var n_samples = 32;
   var supported_compression = {'gzip' : true, 'deflate' : true};
 
   if (!config.submissionEndpoint) {
@@ -1505,50 +1569,13 @@ function coronerPut(argv, config) {
 
   var coroner = coronerClientArgvSubmit(config, argv);
 
-  if (argv.concurrency)
-    concurrency = parseInt(argv.concurrency);
-
   var submitted = 0;
   var success = 0;
   var tasks = [];
 
   if (argv.benchmark) {
-    process.stderr.write('Warming up...'.blue + '\n');
-
-    if (argv.samples)
-      n_samples = parseInt(argv.samples);
-
-    submitted = 0;
-
-    var samples = [];
-    var objects = [];
-
-    process.stderr.write('Injecting: '.yellow);
-    var start = process.hrtime();
-
-    var submit_cb = function(i) {
-      var fi = i % files.length;
-      /* A previous call completed the full run.  Resolve. */
-      if (submitted === n_samples)
-        return Promise.resolve();
-      submitted++;
-      var st = process.hrtime();
-      return coroner.promise('put', files[fi].body, p, argv.compression).
-        then((r) => success_cb(r, i, st)).catch((e) => failure_cb(e, i, st));
-    }
-    var success_cb = function(r, i, st) {
-      samples.push(nsToUs(process.hrtime()) - st);
-      process.stderr.write('.'.blue);
-      success++;
-      if (argv.printids)
-        objects.push(r.object);
-      return submit_cb(i);
-    }
-    var failure_cb = function(e, i, st) {
-      samples.push(nsToUs(process.hrtime()) - st);
-      err(e);
-      return submit_cb(i);
-    }
+    return put_benchmark(coroner, argv, files, p);
+  }
 
     /*
      * Kick off the initial tasks for each "thread".  These will continue to
