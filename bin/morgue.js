@@ -107,7 +107,8 @@ function objToPath(oid, resource) {
 
   if (resource)
     str += ":" + resource;
-  str += ".bin";
+  else
+    str += ".bin";
   return str;
 }
 
@@ -1013,7 +1014,7 @@ function coronerGet(argv, config) {
   success = 0;
   objects.forEach(function(oid) {
     tasks.push(coroner.promise('http_fetch', p.universe, p.project, oid, params).then(function(hr) {
-      var fname = getFname(hr, out.path, argv.outdir, objects.length, oid, params);
+      var fname = getFname(hr, out.path, argv.outdir, objects.length, oid, params.resource);
       success++;
       if (fname) {
         fs.writeFileSync(fname, hr.bodyData);
@@ -1023,7 +1024,7 @@ function coronerGet(argv, config) {
       }
     }).catch(function(e) {
       /* Allow ignoring (and printing) failures for testing purposes. */
-      var fname = getFname(null, out.path, argv.outdir, objects.length, oid, params);
+      var fname = getFname(null, out.path, argv.outdir, objects.length, oid, params.resource);
       if (!argv.ignorefail || !out.has) {
         e.message = sprintf("%s: %s", fname, e.message);
         return Promise.reject(e);
@@ -1336,31 +1337,34 @@ function attachmentAdd(argv, config, params) {
   u = params.universe;
   p = params.project;
   coroner.promise('attach', u, p, object, name, null, opts, body).then((r) => {
-    console.log(sprintf("Attached '%s' to object %d as id %d.",
+    console.log(sprintf("Attached '%s' to object %s as id %s.",
       r.attachment_name, r.object, r.attachment_id).success);
   }).catch(std_failure_cb);
 }
 
 function attachmentGet(argv, config, params) {
-  var coroner, oid, out, p, u;
+  var coroner, oid, out, p, resource, u;
 
   if (argv._.length != 1)
     attachmentUsage("Must specify object id.");
 
   out = outpathCheck(argv, 1);
-  if (argv["attachment-name"])
+  if (argv["attachment-name"]) {
     params.attachment_name = argv["attachment-name"];
-  else if (argv["attachment-id"])
+    resource = params.attachment_name;
+  } else if (argv["attachment-id"]) {
     params.attachment_id = argv["attachment-id"];
-  else
+    resource = "_attachment-" + params.attachment_id;
+  } else {
     attachmentUsage("Must specify attachment by name or id.");
+  }
 
   coroner = coronerClientArgv(config, argv);
   oid = argv._[0];
   u = params.universe;
   p = params.project;
   coroner.promise('http_fetch', u, p, oid, params).then(function(hr) {
-    var fname = getFname(hr, out.path, argv.outdir, 1, oid, params);
+    var fname = getFname(hr, out.path, argv.outdir, 1, oid, resource);
     if (fname) {
       fs.writeFileSync(fname, hr.bodyData);
       console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
@@ -1369,7 +1373,7 @@ function attachmentGet(argv, config, params) {
     }
   }).catch(function(e) {
     /* Allow ignoring (and printing) failures for testing purposes. */
-    var fname = getFname(null, out.path, argv.outdir, 1, oid, params);
+    var fname = getFname(null, out.path, argv.outdir, 1, oid, resource);
     if (!argv.ignorefail || !out.has) {
       e.message = sprintf("%s: %s", fname, e.message);
       return Promise.reject(e);
@@ -1454,6 +1458,7 @@ function coronerAttachment(argv, config) {
 }
 
 function put_benchmark(coroner, argv, files, p) {
+  var tasks = [];
   var samples = [];
   var objects = [];
   var concurrency = 1;
@@ -1480,7 +1485,7 @@ function put_benchmark(coroner, argv, files, p) {
     submitted++;
     var st = process.hrtime();
     return coroner.promise('put', files[fi].body, p, argv.compression).
-      then((r) => success_cb(r, i, st)).catch((e) => failure_cb(e, i, st));
+      then((r) => success_cb(r, i, st)).catch((e) => failure_cb(files[fi].path, e, i, st));
   }
   var success_cb = function(r, i, st) {
     samples.push(nsToUs(process.hrtime()) - st);
@@ -1490,9 +1495,9 @@ function put_benchmark(coroner, argv, files, p) {
       objects.push(r.object);
     return submit_cb(i);
   }
-  var failure_cb = function(e, i, st) {
+  var failure_cb = function(path, e, i, st) {
     samples.push(nsToUs(process.hrtime()) - st);
-    err(e);
+    err(sprintf("%s: %s", path, e));
     return submit_cb(i);
   }
 
@@ -1525,6 +1530,7 @@ function coronerPut(argv, config) {
   var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
   var p;
   var supported_compression = {'gzip' : true, 'deflate' : true};
+  var attachments = [];
 
   if (!config.submissionEndpoint) {
     errx('No submission endpoint found.');
@@ -1543,8 +1549,18 @@ function coronerPut(argv, config) {
   if (p.format === 'symbols' && argv.tag) {
     p.tag = argv.tag;
   }
-  if (p.format === 'minidump' && argv.kv) {
-    p.kvs = argv.kv;
+  if (p.format === 'minidump') {
+    if (argv.kv)
+      p.kvs = argv.kv;
+    if (argv.attachment) {
+      /*
+       * Attachment mode: This doesn't really make sense to do with multiple
+       * objects in the same run, but it works.
+       */
+      attachments = argv.attachment;
+      if (!Array.isArray(attachments))
+        attachments = [attachments];
+    }
   }
 
   var files = [];
@@ -1577,58 +1593,34 @@ function coronerPut(argv, config) {
     return put_benchmark(coroner, argv, files, p);
   }
 
-    /*
-     * Kick off the initial tasks for each "thread".  These will continue to
-     * spawn new tasks until the total number of submits reaches n_samples.
-     * Once that happens, the final .then() below will run.
-     */
-    for (var i = 0; i < concurrency; i++) {
-      tasks.push(submit_cb(i));
-    }
-
-    Promise.all(tasks).then((r) => {
-      var failed = n_samples - success;
-      console.log('\n');
-      printSamples(submitted, samples, start, process.hrtime(), concurrency);
-      if (argv.printids)
-        console.log(sprintf('Object IDs: %s', JSON.stringify(objects)).blue);
-      if (failed === 0)
-        process.exit(0);
-      errx(sprintf("%d of %d submissions failed.", failed, n_samples));
-    }).catch((e) => {
-      errx(e.message);
-    });
-  } else {
-    var success_cb = function(r, path) {
-      console.log(sprintf("%s: Success.", path).success);
-      success++;
-    }
-    var failure_cb = function(e) {
-      err(sprintf("%s: %s", path, e.message));
-    }
-    for (var i = 0; i < files.length; i++) {
-      var path = files[i].path;
-      if (form) {
-        tasks.push(coroner.promise('put_form', path, null, p).
-          then((r) => success_cb(r, path)).catch((e) => failure_cb(e)));
-      } else {
-        tasks.push(coroner.promise('put', files[i].body, p, argv.compression)
-          .then((r) => success_cb(r, path)).catch((e) => failure_cb(e)));
-      }
-    }
-
-    n_samples = tasks.length;
-    Promise.all(tasks).then((r) => {
-      var failed = n_samples - success;
-      if (failed === 0) {
-        console.log('Success.'.success);
-        process.exit(0);
-      }
-      errx(sprintf("%d of %d submissions failed.", failed, n_samples));
-    }).catch((e) => {
-      errx(e.message);
-    });
+  var success_cb = function(r, path) {
+    console.log(sprintf("%s: Success.", path).success);
+    success++;
   }
+  var failure_cb = function(path, e) {
+    err(sprintf("%s: %s", path, e.message));
+  }
+  for (var i = 0; i < files.length; i++) {
+    var path = files[i].path;
+    if (form) {
+      tasks.push(coroner.promise('put_form', path, attachments, p).
+        then((r) => success_cb(r, path)).catch((e) => failure_cb(path, e)));
+    } else {
+      tasks.push(coroner.promise('put', files[i].body, p, argv.compression)
+        .then((r) => success_cb(r, path)).catch((e) => failure_cb(path, e)));
+    }
+  }
+
+  Promise.all(tasks).then((r) => {
+    var failed = tasks.length - success;
+    if (failed === 0) {
+      console.log('Success.'.success);
+      process.exit(0);
+    }
+    errx(sprintf("%d of %d submissions failed.", failed, tasks.length));
+  }).catch((e) => {
+    errx(e.message);
+  });
 }
 
 /**
