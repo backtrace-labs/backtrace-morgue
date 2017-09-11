@@ -460,13 +460,14 @@ function coronerReport(argv, config) {
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
-  var p = coronerParams(argv, config);
+  universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  project = argv.project;
 
   /* The sub-command. */
-  var action = argv._[2];
-
-  universe = p.universe;
-  project = p.project;
+  var action = argv._[1];
 
   var bpg = coronerBpgSetup(coroner, argv);
   var model = bpg.get();
@@ -486,12 +487,8 @@ function coronerReport(argv, config) {
     }
   }
 
-  if (!pid)
-    errx('project not found');
-
   if (action == 'list') {
     /* Print all report objects. */
-
     if (!model.report) {
       console.log('No scheduled reports found.'.blue);
       process.exit(0);
@@ -508,7 +505,7 @@ function coronerReport(argv, config) {
       var report = model.report[i];
       var widgets;
 
-      if (report.get('project') != pid)
+      if (pid && report.get('project') != pid)
         continue;
 
       try {
@@ -517,25 +514,29 @@ function coronerReport(argv, config) {
         widgets = 'invalid: ' + model.report[i].get('widgets');
       }
 
-      console.log(('[' + report.get('id') + '] ' +
+      console.log(('[' + printf("%2d", report.get('id')) + '] ' +
           report.get('title')).bold);
 
-      console.log('    Recipients: ' + report.get('rcpt'));
-      console.log('        Period: ' + report.get('period'));
-      console.log('           Day: ' + report.get('day'));
-      console.log('          Hour: ' + report.get('hour'));
-      console.log('      Timezone: ' + report.get('timezone'));
-      console.log('       Widgets: ' + widgets);
+      console.log('Recipients: ' + report.get('rcpt'));
+      console.log('Period: ' + report.get('period'));
+      console.log('Day: ' + report.get('day'));
+      console.log('Hour: ' + report.get('hour'));
+      console.log('Timezone: ' + report.get('timezone'));
+      console.log('Widgets: ' + widgets);
+      console.log('');
     }
 
     process.exit(0); 
   }
 
   if (action === 'delete') {
-    var id = argv._[3];
+    var id = argv._[2];
 
     if (!id)
       errx('Usage: morgue report delete <id>');
+
+    if (!universe || !project)
+      errx('Must specify a project or infer a universe');
 
     for (var i = 0; i < model.report.length; i++) {
       if (model.report[i].get('id') == id) {
@@ -551,8 +552,8 @@ function coronerReport(argv, config) {
   }
 
   if (action === 'send') {
-    var id = argv._[3];
-    var rcpt = argv._[4];
+    var id = argv._[2];
+    var rcpt = argv._[3];
 
     if (!id || !rcpt)
       errx('Usage: morgue report send <id> <e-mail>');
@@ -586,6 +587,9 @@ function coronerReport(argv, config) {
     var aq = argvQuery(argv);
     var rcpt = '';
     var include_users = false;
+
+    if (!universe || !project)
+      errx('Must specify a project or infer a universe');
 
     if (!limit)
       limit = 5;

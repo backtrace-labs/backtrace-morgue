@@ -249,7 +249,7 @@ from leaf functions.
 Create and manage scheduled reports.
 
 ```
-Usage: morgue report <project> <list | create | delete | send>
+Usage: morgue report <list | create | delete | send> [--project=...] [--universe=...]
 ```
 
 #### create
