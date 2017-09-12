@@ -382,3 +382,37 @@ Usage: morgue nuke --universe=<universe name> [--project=<project name>]
 If you want to nuke an object and all of the dependencies of the object.
 Do not use this operation without making a back-up of your data.
 
+### token
+
+```
+Usage: morgue token [create | list | delete] [--project=...] [--universe=...]
+```
+
+#### create
+
+```
+Usage: morgue token create --project=<project> --capability=<capability>
+```
+
+Capability can be any of:
+ * symbol:post - Enable symbol uploads with the specified API token.
+ * error:post - Enable error and dump submission with the specified API token.
+ * query:post - Enable queries to be issued using the specified token.
+ * object:get - Enable fetching of objects with the specified token.
+
+#### list
+
+```
+Usage: morgue token list [--universe=...] [--project=...]
+```
+
+List API tokens in the specified universe, for all projects or a specified
+project.
+
+#### delete
+
+```
+Usage: morgue token delete <sha256 or prefix>
+```
+
+Delete the specified token by substring or exact match.
