@@ -1381,11 +1381,11 @@ function coronerPut(argv, config) {
     });
   } else {
     var success_cb = function(r, path) {
-      console.log(path);
+      console.log(sprintf("%s: Success.", path).success);
       success++;
     }
     var failure_cb = function(e) {
-      err(e.message);
+      err(sprintf("%s: %s", path, e.message));
     }
     for (var i = 0; i < files.length; i++) {
       var path = files[i].path;
@@ -1398,6 +1398,7 @@ function coronerPut(argv, config) {
       }
     }
 
+    n_samples = tasks.length;
     Promise.all(tasks).then((r) => {
       var failed = n_samples - success;
       if (failed === 0) {
