@@ -152,6 +152,7 @@ var commands = {
   control: coronerControl,
   ls: coronerList,
   describe: coronerDescribe,
+  token: coronerToken,
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
@@ -451,6 +452,152 @@ function coronerSetup(argv, config) {
       return coronerLogin(argv, config, coronerSetupStart);
     }
   });
+}
+
+function coronerToken(argv, config) {
+  var options = null;
+  var project, universe, pid, un, target;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  project = argv.project;
+
+  /* The sub-command. */
+  var action = argv._[1];
+
+  var bpg = coronerBpgSetup(coroner, argv);
+  var model = bpg.get();
+
+  /* Find the universe with the specified name. */
+  for (var i = 0; i < model.universe.length; i++) {
+    if (model.universe[i].get('name') === universe) {
+      un = target = model.universe[i];
+    }
+  }
+
+  var pm = {};
+
+  for (var i = 0; i < model.project.length; i++) {
+    pm[model.project[i].get('pid')] = model.project[i].get('name');
+
+    if (model.project[i].get('name') === project &&
+        model.project[i].get('universe') === un.get('id')) {
+      pid = model.project[i].get('pid');
+    }
+  }
+
+  if (action == 'list') {
+    if (!model.api_token) {
+      console.log('No API tokens found.'.blue);
+      process.exit(0);
+    }
+
+    model.api_token.sort(function(a, b) {
+      var a_d = a.get('id');
+      var b_d = b.get('id');
+
+      return (a_d > b_d) - (a_d < b_d);
+    });
+
+    for (var i = 0; i < model.api_token.length; i++) {
+      var token = model.api_token[i];
+      var widgets;
+
+      if (pid && token.get('project') != pid)
+        continue;
+
+      console.log(token.get('id').bold);
+      console.log('  capabilities=' + token.get('capabilities') +
+        ',project=' + pm[token.get('project')] + '(' +
+        token.get('project') + '),owner=' + token.get('owner'));
+    }
+
+    for (var i = 0; i < model.token.length; i++) {
+      var token = model.token[i];
+      var widgets;
+
+      if (pid && token.get('project') != pid)
+        continue;
+
+      console.log(token.get('id').bold);
+      console.log('  capabilities=error:post' +
+        ',project=' + pm[token.get('project')] + '(' +
+        token.get('project') + '),owner=' + token.get('owner'));
+    }
+
+    process.exit(0); 
+  }
+
+  if (action === 'delete') {
+    var id = argv._[2];
+    var token;
+
+    if (!id)
+      errx('Usage: morgue token delete <id>');
+
+    for (var i = 0; i < model.api_token.length; i++) {
+      if (model.api_token[i].get('id').indexOf(id) >= 0) {
+        if (token)
+          errx(id + ' is an ambiguous identifier. Multiple matches.');
+
+        token = model.api_token[i];
+      }
+    }
+
+    if (!token)
+      errx('Token not found.');
+
+    console.log(('Deleting token [' +
+        token.get('id') + ']...').yellow);
+    bpg.delete(token);
+    bpg.commit();
+    process.exit(0);
+  }
+
+  if (action === 'create') {
+    var capabilities = argv.capability;
+
+    if (!universe || !project)
+      errx('Must specify a project or infer a universe');
+
+    if (!capabilities) {
+      errx('Must specify a capability:\n' +
+        '    error:post symbol:post query:post');
+    }
+
+    if (Array.isArray(argv.capability)) {
+      capabilities = argv.capability.join(' ');
+    } else {
+      capabilities += argv.capability + ' ';
+    }
+
+    if (!capabilities || capabilities.length === 0)
+      errx('Must specify a capability: error:post sym:post query:post');
+
+    var api_token = bpg.new('api_token');
+    api_token.set('id', '0000');
+    api_token.set('project', pid);
+    api_token.set('owner', config.config.uid);
+    api_token.set('capabilities', capabilities);
+
+    if (argv.metadata)
+      api_token.set('metadata', argv.metadata);
+
+    bpg.create(api_token);
+
+    try {
+      bpg.commit();
+    } catch (e) {
+      errx(e + '');
+    }
+
+    console.log('API token successfully created.'.blue);
+  }
 }
 
 function coronerReport(argv, config) {
