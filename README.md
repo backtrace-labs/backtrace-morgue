@@ -400,6 +400,9 @@ Capability can be any of:
  * query:post - Enable queries to be issued using the specified token.
  * object:get - Enable fetching of objects with the specified token.
 
+Multiple capabilities can be specified by using `--capability` multiple times
+or using a comma-separated list.
+
 #### list
 
 ```
