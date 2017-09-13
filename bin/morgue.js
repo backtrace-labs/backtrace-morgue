@@ -3076,7 +3076,7 @@ function coronerReprocess(argv, config) {
   /* Check for a query parameter to be sent. */
   n_objects = argv._.length - 2;
 
-  if (n_objects > 0 && aq.query) {
+  if (n_objects > 0 && aq && aq.query) {
     return usage("Cannot specify both a query and a set of objects.");
   }
 
