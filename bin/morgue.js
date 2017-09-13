@@ -560,12 +560,12 @@ function coronerToken(argv, config) {
   }
 
   if (action === 'create') {
-    var capabilities = argv.capability;
+    var capabilities = '';
 
     if (!universe || !project)
       errx('Must specify a project or infer a universe');
 
-    if (!capabilities) {
+    if (!argv.capability) {
       errx('Must specify a capability:\n' +
         '    error:post symbol:post query:post');
     }
@@ -573,7 +573,10 @@ function coronerToken(argv, config) {
     if (Array.isArray(argv.capability)) {
       capabilities = argv.capability.join(' ');
     } else {
-      capabilities += argv.capability + ' ';
+      if (capabilities && capabilities.length > 0)
+        capabilities += ' ';
+
+      capabilities += argv.capability;
     }
 
     if (!capabilities || capabilities.length === 0)
