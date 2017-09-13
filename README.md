@@ -398,7 +398,6 @@ Capability can be any of:
  * symbol:post - Enable symbol uploads with the specified API token.
  * error:post - Enable error and dump submission with the specified API token.
  * query:post - Enable queries to be issued using the specified token.
- * object:get - Enable fetching of objects with the specified token.
 
 Multiple capabilities can be specified by using `--capability` multiple times
 or using a comma-separated list.
