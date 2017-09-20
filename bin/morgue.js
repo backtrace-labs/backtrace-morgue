@@ -1358,6 +1358,9 @@ function attachmentGet(argv, config, params) {
   } else {
     attachmentUsage("Must specify attachment by name or id.");
   }
+  if (argv["attachment-inline"]) {
+    params.attachment_inline = true;
+  }
 
   coroner = coronerClientArgv(config, argv);
   oid = argv._[0];
