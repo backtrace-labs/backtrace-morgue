@@ -1387,7 +1387,7 @@ function attachmentList(argv, config, params) {
   var coroner, object, p, u;
 
   if (argv._.length < 1) {
-    attachmentsUsage('Must specify object ID to attach to.');
+    attachmentUsage('Must specify object ID to attach to.');
   }
 
   coroner = coronerClientArgv(config, argv);
