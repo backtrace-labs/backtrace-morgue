@@ -1375,14 +1375,8 @@ function attachmentGet(argv, config, params) {
       process.stdout.write(hr.bodyData);
     }
   }).catch(function(e) {
-    /* Allow ignoring (and printing) failures for testing purposes. */
     var fname = getFname(null, out.path, argv.outdir, 1, oid, resource);
-    if (!argv.ignorefail || !out.has) {
-      e.message = sprintf("%s: %s", fname, e.message);
-      return Promise.reject(e);
-    }
-    err(sprintf('%s: %s', fname, e.message));
-    return Promise.resolve();
+    err(sprintf("%s: %s", fname, e.message));
   });
 }
 
