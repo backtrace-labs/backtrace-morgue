@@ -1393,7 +1393,15 @@ function attachmentList(argv, config, params) {
   u = params.universe;
   coroner.promise('attachments', u, p, object, null).then((r) => {
     var jr = JSON.parse(r);
-    console.log(JSON.stringify(jr, null, 4));
+    if (jr.attachments.length === 0) {
+      console.log(sprintf("No attachments for %s obj %s", p, object));
+      return;
+    }
+    console.log(sprintf("%s obj %s attachments:", p, object));
+    jr.attachments.forEach(function(a) {
+      console.log(sprintf("  id %s name \"%s\" size %d type \"%s\"%s",
+        a.id, a.name, a.size, a.content_type, a.inline ? " (inline)" : ""));
+    });
   }).catch(std_failure_cb);
 }
 
