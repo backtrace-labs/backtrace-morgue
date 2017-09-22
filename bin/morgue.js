@@ -1294,6 +1294,7 @@ function attachmentUsage(error_str) {
   console.log("    Must specify one of:");
   console.log("    --attachment-id=ID   Attachment ID to delete.");
   console.log("    --attachment-name=N  Attachment name to delete.");
+  console.log("    --attachment-inline  Attachment is inline.");
   console.log("");
   console.log("  morgue attachment list [options] <[universe/]project> <oid>".blue);
   console.log("");
