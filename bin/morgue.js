@@ -1311,6 +1311,8 @@ function attachmentAdd(argv, config, params) {
   var opts = {
     /* Data is user-provided, and must be passed through as is. */
     binary: true,
+    /* Rely on automatic mime-type detection if not specified. */
+    content_type: null,
   };
 
   if (!config.submissionEndpoint) {
