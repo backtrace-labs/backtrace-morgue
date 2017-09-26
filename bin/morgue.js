@@ -1330,7 +1330,7 @@ function attachmentAdd(argv, config, params) {
 
   object = argv._.shift();
   fname = argv._.shift();
-  name = path.basename(argv.attachment_name || fname);
+  name = path.basename(argv["attachment-name"] || fname);
   body = fs.readFileSync(fname);
 
   if (argv.content_type) {
