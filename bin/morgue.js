@@ -2665,6 +2665,7 @@ function coronerList(argv, config) {
     [argv.head, 'head'],
     [argv.object, 'object'],
     [argv.histogram, 'histogram'],
+    [argv.distribution, 'distribution'],
     [argv.unique, 'unique'],
     [argv.sum, 'sum'],
     [argv.quantize, 'bin'],
@@ -2885,6 +2886,15 @@ function histogramPrint(field, unused, format) {
   return true;
 }
 
+function distributionPrint(field, unused, format) {
+  const distribution = field[0];
+  const data = distribution.vals;
+  const total_sum = distribution.tail + data.reduce((s, v) => s + v[1], 0);
+
+  console.log(distribution.keys + " keys total, with a count of " + total_sum);
+  histogramPrint(data, unused, format);
+}
+
 function unaryPrint(field, unused, format) {
   console.log(fieldFormat(field[0], format));
   return true;
@@ -3090,6 +3100,7 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
     object: noFormatPrint,
     sum: unaryPrint,
     histogram: histogramPrint,
+    distribution: distributionPrint,
     quantize: binPrint,
     bin: binPrint,
     range: rangePrint,
