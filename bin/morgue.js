@@ -532,7 +532,7 @@ function coronerToken(argv, config) {
         token.get('project') + '),owner=' + token.get('owner'));
     }
 
-    process.exit(0); 
+    process.exit(0);
   }
 
   if (action === 'delete') {
@@ -678,7 +678,7 @@ function coronerReport(argv, config) {
       console.log('');
     }
 
-    process.exit(0); 
+    process.exit(0);
   }
 
   if (action === 'delete') {
@@ -2316,7 +2316,7 @@ function argvQuery(argv) {
       ts_e = parseInt(tm[0].end.date() / 1000);
 
     query.filter[0].timestamp = [
-      [ 'at-least', ts_s ], 
+      [ 'at-least', ts_s ],
       [ 'less-than', ts_e ]
     ];
 
