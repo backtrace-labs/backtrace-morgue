@@ -167,6 +167,14 @@ The currently supported operations are `equal`, `regular-expression`,
 `inverse-regular-expression`, `at-least`, `greater-than`, `at-most`,
 `less-than`, `contains`, `not-contains`, `is-set`, and `is-not-set`.
 
+#### Pagination
+
+Pagination is handled with two flags
+
+`--limit=<n>` controls the number of returned rows. `--offset=<n>` controls the
+offset at which rows are returned, another way to put it is that it skips the
+first `<n>` rows.
+
 #### Aggregations
 
 Aggregation is expressed through a myriad of command-line options that express

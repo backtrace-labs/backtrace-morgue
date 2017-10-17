@@ -2263,6 +2263,12 @@ function argvQuery(argv) {
   if (argv.template)
     query.template = argv.template;
 
+  if (argv.limit)
+    query.limit = argv.limit;
+
+  if (argv.offset)
+    query.offset = argv.offset;
+
   query.filter = [{}];
   if (argv.filter) {
     var i;
