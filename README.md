@@ -176,19 +176,20 @@ The ``*`` factor is used when aggregations are performed when no factor is
 specified or if an object does not have a valid value associated with the
 factor.
 
-| Option        | Description |
-|---------------|-------------|
-| `--age`       | Specify a relative timestamp to now. `1h` ago, or `1d` ago. |
-| `--time`      | Specify a range using [Chrono](https://github.com/wanasit/chrono#readme). |
-| `--unique`    | provide a count of distinct values |
-| `--histogram` | provide all distinct values |
-| `--sum`       | sum all values |
-| `--range`     | provide the minimum and maximum values |
-| `--count`     | count all non-null values |
-| `--bin`       | provide a linear histogram of values |
-| `--head`      | provide the first value in a factor |
-| `--tail`      | provide the last value in a factor |
-| `--object`    | provide the maximum object identifier of a column |
+| Option           | Description |
+|------------------|-------------|
+| `--age`          | Specify a relative timestamp to now. `1h` ago, or `1d` ago. |
+| `--time`         | Specify a range using [Chrono](https://github.com/wanasit/chrono#readme). |
+| `--unique`       | provide a count of distinct values |
+| `--histogram`    | provide all distinct values |
+| `--distribution` | provide a truncated histogram |
+| `--sum`          | sum all values |
+| `--range`        | provide the minimum and maximum values |
+| `--count`        | count all non-null values |
+| `--bin`          | provide a linear histogram of values |
+| `--head`         | provide the first value in a factor |
+| `--tail`         | provide the last value in a factor |
+| `--object`       | provide the maximum object identifier of a column |
 
 #### Example
 
