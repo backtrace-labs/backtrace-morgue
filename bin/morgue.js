@@ -1330,7 +1330,7 @@ function attachmentAdd(argv, config, params) {
 
   object = argv._.shift();
   fname = argv._.shift();
-  name = path.basename(argv["attachment-name"] || fname);
+  name = path.basename(argv.attachment_name || fname);
   body = fs.readFileSync(fname);
 
   if (argv.content_type) {
@@ -2253,6 +2253,18 @@ function argvQueryFilterOnly(argv) {
   return null;
 }
 
+function parseSortTerm(term) {
+  var ordering = "ascending";
+  var name = term;
+
+  if (term[0] === "-") {
+    ordering = "descending";
+    name = term.slice(1);
+  }
+
+  return {name: name, ordering: ordering};
+}
+
 function argvQuery(argv) {
   var query = {};
   var d_age = '1M';
@@ -2291,6 +2303,13 @@ function argvQuery(argv) {
         query.filter[0][r[0]] = [];
       query.filter[0][r[0]].push([r[1], r[2]]);
     }
+  }
+
+  if (argv.sort) {
+    if (Array.isArray(argv.sort) === false)
+      argv.sort  = [argv.sort];
+
+    query.order = argv.sort.map(parseSortTerm);
   }
 
   if (!query.filter[0].timestamp)
@@ -2755,8 +2774,7 @@ function coronerList(argv, config) {
         process.exit(0);
       }
 
-      coronerPrint(query, rp, result.response,
-          argv.sort, argv.limit);
+      coronerPrint(query, rp, result.response);
 
       var date_label;
       if (d_age) {
@@ -2895,7 +2913,8 @@ function histogramPrint(field, unused, format) {
 function distributionPrint(field, unused, format) {
   const distribution = field[0];
   const data = distribution.vals;
-  const total_sum = distribution.tail + data.reduce((s, v) => s + v[1], 0);
+  const tail_sum = distribution.tail || 0;
+  const total_sum = tail_sum + data.reduce((s, v) => s + v[1], 0);
 
   console.log(distribution.keys + " keys total, with a count of " + total_sum);
   histogramPrint(data, unused, format);
@@ -3093,7 +3112,7 @@ function id_compare(a, b) {
   return reverse * ((a < b) - (a > b));
 }
 
-function coronerPrint(query, rp, raw, sort, limit, columns) {
+function coronerPrint(query, rp, raw, columns) {
   var results = rp.unpack();
   var fields = rp.fields();
   var g;
@@ -3112,53 +3131,8 @@ function coronerPrint(query, rp, raw, sort, limit, columns) {
     range: rangePrint,
   };
 
-  if (sort) {
-    var array = [];
-    var i, sf, transform;
-
-    for (g in results) {
-      array.push([g, results[g]]);
-    }
-
-    if (array.length === 0) {
-      console.log('No results.');
-      return;
-    }
-
-    transform = id_compare;
-
-    /* Determine sort factor. */
-    if (array[0][1]['range(' + sort + ')']) {
-      transform = range_compare;
-      sf = 'range(' + sort + ')';
-    } else if (array[0][1]['unique(' + sort + ')']) {
-      transform = unique_compare;
-      sf = 'unique(' + sort + ')';
-    } else if (array[0][1]['sum(' + sort + ')']) {
-      transform = unique_compare;
-      sf = 'sum(' + sort + ')';
-    }
-
-    array.sort(function(a, b) {
-      return transform(a, b, sf);
-    });
-
-    var length = array.length;
-    if (limit && limit < length)
-      length = limit;
-
-    for (i = 0; i < length; i++) {
-      objectPrint(array[i][0], array[i][1], renderer, fields);
-      process.stdout.write('\n');
-    }
-
-    return;
-  }
-
   for (g in results) {
     objectPrint(g, results[g], renderer, fields);
-    if (limit && --limit === 0)
-      break;
     process.stdout.write('\n');
   }
 
