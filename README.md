@@ -225,26 +225,26 @@ Provide the timestamp, hostname, callstack and classifiers.
 
 ```
 $ morgue list bidder --filter=tag_owner,equal,jdoe --select=timestamp --select=hostname --select=callstack --select=classifiers
-*                               
+*
 #9d33    Thu Oct 13 2016 18:36:01 GMT-0400 (EDT)     5 months ago
   hostname: 2235.bm-bidderc.prod.nym2
   classifiers: abort stop
   callstack:
-    assert ← int_set_union_all ← all_domain_lists ← 
-    setup_phase_unlocked ← bid_handler_slave_inner ← bid_handler_slave ← 
-    an_sched_process_task ← an_sched_slave ← event_base_loop ← 
+    assert ← int_set_union_all ← all_domain_lists ←
+    setup_phase_unlocked ← bid_handler_slave_inner ← bid_handler_slave ←
+    an_sched_process_task ← an_sched_slave ← event_base_loop ←
     an_sched_enter ← bidder_slave ← an_sched_pthread_cb
 #ef2f    Thu Oct 13 2016 18:36:01 GMT-0400 (EDT)     5 months ago
   hostname: 2066.bm-impbus.prod.nym2
   classifiers: abort stop
   callstack:
-    assert ← an_discovery_get_instances ← budget_init_discovery ← 
+    assert ← an_discovery_get_instances ← budget_init_discovery ←
     main
 #119bf   Thu Oct 13 2016 18:36:01 GMT-0400 (EDT)     5 months ago
   hostname: 2066.bm-impbus.prod.nym2
   classifiers: abort stop
   callstack:
-    assert ← an_discovery_get_instances ← budget_init_discovery ← 
+    assert ← an_discovery_get_instances ← budget_init_discovery ←
     main
 ```
 
