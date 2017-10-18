@@ -199,6 +199,25 @@ factor.
 | `--tail`         | provide the last value in a factor |
 | `--object`       | provide the maximum object identifier of a column |
 
+#### Sorting
+
+Sorting of results is done with the stackable option `--sort=<term>`. The term
+syntax is `[-](<column>|<fold_term>)`.
+
+- The optional `-` reverse the sort term order to descending, otherwise it
+  defaults to ascending.
+- The `<column>` term refers to a valid column in the table. This is only
+  effective for selection type query, i.e. when using the `--select` option.
+- The `<fold_term>` is an expression pointing to a fold operation. The
+  expression language for fold operation is one of the following literal:
+    - `;group`: sort by the group key itself.
+    - `;count`: sort by the group count (number of crashes).
+    - `column;idx`: where `column` is a string referencing a column in the fold
+      dictionary and `idx` is an indice in the array. See examples .
+
+Multiple sort terms can be provided to break ties in case the previous
+referenced sort term has ties.
+
 #### Example
 
 Request all faults from application deployments owned by jdoe.
@@ -238,28 +257,88 @@ $ morgue list bidder --age=1y --factor=fingerprint --filter=tag_owner,equal,jdoe
 823a55fb15bf697ba3041d736ade... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁ 5 months ago
 Date: Wed May 18 2016 18:44:35 GMT-0400 (EDT)
 callstack:
-    assert ← int_set_union_all ← all_domain_lists ← 
-    setup_phase_unlocked ← bid_handler_slave_inner ← bid_handler_slave ← 
-    an_sched_process_task ← an_sched_slave ← event_base_loop ← 
+    assert ← int_set_union_all ← all_domain_lists ←
+    setup_phase_unlocked ← bid_handler_slave_inner ← bid_handler_slave ←
+    an_sched_process_task ← an_sched_slave ← event_base_loop ←
     an_sched_enter ← bidder_slave ← an_sched_pthread_cb
-histogram(tag): 
+histogram(tag):
   8.20.4.adc783.0 ▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆ 1
 unique(hostname): 1
-bin(process.age): 
+bin(process.age):
           7731         7732 ▆▆▆▆▆▆▆▆▆▆ 1
 
 3b851ac1ab1421409159cc38edb2... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁ 5 months ago
 Date: Tue May 17 2016 17:28:26 GMT-0400 (EDT)
       Tue May 17 2016 17:30:07 GMT-0400 (EDT)
 callstack:
-    assert ← an_discovery_get_instances ← budget_init_discovery ← 
+    assert ← an_discovery_get_instances ← budget_init_discovery ←
     main
-histogram(tag): 
+histogram(tag):
   4.44.0.adc783.1 ▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆ 2
 unique(hostname): 1
-bin(process.age): 
+bin(process.age):
             23           24 ▆▆▆▆▆▆▆▆▆▆ 1
             24           25 ▆▆▆▆▆▆▆▆▆▆ 1
+```
+
+Request faults for the last 2 years, group them by fingerprint, show the first
+object identifier in the group, sort the results by descending fingerprint,
+limit the results to 5 faults and skip the first 10 (according to sort order).
+
+```
+$ morgue list blackhole --age=2y --factor=fingerprint --object=fingerprint --limit=5 --offset=10 --sort="-;group"
+fec4bfecf8e077cf44024f5668fa... ▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 2 years ago
+First Occurrence: Tue Jan 12 2016 13:30:12 GMT-0500 (EST)
+     Occurrences: 360
+object(fingerprint): 1c653d
+
+fe7294a780a16e30b619e8d94a8a... █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 2 years ago
+First Occurrence: Wed Oct 28 2015 11:30:47 GMT-0400 (EDT)
+ Last Occurrence: Wed Oct 28 2015 12:16:19 GMT-0400 (EDT)
+     Occurrences: 203
+object(fingerprint): 1c23b3
+
+fe5e0dda6cf0fb996a521dde4087... ▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+First Occurrence: Tue Jun 14 2016 11:54:35 GMT-0400 (EDT)
+     Occurrences: 1
+object(fingerprint): 2de5
+
+fe46d9af7c65c084091fed51ef02... █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 2 years ago
+First Occurrence: Tue Oct 27 2015 16:59:34 GMT-0400 (EDT)
+ Last Occurrence: Tue Oct 27 2015 20:05:30 GMT-0400 (EDT)
+     Occurrences: 3
+object(fingerprint): 8f41
+
+fdc0860ef6dfd3d0397b53043ab9... ▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+First Occurrence: Tue Jun 07 2016 11:51:55 GMT-0400 (EDT)
+     Occurrences: 211
+object(fingerprint): 1c1958
+```
+
+Request faults for the two years, group them by fingerprint, sum process.age,
+sort the results by descending sum of process.age per fingerprint, limit the
+results to 3 faults. Note here that `1` in `-process.age;1` is the second
+operator (`--sum`) in this case.
+
+```
+$ morgue list blackhole --age=2y --factor=fingerprint --first=process.age --sum=process.age --limit=3 --sort="-process.age;1"
+d9358a6fdb7eaa143254b6987d00... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+First Occurrence: Tue Sep 20 2016 21:59:46 GMT-0400 (EDT)
+ Last Occurrence: Tue Sep 20 2016 22:03:23 GMT-0400 (EDT)
+     Occurrences: 38586
+sum(process.age): 56892098354615 sec
+
+524b9f988c8ff9dfc1b3a0c71231... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+First Occurrence: Tue Sep 20 2016 22:01:52 GMT-0400 (EDT)
+ Last Occurrence: Tue Sep 20 2016 22:03:19 GMT-0400 (EDT)
+     Occurrences: 25737
+sum(process.age): 37947233900547 sec
+
+bffd05c6b745229fd1c648bbe2a7... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+First Occurrence: Tue Sep 20 2016 21:59:46 GMT-0400 (EDT)
+ Last Occurrence: Tue Sep 20 2016 22:03:01 GMT-0400 (EDT)
+     Occurrences: 20096
+sum(process.age): 29630010305216 sec
 ```
 
 ### delete
