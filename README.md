@@ -158,6 +158,9 @@ same time.
 Usage: morgue list <[<universe>/]project> [substring]
 ```
 
+You may pass `--verbose` in order to get more detailed query performance
+data.
+
 #### Filters
 
 The filter option expects a comma-delimited list of the form
