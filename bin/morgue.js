@@ -2783,6 +2783,24 @@ function coronerList(argv, config) {
         date_label = 'with a time range of ' + argv.time;
       }
 
+      if (argv.verbose) {
+        console.log('Timing:'.yellow);
+
+        var o = '';
+
+        o += '     Rows: '.yellow + result._.runtime.filter.rows + '\n';
+        o += '   Filter: '.yellow + result._.runtime.filter.time + 'us (' +
+          Math.ceil(result._.runtime.filter.time /
+            result._.runtime.filter.rows * 1000) + 'ns / row)\n';
+        o += '    Group: '.yellow + result._.runtime.group_by.time + 'us (' +
+          Math.ceil(result._.runtime.group_by.time /
+            result._.runtime.group_by.groups) + 'us / group)\n';
+        o += 'Aggregate: '.yellow + result._.runtime.aggregate.time + 'us\n';
+        o += '     Sort: '.yellow + result._.runtime.sort.time + 'us\n';
+        o += '    Total: '.yellow + result._.runtime.total_time + 'us';
+        console.log(o + '\n');
+      }
+
       var footer = result._.user + ': ' +
           result._.universe + '/' + result._.project + ' ' + date_label +
             ' [' + result._.latency + ']';
