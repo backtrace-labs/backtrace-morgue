@@ -78,18 +78,22 @@ function oidFromString(oid) {
 }
 
 function err(msg) {
-  var m = msg.toString();
-  if (m.slice(0, 5) !== "Error")
-    m = "Error: " + m;
-  console.log(m.error);
+  if (msg) {
+    var m = msg.toString();
+    if (m.slice(0, 5) !== "Error")
+      m = "Error: " + m;
+    console.log(m.error);
+  } else {
+    console.log("Unknown error occured.".error);
+  }
   return false;
 }
 
 function errx(errobj, opts) {
   if (typeof errobj === 'object' && errobj.message) {
     if (typeof opts === 'object' && opts.debug)
-      console.log("err = ", err);
-    err(err.message);
+      console.log("err = ", errobj);
+    err(errobj.message);
   } else {
     err(errobj);
   }
@@ -3240,6 +3244,8 @@ function coronerDelete(argv, config) {
   var tasks = [];
   var chunklen = argv.chunklen || 16384;
   var params = {};
+  var physical_only = argv["physical-only"];
+  var crdb_only = argv["crdb-only"];
 
   abortIfNotLoggedIn(config);
 
@@ -3259,6 +3265,14 @@ function coronerDelete(argv, config) {
       /* Set longer 5 minute timeout in case of heavy load. */
       coroner.timeout = 300 * 1000;
     }
+  }
+
+  if (physical_only || crdb_only) {
+    params.subsets = [];
+    if (physical_only)
+      params.subsets.push("physical");
+    if (crdb_only)
+      params.subsets.push("crdb");
   }
 
   var delete_fn = function() {
@@ -3399,6 +3413,7 @@ function retentionSet(bpg, objects, argv, config) {
   var rtn_parent_id = null;
   var obj = null;
   var max_age = argv["max-age"];
+  var physical_only = argv["physical-only"];
 
   if (!max_age) {
     return retentionUsage("Max age is a required argument.");
@@ -3412,6 +3427,10 @@ function retentionSet(bpg, objects, argv, config) {
     } catch (e) {
       return retentionUsage("Invalid max age '" + max_age + "': " + e.message);
     }
+  }
+
+  if (physical_only) {
+    rules[0].actions[0].subsets = ["physical"];
   }
 
   if (rtn_type === "instance") {

@@ -355,6 +355,10 @@ Usage: morgue delete <[universe/]project> <oid1> [... oidN]
 Object IDs must be specified; they can be found in `morgue list` output.
 The object ID printed in the example above is `9d33`.
 
+The following options support partial deletes:
+`--physical-only`: Only delete the physical object; retain indexing.
+`--crdb-only`: Only delete the indexed data; requires physically deleted objects.
+
 ### flamegraph
 
 ```
@@ -442,6 +446,8 @@ Options for status:
 
 Options for set:
   --max-age=N      Specify time limit for objects, in seconds
+  --physical-only  Specifies that the policy only delete physical copies;
+		   indexing will be retained.
 ```
 
 Configure the retention policy for a given namespace, which can cover the
