@@ -85,8 +85,14 @@ function err(msg) {
   return false;
 }
 
-function errx(msg) {
-  err(msg);
+function errx(errobj, opts) {
+  if (typeof errobj === 'object' && errobj.message) {
+    if (typeof opts === 'object' && opts.debug)
+      console.log("err = ", err);
+    err(err.message);
+  } else {
+    err(errobj);
+  }
   process.exit(1);
 }
 
@@ -96,7 +102,7 @@ function std_success_cb(r) {
 }
 
 function std_failure_cb(e) {
-  errx(e.message);
+  errx(e);
 }
 
 function objToPath(oid, resource) {
@@ -891,7 +897,10 @@ function getFname(http_result, outpath, outdir, n_objects, oid, resource) {
 
   if (outdir || n_objects > 1) {
     bname = cd["filename"] || objToPath(oid, resource);
-    fname = sprintf("%s/%s", outpath, bname);
+    if (outpath)
+      fname = sprintf("%s/%s", outpath, bname);
+    else
+      fname = bname;
   } else if (fname === "-") {
     /* Treat as standard output. */
     fname = null;
@@ -1038,6 +1047,8 @@ function coronerGet(argv, config) {
     if (out.has)
       console.log(sprintf('Fetched %d of %d objects.', success, objects.length).success);
   }).catch(function(e) {
+    if (argv.debug)
+      console.log("e = ", e);
     errx(e.message);
   });
 }
