@@ -3503,7 +3503,9 @@ function retentionToString(r_obj, argv) {
   var rules = r_obj.get("rules");
   var json = JSON.parse(rules);
   var rule;
+  var action;
   var criterion;
+  var s;
 
   if (Array.isArray(json) === false || json.length === 0)
     return retentionNoString("no rule", argv);
@@ -3511,10 +3513,20 @@ function retentionToString(r_obj, argv) {
   if (Array.isArray(rule.criteria) === false || rule.criteria.length === 0)
     return retentionNoString("no criterion");
   criterion = rule.criteria[0];
+  if (Array.isArray(rule.actions) === false || rule.actions.length === 0)
+    return retentionNoString("no actions");
+  action = rule.actions[0];
+
+  if (!action.type || action.type !== "delete-all")
+    return retentionNoString("wrong action");
   if (!criterion.type || criterion.type !== "object-age")
     return retentionNoString("wrong criterion");
 
-  return "max age: " + secondsToTimespec(criterion.time);
+  s = "max age: " + secondsToTimespec(criterion.time);
+  if (action.subsets && action.subsets.indexOf("physical") != -1)
+    s += ", physical only";
+
+  return s;
 }
 
 function retentionList(bpg, objects, argv, config) {
@@ -3615,7 +3627,7 @@ function retentionSublevel(level) {
 }
 
 function retentionStatusDump(obj, name, level, indent) {
-  var crit, header, i, rule;
+  var action, crit, header, i, rule, s;
   var spaces = '';
 
   if (retentionSkip(obj, level, name))
@@ -3632,8 +3644,12 @@ function retentionStatusDump(obj, name, level, indent) {
   if (obj.state !== "not installed") {
     rule = obj.rules[0];
     crit = rule.criteria[0];
-    if (rule.actions[0].type === "delete-all" && crit.type === "object-age") {
-      console.log(spaces + critToString(crit));
+    action = rule.actions[0];
+    if (action.type === 'delete-all' && crit.type === 'object-age') {
+      s = critToString(crit);
+      if (action.subsets && action.subsets.indexOf("physical") != -1)
+        s += " (physical only)";
+      console.log(spaces + s);
     }
   }
   if (typeof obj.children === 'object') {
