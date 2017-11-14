@@ -652,11 +652,17 @@ function coronerLatency(argv, config) {
         process.exit(0);
     });
   } else if (action === 'activate') {
+    var samples = 4096;
+
+    if (argv.samples)
+      samples = argv.samples;
+
     coroner.control2(universe, 'histogram',
       {
         'action': 'activate',
         'form': {
-          'name' : argv._[2]
+          'name' : argv._[2],
+          'samples' : samples
         }
       },
       function(error, rp) {
