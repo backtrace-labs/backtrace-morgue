@@ -617,7 +617,6 @@ function coronerToken(argv, config) {
 }
 
 function coronerLatency(argv, config) {
-
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
@@ -638,6 +637,9 @@ function coronerLatency(argv, config) {
 
         var hs = rp.response.histograms;
         for (var i = 0; i < hs.length; i++) {
+          if (argv._[2] && hs[i].name.match(argv._[2]) === null)
+            continue;
+
           var l = printf("%3d [%8s] ", i + 1, hs[i].active ? "active" : "inactive" ) +
               hs[i].name;
 
