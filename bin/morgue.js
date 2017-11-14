@@ -160,6 +160,7 @@ var commands = {
   error: coronerError,
   list: coronerList,
   report: coronerReport,
+  latency: coronerLatency,
   flamegraph: coronerFlamegraph,
   control: coronerControl,
   ls: coronerList,
@@ -612,6 +613,132 @@ function coronerToken(argv, config) {
     }
 
     console.log('API token successfully created.'.blue);
+  }
+}
+
+function coronerLatency(argv, config) {
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  var universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  var action = argv._[1];
+
+  if (action === 'list') {
+    coroner.control2(universe, 'histogram',
+      {
+        'action': 'list'
+      },
+      function(error, rp) {
+        if (error)
+          errx(error);
+
+        var hs = rp.response.histograms;
+        for (var i = 0; i < hs.length; i++) {
+          var l = printf("%3d [%8s] ", i + 1, hs[i].active ? "active" : "inactive" ) +
+              hs[i].name;
+
+          if (hs[i].active === true) {
+            l = l.bold + " [" + hs[i].buffer[0] + ", " + hs[i].buffer[1] + "]";
+          }
+
+          console.log(l);
+        }
+        process.exit(0);
+    });
+  } else if (action === 'activate') {
+    coroner.control2(universe, 'histogram',
+      {
+        'action': 'activate',
+        'form': {
+          'name' : argv._[2]
+        }
+      },
+      function(error, rp) {
+        var ji = 0;
+
+        if (error)
+          errx(error);
+
+        var hs = rp.response.histograms;
+        for (var hi in hs) {
+          if (hs[hi].status === 'error') {
+            console.log(printf("%3d %s has not been activated (%s)",
+                ++ji, hi, hs[hi].message).error);
+          } else {
+            console.log(printf("%3d %s has been activated.",
+                ++ji, hi.success));
+          }
+        }
+
+        if (ji === 0) {
+          console.error('No histograms activated.'.error);
+          process.exit(1);
+        }
+
+        process.exit(0);
+    });
+  } else if (action === 'deactivate') {
+    coroner.control2(universe, 'histogram',
+      {
+        'action': 'deactivate',
+        'form': {
+          'name' : argv._[2]
+        }
+      },
+      function(error, rp) {
+        var ji = 0;
+
+        if (error)
+          errx(error);
+
+        var hs = rp.response.histograms;
+        for (var hi in hs) {
+          if (hs[hi].status === 'error') {
+            console.log(printf("%3d %s has not been activated (%s)",
+                ++ji, hi, hs[hi].message).error);
+          } else {
+            console.log(printf("%3d %s has been deactivated.",
+                ++ji, hi.success));
+          }
+        }
+
+        if (ji === 0) {
+          console.error('No histograms deactivated.'.error);
+          process.exit(1);
+        }
+
+        process.exit(0);
+    });
+  } else if (action === 'extract') {
+    coroner.control2(universe, 'histogram',
+      {
+        'action': 'extract',
+        'form': {
+          'name' : argv._[2]
+        }
+      },
+      function(error, rp) {
+        var ji = 0;
+
+        if (error)
+          errx(error);
+
+        var hs = rp.response.histograms;
+
+        if (argv.raw) {
+          for (var i in hs) {
+            for (var ji = 0; ji < hs[i].values.length; ji++)
+              console.log(hs[i].values[ji]);
+          }
+        } else {
+          console.log(JSON.stringify(hs,null,2));
+        }
+        process.exit(0);
+    });
   }
 }
 
