@@ -2419,6 +2419,10 @@ function argvQuery(argv) {
   var query = {};
   var d_age = '1M';
 
+  if (argv['raw-query']) {
+    return { query: JSON.parse(argv['raw-query']) };
+  }
+
   if (argv.reverse)
     reverse = -1;
 
