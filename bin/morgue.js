@@ -1642,8 +1642,14 @@ function put_benchmark(coroner, argv, files, p) {
       return Promise.resolve();
     submitted++;
     var st = process.hrtime();
-    return coroner.promise('put', files[fi].body, p, argv.compression).
-      then((r) => success_cb(r, i, st)).catch((e) => failure_cb(files[fi].path, e, i, st));
+
+    if (argv.multipart) {
+      return coroner.promise('put_form', files[fi].path, [], p).
+        then((r) => success_cb(r, i, st)).catch((e) => failure_cb(files[fi].path, e, i, st));
+    } else {
+      return coroner.promise('put', files[fi].body, p, argv.compression).
+        then((r) => success_cb(r, i, st)).catch((e) => failure_cb(files[fi].path, e, i, st));
+    }
   }
   var success_cb = function(r, i, st) {
     samples.push(nsToUs(process.hrtime()) - st);
@@ -1719,6 +1725,10 @@ function coronerPut(argv, config) {
       if (!Array.isArray(attachments))
         attachments = [attachments];
     }
+  }
+
+  if (argv.reuse) {
+    p.http_opts = { forever: true };
   }
 
   var files = [];
