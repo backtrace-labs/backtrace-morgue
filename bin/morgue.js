@@ -483,7 +483,7 @@ function coronerLimit(argv, config) {
   var action = argv._[1];
 
   if (action == 'list') {
-    coroner.http_get('/api/limits', null, null, function(error, result) {
+    coroner.http_get('/api/limits', {token: coroner.config.token}, null, function(error, result) {
       if (error)
         errx(error + '');
 
