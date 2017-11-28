@@ -166,6 +166,7 @@ var commands = {
   ls: coronerList,
   describe: coronerDescribe,
   token: coronerToken,
+  limit: coronerLimit,
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
@@ -465,6 +466,115 @@ function coronerSetup(argv, config) {
       return coronerLogin(argv, config, coronerSetupStart);
     }
   });
+}
+
+function coronerLimit(argv, config) {
+  var options = null;
+  var project, universe, pid, un, target;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  /* The sub-command. */
+  var action = argv._[1];
+
+  if (action == 'list') {
+    coroner.http_get('/api/limits', null, null, function(error, result) {
+      if (error)
+        errx(error + '');
+
+      var rp = JSON.parse(result.bodyData);
+
+      for (var uni in rp) {
+        var st = printf("%3d %16s limit=%d,counter=%d,rejected=%d",
+            rp[uni].id, uni.bold,
+            rp[uni].submissions.limit,
+            rp[uni].submissions.counter,
+            rp[uni].submissions.rejected);
+
+        console.log(st);
+      }
+
+      process.exit(0);
+    });
+  } else {
+    var bpg = coronerBpgSetup(coroner, argv);
+    var model = bpg.get();
+
+    /* Find the universe with the specified name. */
+    for (var i = 0; i < model.universe.length; i++) {
+      if (model.universe[i].get('name') === universe) {
+        un = target = model.universe[i];
+      }
+    }
+
+    if (!un)
+      errx('universe not found');
+
+    if (action === 'delete') {
+      var id = argv._[2];
+      var limit;
+
+      if (!id)
+        errx('Usage: morgue limit delete <id>');
+
+      for (var i = 0; i < model.limits.length; i++) {
+        if (model.limits[i].get('universe') === un.get('id')) {
+          limit = model.limits[i];
+        }
+      }
+
+      if (!limit)
+        errx('Limit not found.');
+
+      console.log(('Deleting limit [' +
+          limit.get('universe') + ']...').yellow);
+      bpg.delete(limit);
+      bpg.commit();
+      process.exit(0);
+    }
+
+    if (action === 'create') {
+      var definition = {};
+
+      if (!un)
+        errx('Must specify a universe');
+
+      if (!argv.submissions)
+        errx('--submissions must be specified');
+
+      var limit = bpg.new('limits');
+      limit.set('universe', un.get('id'));
+
+      definition.submissions = {
+        'period' : 'month',
+        'day' : 1,
+        'limit' : [argv.submissions, argv.submissions]
+      };
+      limit.set('definition', JSON.stringify(definition));
+
+      limit.set('metadata', '{}');
+      if (argv.metadata)
+        limit.set('metadata', argv.metadata);
+
+      bpg.create(limit);
+
+      try {
+        bpg.commit();
+      } catch (e) {
+        errx(e + '');
+      }
+
+      console.log('Limit successfully created.'.blue);
+      process.exit(0);
+    }
+
+    errx('Unknown subcommand.');
+  }
 }
 
 function coronerToken(argv, config) {
