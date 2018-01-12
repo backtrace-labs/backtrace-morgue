@@ -106,7 +106,24 @@ function std_success_cb(r) {
 }
 
 function std_failure_cb(e) {
-  errx(e);
+  var msg = e.toString();
+
+  if (e.response_obj && e.response_obj.bodyData) {
+    try {
+      var je = JSON.parse(e.response_obj.bodyData);
+
+      console.log('je = ', je);
+      if (je && je.error && je.error.message) {
+        msg = je.error.message;
+      }
+    } catch (ex) {
+      if (e.response_obj.debug) {
+        console.log('Response:\n', e.response_obj.bodyData);
+      }
+      console.log('ex = ', ex);
+    }
+  }
+  errx(msg);
 }
 
 function objToPath(oid, resource) {
@@ -175,6 +192,7 @@ var commands = {
   delete: coronerDelete,
   reprocess: coronerReprocess,
   retention: coronerRetention,
+  sampling: coronerSampling,
   symbol: coronerSymbol,
   scrubber: coronerScrubber,
   setup: coronerSetup,
@@ -1899,6 +1917,149 @@ function coronerPut(argv, config) {
   }).catch((e) => {
     errx(e.message);
   });
+}
+
+function samplingParams(coroner, action, argv, config) {
+  var params = coronerParams(argv, config);
+  params.action = action;
+  if (argv.fingerprint) {
+    params.fingerprints = argv.fingerprint;
+    if (!Array.isArray(params.fingerprints)) {
+      params.fingerprints = [params.fingerprints];
+    }
+  }
+  if (argv.universe) {
+    params.universe = argv.universe;
+  }
+  if (argv.project) {
+    var a = argv.project.split("/");
+
+    params.project = a[0];
+    if (a.length === 2) {
+      params.universe = a[0];
+      params.project = a[1];
+    }
+  }
+  params.token = coroner.config.token;
+  return params;
+}
+
+function samplingPost(coroner, params) {
+  return coroner.promise('post', '/api/sampling', null, params, null);
+}
+
+function samplingStatusProject(universe, project) {
+  var name = sprintf("%s/%s", universe.name, project.name);
+  var top_line = "";
+  var backoffs = project.backoffs;
+  var last;
+
+  if (project.error) {
+    console.log(sprintf("%s: %s", name, project.error).error);
+    return;
+  }
+
+  if (!backoffs) {
+    console.log(sprintf("%s: Sampling not configured.", name));
+    return;
+  }
+
+  if (!backoffs.groups || backoffs.groups.length === 0) {
+    console.log(sprintf("%s: No groups yet.", name));
+    return;
+  }
+
+  top_line = sprintf("%s: %d groups tracking", name, backoffs.groups.length);
+  if (backoffs.missing_symbols > 0) {
+    top_line += sprintf(" (%d objects missing symbols, of which %d are private)",
+      backoffs.missing_symbols, backoffs.private_missing_symbols);
+  }
+
+  console.log(top_line + ":");
+  backoffs.groups.forEach((group) => {
+    last = new Date(group.last_accept * 1000);
+    console.log(sprintf("  %s: %d objects, last accept %s",
+      group.id ? group.id : "unknown", group.count, last.toString()));
+  });
+}
+
+function samplingStatus(coroner, argv, config) {
+  var params = samplingParams(coroner, 'status', argv, config);
+
+  samplingPost(coroner, params).then((r) => {
+    var first, last;
+
+    if (r.universes) {
+      if (r.universes.length === 0) {
+        console.log("No groups yet.");
+      } else {
+        r.universes.forEach((universe) => {
+          if (universe.projects.length === 0) {
+            console.log(sprintf("%s: No groups yet.", universe.name));
+          } else {
+            universe.projects.forEach((project) => {
+              samplingStatusProject(universe, project);
+            });
+          }
+        });
+      }
+    } else {
+      errx("Sampling not configured.");
+    }
+  }).catch(std_failure_cb);
+}
+
+function samplingReset(coroner, argv, config) {
+  var params = samplingParams(coroner, 'reset', argv, config);
+
+  samplingPost(coroner, params).then(std_success_cb).catch(std_failure_cb);
+}
+
+function samplingUsage(str) {
+  if (str)
+    err(str + "\n");
+  console.error("Usage: morgue sampling <status|reset> [options]");
+  console.error("");
+  console.error("Options for status/reset:");
+  console.error("  --fingerprint=group             Specify a fingerprint to apply to.");
+  console.error("                                  Without this, applies to all.");
+  console.error("  --project=[universe/]project    Specify a project to apply to.");
+  console.error("                                  Without this, applies to all.");
+  process.exit(1);
+}
+
+/**
+ * @brief Implements the sampling command.
+ */
+function coronerSampling(argv, config) {
+  abortIfNotLoggedIn(config);
+  var coroner;
+  var fn;
+  var subcmd;
+  var subcmd_map = {
+    status: samplingStatus,
+    reset: samplingReset,
+  };
+
+  argv._.shift();
+  if (argv._.length === 0) {
+    return samplingUsage("No request specified.");
+  }
+  if (argv._.length >= 2) {
+    return samplingUsage("No arguments accepted for this command.");
+  }
+
+  subcmd = argv._.shift();
+  if (subcmd === "--help" || subcmd === "help")
+    return samplingUsage();
+
+  fn = subcmd_map[subcmd];
+  if (fn) {
+    coroner = coronerClientArgv(config, argv);
+    return fn(coroner, argv, config);
+  }
+
+  samplingUsage("Invalid sampling subcommand '" + subcmd + "'.");
 }
 
 /**
