@@ -2721,13 +2721,26 @@ function coronerBpg(argv, config) {
   var coroner = coronerClientArgv(config, argv);
   var bpg = coronerBpgSetup(coroner, argv);
 
-  if (!argv.raw) {
-    return usage("Only raw commands are supported.");
-  }
+  if (argv._[1]) {
+    if (!argv._[2]) {
+      return usage("morgue bpg list <type>");
+    }
 
-  request = argv.raw;
-  if (!request && argv._.length >= 2)
-    request = argv._[1];
+    request = JSON.stringify({
+      "actions" : [
+        {
+          "action" : "get",
+          "type" : argv._[2]
+        }
+      ]
+    });
+  } else if (argv.raw) {
+    request = argv.raw;
+    if (!request && argv._.length >= 2)
+      request = argv._[1];
+  } else {
+    return usage("morgue bpg [--raw | list <type>]");
+  }
 
   if (!request) {
     return usage("Missing command argument.");
@@ -2738,7 +2751,7 @@ function coronerBpg(argv, config) {
       err(e);
       return;
     }
-    console.log(r);
+    console.log(JSON.stringify(r,null,2));
   });
 }
 
