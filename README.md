@@ -415,6 +415,16 @@ Usage: morgue report <project> delete <report integer identifier>
 Usage: morgue report <project> list
 ```
 
+### repair
+
+```
+Usage: morgue repair <[universe/]project>
+```
+
+Repair a project's attribute database. For each corrupted pages of a project's
+attribute database, reprocess the affected objects (if possible). Once
+completed and successful, transition the database into normal mode.
+
 ### reprocess
 
 ```

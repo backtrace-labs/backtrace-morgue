@@ -190,6 +190,7 @@ var commands = {
   modify: coronerModify,
   nuke: coronerNuke,
   delete: coronerDelete,
+  repair: coronerRepair,
   reprocess: coronerReprocess,
   retention: coronerRetention,
   sampling: coronerSampling,
@@ -3731,6 +3732,26 @@ function coronerDelete(argv, config) {
   } else {
     delete_fn().then(std_success_cb).catch(std_failure_cb);
   }
+}
+
+function coronerRepair(argv, config) {
+  abortIfNotLoggedIn(config);
+  var params = coronerParams(argv, config);
+  var coroner = coronerClientArgv(config, argv);
+
+  if (argv._.length < 2) {
+    return usage("Missing universe, project arguments.");
+  }
+
+  coroner = coronerClientArgv(config, argv);
+
+  params.action = 'reload';
+  params.recovery = true;
+
+  coroner.promise('control', params)
+    .then((result) =>
+      console.log(('Reprocessing request #' + result.id + ' queued.').success))
+    .catch(std_failure_cb);
 }
 
 /**
