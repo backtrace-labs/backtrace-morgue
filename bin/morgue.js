@@ -112,7 +112,6 @@ function std_failure_cb(e) {
     try {
       var je = JSON.parse(e.response_obj.bodyData);
 
-      console.log('je = ', je);
       if (je && je.error && je.error.message) {
         msg = je.error.message;
       }
@@ -171,6 +170,25 @@ function printSamples(requests, samples, start, stop, concurrency) {
   return;
 }
 
+function sequence(tasks) {
+  return tasks.reduce((chain, s) => {
+    if (typeof s === 'function')
+      return chain.then(s).catch((e) => { return Promise.reject(e) });
+    return chain.then(() => { return s; }).catch((e) => { return Promise.reject(e) });
+  }, Promise.resolve());
+}
+
+function prompt_for(items) {
+  return new Promise((resolve, reject) => {
+    promptLib.get(items, (err, result) => {
+      if (err)
+        reject(err);
+      else
+        resolve(result);
+    });
+  });
+}
+
 var commands = {
   attachment: coronerAttachment,
   bpg: coronerBpg,
@@ -197,6 +215,7 @@ var commands = {
   symbol: coronerSymbol,
   scrubber: coronerScrubber,
   setup: coronerSetup,
+  user: coronerUser,
 };
 
 main();
@@ -485,6 +504,107 @@ function coronerSetup(argv, config) {
       return coronerLogin(argv, config, coronerSetupStart);
     }
   });
+}
+
+function userUsage(error_str) {
+  if (typeof error_str === 'string')
+    err(error_str + '\n');
+  console.log("Usage: morgue user reset [options]".error);
+  console.log("Valid options:.error");
+  console.log("  --password=P   Specify password to use for reset.".error);
+  console.log("  --universe=U   Specify universe scope.".error);
+  console.log("  --user=USER    Specify user to reset password for".error);
+  process.exit(1);
+}
+
+function userReset(argv, config) {
+  var ctx = {
+    user: argv.user,
+    password: argv.password,
+    coroner: coronerClientArgv(config, argv),
+  };
+  var prompts = [];
+  var tasks = [];
+
+  ctx.bpg = coronerBpgSetup(ctx.coroner, argv),
+  ctx.model = ctx.bpg.get();
+
+  /* If no universe specified, use the first one. */
+  ctx.universe = argv.universe;
+  if (!ctx.universe && config && config.config && config.config.universes)
+    ctx.universe = Object.keys(config.config.universes)[0];
+  if (!ctx.universe) {
+    coronerUsage("No universes.");
+  }
+
+  /* Find the universe with the specified name. */
+  for (var i = 0; i < ctx.model.universe.length; i++) {
+    if (ctx.model.universe[i].get("name") === ctx.universe) {
+      ctx.univ_obj = ctx.model.universe[i];
+      break;
+    }
+  }
+  if (!ctx.univ_obj) {
+    userUsage("Must specify known universe.");
+  }
+
+  if (!ctx.user) {
+    prompts.push({name: "username", message: "User", required: true});
+  }
+  if (!ctx.password) {
+    prompts.push({name: "password", message: "Password", replace: "*",
+      hidden: true, required: true});
+  }
+  if (prompts.length > 0) {
+    tasks.push(prompt_for(prompts));
+    tasks.push((result) => {
+      if (result.username)
+        ctx.user = result.username;
+      if (result.password)
+        ctx.password = result.password;
+    });
+  }
+
+  tasks.push(() => {
+    /* Find the user with the specified name. */
+    for (var i = 0; i < ctx.model.users.length; i++) {
+      if (ctx.model.users[i].get("username") === ctx.user &&
+          ctx.model.users[i].get("universe") === ctx.univ_obj.get("id")) {
+        ctx.user_obj = ctx.model.users[i];
+        break;
+      }
+    }
+    if (!ctx.user_obj) {
+      return Promise.reject("Must specify valid user.");
+    }
+
+    try {
+      ctx.bpg.modify(ctx.user_obj, {password: BPG.blobText(ctx.password)});
+      ctx.bpg.commit();
+      console.log("User successfully modified.".success);
+    } catch(e) {
+      return Promise.reject(e);
+    }
+  });
+
+  sequence(tasks).catch((e) => {
+    console.error(e.toString().error);
+    process.exit(1);
+  });
+}
+
+function coronerUser(argv, config) {
+  argv._.shift();
+  if (argv._.length === 0) {
+    userUsage();
+  }
+
+  if (argv._[0] !== "reset") {
+    userUsage("Only the reset subcommand is supported.");
+  }
+
+  argv._.shift();
+  userReset(argv, config);
 }
 
 function coronerLimit(argv, config) {

@@ -560,3 +560,14 @@ Usage: morgue token delete <sha256 or prefix>
 ```
 
 Delete the specified token by substring or exact match.
+
+### user
+
+```
+Usage: morgue user reset [--universe=...] [--user=...] [--password=...]
+```
+
+Modify users.
+
+Currently, can only be used to reset user passwords.  Prompts for user and
+password if either is not specified.
