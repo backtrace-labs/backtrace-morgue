@@ -475,6 +475,25 @@ Project-level:
 $
 ```
 
+### sampling
+
+```
+Usage: morgue sampling <status|reset> [options]
+
+Options for either status or reset:
+  --fingerprint=group             Specify a fingerprint to apply to.
+                                  Without this, applies to all.
+  --project=[universe/]project    Specify a project to apply to.
+                                  Without this, applies to all.
+
+Options for status only:
+  --max-groups=N                  Specify max number of groups to display
+                                  per project.
+```
+
+Retrieve the object sampling status, or reset it.
+Project is a required flag if fingerprint is specified.
+
 ### symbol
 
 ```

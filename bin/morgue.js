@@ -2069,11 +2069,47 @@ function samplingPost(coroner, params) {
   return coroner.promise('post', '/api/sampling', null, params, null);
 }
 
-function samplingStatusProject(universe, project) {
+function samplingBucketFor(buckets, count) {
+  var b, i;
+  var total = 0;
+
+  for (i = 0; i < buckets.length; i++) {
+    b = buckets[i];
+    total += b.count;
+    if (total > count)
+      break;
+  }
+  if (i === buckets.length)
+    return null;
+
+  return b;
+}
+
+function strHashCode(str) {
+  var hash = 0, i, chr;
+  if (str.length === 0) return hash;
+  for (i = 0; i < str.length; i++) {
+    chr   = str.charCodeAt(i);
+    hash  = ((hash << 5) - hash) + chr;
+    hash |= 0; /* convert to 32-bit int */
+  }
+  return hash;
+}
+
+function samplingStatusProject(argv, config, universe, project) {
   var name = sprintf("%s/%s", universe.name, project.name);
   var top_line = "";
   var backoffs = project.backoffs;
+  var buckets;
   var last;
+  var next;
+  var next_time;
+  var now;
+  var bucket;
+  var group;
+  var groups;
+  var max_groups;
+  var i;
 
   if (project.error) {
     console.log(sprintf("%s: %s", name, project.error).error);
@@ -2090,18 +2126,54 @@ function samplingStatusProject(universe, project) {
     return;
   }
 
-  top_line = sprintf("%s: %d groups tracking", name, backoffs.groups.length);
+  max_groups = argv["max-groups"] || 16;
+
+  buckets = sprintf("reset interval %s, buckets:",
+    secondsToTimespec(backoffs.reset_interval));
+  backoffs.backoffs.forEach((bucket) => {
+    buckets += sprintf(" %d/%s", bucket.count, secondsToTimespec(bucket.interval));
+  });
+  top_line = sprintf("%d groups tracking", backoffs.groups.length);
   if (backoffs.missing_symbols > 0) {
     top_line += sprintf(" (%d objects missing symbols, of which %d are private)",
       backoffs.missing_symbols, backoffs.private_missing_symbols);
   }
 
-  console.log(top_line + ":");
-  backoffs.groups.forEach((group) => {
-    last = new Date(group.last_accept * 1000);
-    console.log(sprintf("  %s: %d objects, last accept %s",
-      group.id ? group.id : "unknown", group.count, last.toString()));
+  now = Math.round((new Date()).valueOf() / 1000);
+  console.log(sprintf("%s:", name));
+  console.log(sprintf("  %s", buckets));
+  console.log(sprintf("  %s:", top_line));
+  groups = backoffs.groups.sort((a, b) => {
+    if (a.count !== b.count)
+      return b.count - a.count;
+    if (a.last_accept !== b.last_accept)
+      return b.last_accept - a.last_accept;
+    return strHashCode(a.id) - strHashCode(b.id);
   });
+
+  for (i = 0; i < groups.length; i++) {
+    if (max_groups !== 0 && i === max_groups) {
+      console.log(sprintf("    ... truncating %d groups ...",
+        groups.length - max_groups));
+      break;
+    }
+
+    group = groups[i];
+    last = new Date(group.last_accept * 1000);
+    bucket = samplingBucketFor(backoffs.backoffs, group.count);
+    if (!bucket) {
+      next = "after reset";
+    } else {
+      next_time = group.last_accept + bucket.interval;
+      if (next_time < now) {
+        next = "at any time";
+      } else {
+        next = sprintf("after %s", secondsToTimespec(next_time - now));
+      }
+    }
+    console.log(sprintf("    %s: %d objects, last accept %s, next %s",
+      group.id ? group.id : "unknown", group.count, last.toString(), next));
+  }
 }
 
 function samplingStatus(coroner, argv, config) {
@@ -2119,7 +2191,7 @@ function samplingStatus(coroner, argv, config) {
             console.log(sprintf("%s: No groups yet.", universe.name));
           } else {
             universe.projects.forEach((project) => {
-              samplingStatusProject(universe, project);
+              samplingStatusProject(argv, config, universe, project);
             });
           }
         });
@@ -2141,11 +2213,15 @@ function samplingUsage(str) {
     err(str + "\n");
   console.error("Usage: morgue sampling <status|reset> [options]");
   console.error("");
-  console.error("Options for status/reset:");
+  console.error("Options for either status or reset:");
   console.error("  --fingerprint=group             Specify a fingerprint to apply to.");
   console.error("                                  Without this, applies to all.");
   console.error("  --project=[universe/]project    Specify a project to apply to.");
   console.error("                                  Without this, applies to all.");
+  console.error("");
+  console.error("Options for status only:");
+  console.error("  --max-groups=N                  Specify max number of groups to display");
+  console.error("                                  per project.");
   process.exit(1);
 }
 
