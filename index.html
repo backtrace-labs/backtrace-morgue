@@ -383,7 +383,20 @@ coroner instance, or a specific universe or project.</p>
 $ morgue retention list
 Project-level:
   blackhole: max age: 1h
-$</pre><h3>symbol</h3>
+$</pre><h3>sampling</h3>
+<pre><span class="hljs-attribute">Usage</span>: morgue sampling &lt;status|reset&gt; [options]
+
+<span class="vim">Options <span class="hljs-keyword">for</span> either status <span class="hljs-built_in">or</span> rese<span class="hljs-variable">t:</span>
+  --fingerprint=group             Specify <span class="hljs-keyword">a</span> fingerprint <span class="hljs-keyword">to</span> apply <span class="hljs-keyword">to</span>.
+                                  Without this, applies <span class="hljs-keyword">to</span> <span class="hljs-keyword">all</span>.
+  --project=[universe/]project    Specify <span class="hljs-keyword">a</span> project <span class="hljs-keyword">to</span> apply <span class="hljs-keyword">to</span>.
+                                  Without this, applies <span class="hljs-keyword">to</span> <span class="hljs-keyword">all</span>.
+
+Options <span class="hljs-keyword">for</span> status <span class="hljs-keyword">only</span>:
+  --<span class="hljs-built_in">max</span>-groups=<span class="hljs-keyword">N</span>                  Specify <span class="hljs-built_in">max</span> <span class="hljs-keyword">number</span> of groups <span class="hljs-keyword">to</span> <span class="hljs-keyword">display</span>
+                                  per project.</span></pre><p>Retrieve the object sampling status, or reset it.
+Project is a required flag if fingerprint is specified.</p>
+<h3>symbol</h3>
 <pre>Usage: morgue symbol &lt;<span class="hljs-meta">[&lt;universe&gt;/]project&gt; [summary | list | missing | archives] [-o &lt;output file&gt;]</span></pre><p>Retrieve a list of uploaded symbols or symbol archives. By default, <code>morgue symbol</code>
 will return a summary of uploaded archives, available symbols and missing symbols.
 If <code>archvies</code> is used, a list of uploaded, in-process and symbol processing errors
