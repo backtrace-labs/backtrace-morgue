@@ -2126,7 +2126,9 @@ function samplingStatusProject(argv, config, universe, project) {
     return;
   }
 
-  max_groups = argv["max-groups"] || 16;
+  max_groups = parseInt(argv["max-groups"]);
+  if (isNaN(max_groups))
+    max_groups = 16;
 
   buckets = sprintf("reset interval %s, buckets:",
     secondsToTimespec(backoffs.reset_interval));
@@ -2152,7 +2154,9 @@ function samplingStatusProject(argv, config, universe, project) {
   });
 
   for (i = 0; i < groups.length; i++) {
-    if (max_groups !== 0 && i === max_groups) {
+    if (max_groups === 0) {
+      break;
+    } else if (i === max_groups) {
       console.log(sprintf("    ... truncating %d groups ...",
         groups.length - max_groups));
       break;
