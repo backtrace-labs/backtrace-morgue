@@ -2126,9 +2126,13 @@ function samplingStatusProject(argv, config, universe, project) {
     return;
   }
 
-  max_groups = parseInt(argv["max-groups"]);
-  if (isNaN(max_groups))
-    max_groups = 16;
+  if (argv.a || argv.all) {
+    max_groups = -1;
+  } else {
+    max_groups = parseInt(argv["max-groups"]);
+    if (isNaN(max_groups))
+      max_groups = 16;
+  }
 
   buckets = sprintf("reset interval %s, buckets:",
     secondsToTimespec(backoffs.reset_interval));
@@ -2225,7 +2229,9 @@ function samplingUsage(str) {
   console.error("");
   console.error("Options for status only:");
   console.error("  --max-groups=N                  Specify max number of groups to display");
-  console.error("                                  per project.");
+  console.error("                                  per project.  Default is 16.  0 displays");
+  console.error("                                  no groups; < 0 displays all.");
+  console.error("  -a, --all                       Display all groups.");
   process.exit(1);
 }
 
