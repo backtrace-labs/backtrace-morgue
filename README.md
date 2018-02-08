@@ -590,3 +590,80 @@ Modify users.
 
 Currently, can only be used to reset user passwords.  Prompts for user and
 password if either is not specified.
+
+### invite
+
+Invite new users into your system. Requires you to have logged in.
+
+```
+Usage: morgue invite <create | list | resend>
+  create <username> <email>
+    --role=<"guest" | "member" | "admin">
+    --metadata=<metadata>
+    --tenant=<tenant name>
+    --method=<"password" | "saml" | "pam">
+  delete <token>
+  resend <token>
+```
+
+#### Examples
+
+1.0 Invite a User
+
+Below, we invite a new user into the tenant currently logged into (or
+the first tenant, if multiple exist). The default settings for the user
+are to use password authentication and have a `member` role.
+
+```
+$ morgue invite create user user@gmail.com
+Invitation successfully created for user@backtrace.io
+Sending e-mail...done
+```
+
+1.1 Invite a User as an Administrator
+
+```
+$ morgue invite create user user@gmail.com --role=admin
+Invitation successfully created for user@backtrace.io
+Sending e-mail...done
+```
+
+1.2 Invite a User into a Particular Tenant
+
+```
+$ morgue invite create user user@gmail.com --tenant=mystudio
+Invitation successfully created for user@backtrace.io
+Sending e-mail...done
+```
+
+2.0 List Pending Invitation
+
+This will list invitations that have yet to be accepted or
+activated.
+
+```
+$ morgue invite list
+Tenant             Username   Method     Role                          Email Token
+     1              ashley2 password    admin          ashley2@backtrace.io f892200fa564...
+     1                jack1 password   member            jack@backtrace.io 39c1b80a7e00...
+     1                jack2 password   member          jack+2@backtrace.io c399bdf23873...
+     1            jack17131 password   member       jack+4512@backtrace.io 784d2a8ffe12...
+     1            jack25262 password   member      jack+24688@backtrace.io 97e306d3373a...
+     1            jack25629 password   member      jack+28155@backtrace.io ed02ceea2ba4...
+     1            jack28000 password   member       jack+3644@backtrace.io 3f87906bd5d9...
+     1            jack19468 password   member      jack+28771@backtrace.io 3c6b3a3aaf41...
+     1            jack15686 password   member       jack+4203@backtrace.io 78bd9cd127a8...
+     4             jack2268 password   member      jack+19325@backtrace.io 776c6d389f89...
+     4            jack20597 password   member      jack+24692@backtrace.io 48972737a85e...
+     4             jack4803 password   member      jack+30407@backtrace.io 4943913c86f3...
+```
+
+3.0 Delete an Invitation
+
+Below, we demonstrate how to delete an invitation. We pass a token (or unique
+substring) for deletion.
+
+```
+$ morgue invite delete f8922
+Invitation successfully deleted.
+```
