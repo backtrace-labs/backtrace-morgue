@@ -3588,6 +3588,7 @@ function coronerList(argv, config) {
     [argv.histogram, 'histogram'],
     [argv.distribution, 'distribution'],
     [argv.unique, 'unique'],
+    [argv.mean, 'mean'],
     [argv.sum, 'sum'],
     [argv.quantize, 'bin'],
     [argv.bin, 'bin'],
@@ -3893,7 +3894,6 @@ function callstackPrint(cs) {
 }
 
 function objectPrint(g, object, renderer, fields) {
-
   var string = String(g);
   var field, start, stop, sa;
 
@@ -4012,20 +4012,6 @@ function objectPrint(g, object, renderer, fields) {
   }
 }
 
-function range_compare(a, b, sort) {
-  return reverse * ((a[1][sort][1] < b[1][sort][1]) -
-      (a[1][sort][1] > b[1][sort][1]));
-}
-
-function unique_compare(a, b, sort) {
-  return reverse * ((a[1][sort][0] < b[1][sort][0]) -
-      (a[1][sort][0] > b[1][sort][0]));
-}
-
-function id_compare(a, b) {
-  return reverse * ((a < b) - (a > b));
-}
-
 function coronerPrint(query, rp, raw, columns) {
   var results = rp.unpack();
   var fields = rp.fields();
@@ -4036,6 +4022,7 @@ function coronerPrint(query, rp, raw, columns) {
     head: unaryPrint,
     tail: unaryPrint,
     unique: noFormatPrint,
+    mean: noFormatPrint,
     object: noFormatPrint,
     sum: unaryPrint,
     histogram: histogramPrint,
