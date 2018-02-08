@@ -194,6 +194,7 @@ factor.
 | `--unique`       | provide a count of distinct values |
 | `--histogram`    | provide all distinct values |
 | `--distribution` | provide a truncated histogram |
+| `--mean`    	   | calculate the mean of a column |
 | `--sum`          | sum all values |
 | `--range`        | provide the minimum and maximum values |
 | `--count`        | count all non-null values |
