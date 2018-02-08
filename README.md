@@ -253,7 +253,7 @@ $ morgue list bidder --filter=tag_owner,equal,jdoe --select=timestamp --select=h
 
 Request faults owned by jdoe, group them by fingerprint and aggregate
 the number of unique hosts, display a histogram of affected versions and
-provide a linear histogram of process age distributon.
+provide a linear histogram of process age distribution.
 
 ```
 $ morgue list bidder --age=1y --factor=fingerprint --filter=tag_owner,equal,jdoe --head=callstack --unique=hostname --histogram=tag --bin=process.age
@@ -502,7 +502,7 @@ Usage: morgue symbol <[<universe>/]project> [summary | list | missing | archives
 
 Retrieve a list of uploaded symbols or symbol archives. By default, `morgue symbol`
 will return a summary of uploaded archives, available symbols and missing symbols.
-If `archvies` is used, a list of uploaded, in-process and symbol processing errors
+If `archives` is used, a list of uploaded, in-process and symbol processing errors
 are outputted. If `list` is used, then a list of uploaded symbols is returned. If
 `missing` is used, then the set of missing symbols for the project are included.
 
@@ -590,6 +590,69 @@ Modify users.
 
 Currently, can only be used to reset user passwords.  Prompts for user and
 password if either is not specified.
+
+### tenant
+
+Create isolated tenants for receiving error data and log in. Tenants provide
+namespace isolation. Users in one tenant are unable to interact with any
+objects outside of their tenant.
+
+This is an enterprise feature and not enabled by default for self-serve
+customers. The tenant commands require superuser access.
+
+```
+Usage: morgue tenant <list | create | delete>
+  create <name>: Create a tenant with the specified name.
+  delete <name>: Delete a tenant with the specified name.
+           list: List all tenants on your instance.
+```
+
+#### Examples
+
+1.0 Create a Tenant
+
+After logging into an object store as a superuser, we are able to simply
+create a tenant using the following command:
+
+```
+$ morgue tenant create testingxyz
+Tenant successfully created at https://testingxyz.sp.backtrace.io
+Wait a few minutes for propagation to complete.
+```
+
+Tenants are required to be contained with-in the same TLD. For example,
+a tenant of name `X` is expected to be contained in `X.sp.backtrace.io`.
+
+After creating a tenant, you will probably need to invite an initial
+administrator user for the tenant. For that, please see `invite` sub-command
+listed below. You must use the `--tenant` option to invite an administrator
+to a particular tenant.
+
+2.0 Delete a Tenant
+
+After logging into an object store as a superuser, we are able to simply
+create a tenant using the following command:
+
+```
+$ morgue tenant delete testingxyz
+Tenant successfully deleted.
+```
+
+Please note this is a destructive command from a configuration perspective.
+Unless you are maintaining backups, there is no way to restore your
+configuration data.
+
+3.0 List Tenants
+
+You can list existing tenants using the `morgue tenant list` command
+as below.
+
+```
+$ morgue tenant list
+  ID Tenant               URL
+   1 test                 https://test.sp.backtrace.io
+   4 test1                https://test1.sp.backtrace.io
+```
 
 ### invite
 
