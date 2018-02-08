@@ -240,7 +240,7 @@ Provide the timestamp, hostname, callstack and classifiers.</p>
     <span class="hljs-meta">assert</span> ← an_discovery_get_instances ← <span class="hljs-keyword">budget_init_discovery </span>←
     main</pre><p>Request faults owned by jdoe, group them by fingerprint and aggregate
 the number of unique hosts, display a histogram of affected versions and
-provide a linear histogram of process age distributon.</p>
+provide a linear histogram of process age distribution.</p>
 <pre>$ morgue list <span class="hljs-keyword">bidder </span>--age<span class="hljs-number">=1</span>y --factor<span class="hljs-symbol">=fingerprint</span> --filter<span class="hljs-symbol">=tag_owner</span>,equal,jdoe --head<span class="hljs-symbol">=callstack</span> --unique<span class="hljs-symbol">=hostname</span> --histogram<span class="hljs-symbol">=tag</span> --<span class="hljs-keyword">bin=process.age
 </span><span class="hljs-number">823</span>a55fb15bf697ba3041d736ade... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁ <span class="hljs-number">5</span> months ago
 <span class="hljs-symbol">Date</span>: Wed May <span class="hljs-number">18</span> <span class="hljs-number">2016</span> <span class="hljs-number">18</span>:<span class="hljs-number">44</span>:<span class="hljs-number">35</span> GMT-<span class="hljs-number">0400</span> (EDT)
@@ -399,7 +399,7 @@ Project is a required flag if fingerprint is specified.</p>
 <h3>symbol</h3>
 <pre>Usage: morgue symbol &lt;<span class="hljs-meta">[&lt;universe&gt;/]project&gt; [summary | list | missing | archives] [-o &lt;output file&gt;]</span></pre><p>Retrieve a list of uploaded symbols or symbol archives. By default, <code>morgue symbol</code>
 will return a summary of uploaded archives, available symbols and missing symbols.
-If <code>archvies</code> is used, a list of uploaded, in-process and symbol processing errors
+If <code>archives</code> is used, a list of uploaded, in-process and symbol processing errors
 are outputted. If <code>list</code> is used, then a list of uploaded symbols is returned. If
 <code>missing</code> is used, then the set of missing symbols for the project are included.</p>
 <h3>scrubber</h3>
@@ -439,7 +439,41 @@ project.</p>
 <pre>Usage: morgue user reset <span class="hljs-string">[--universe=...]</span> <span class="hljs-string">[--user=...]</span> <span class="hljs-string">[--password=...]</span></pre><p>Modify users.</p>
 <p>Currently, can only be used to reset user passwords.  Prompts for user and
 password if either is not specified.</p>
-<h3>invite</h3>
+<h3>tenant</h3>
+<p>Create isolated tenants for receiving error data and log in. Tenants provide
+namespace isolation. Users in one tenant are unable to interact with any
+objects outside of their tenant.</p>
+<p>This is an enterprise feature and not enabled by default for self-serve
+customers. The tenant commands require superuser access.</p>
+<pre>Usage: morgue tenant &lt;list | <span class="hljs-built_in">create</span> | <span class="hljs-built_in">delete</span>&gt;
+  <span class="hljs-built_in">create</span> &lt;name&gt;: Create <span class="hljs-keyword">a</span> tenant <span class="hljs-keyword">with</span> <span class="hljs-keyword">the</span> specified name.
+  <span class="hljs-built_in">delete</span> &lt;name&gt;: Delete <span class="hljs-keyword">a</span> tenant <span class="hljs-keyword">with</span> <span class="hljs-keyword">the</span> specified name.
+           list: List all tenants <span class="hljs-keyword">on</span> <span class="hljs-title">your</span> <span class="hljs-title">instance</span>.</pre><h4>Examples</h4>
+<p>1.0 Create a Tenant</p>
+<p>After logging into an object store as a superuser, we are able to simply
+create a tenant using the following command:</p>
+<pre>$ morgue tenant <span class="hljs-built_in">create</span> testingxyz
+Tenant successfully created <span class="hljs-keyword">at</span> <span class="hljs-keyword">https</span>://testingxyz.sp.backtrace.io
+Wait <span class="hljs-keyword">a</span> few minutes <span class="hljs-keyword">for</span> propagation <span class="hljs-built_in">to</span> complete.</pre><p>Tenants are required to be contained with-in the same TLD. For example,
+a tenant of name <code>X</code> is expected to be contained in <code>X.sp.backtrace.io</code>.</p>
+<p>After creating a tenant, you will probably need to invite an initial
+administrator user for the tenant. For that, please see <code>invite</code> sub-command
+listed below. You must use the <code>--tenant</code> option to invite an administrator
+to a particular tenant.</p>
+<p>2.0 Delete a Tenant</p>
+<p>After logging into an object store as a superuser, we are able to simply
+create a tenant using the following command:</p>
+<pre>$ morgue tenant <span class="hljs-keyword">delete</span> testingxyz
+Tenant successfully deleted.</pre><p>Please note this is a destructive command from a configuration perspective.
+Unless you are maintaining backups, there is no way to restore your
+configuration data.</p>
+<p>3.0 List Tenants</p>
+<p>You can list existing tenants using the <code>morgue tenant list</code> command
+as below.</p>
+<pre>$ morgue tenant <span class="hljs-keyword">list</span>
+  ID Tenant               URL
+   <span class="hljs-number">1</span> test                 http<span class="hljs-variable">s:</span>//test.<span class="hljs-keyword">sp</span>.backtrace.io
+   <span class="hljs-number">4</span> test1                http<span class="hljs-variable">s:</span>//test1.<span class="hljs-keyword">sp</span>.backtrace.io</pre><h3>invite</h3>
 <p>Invite new users into your system. Requires you to have logged in.</p>
 <pre>Usage: morgue invite &lt;create | list | resend&gt;
   create &lt;username&gt; &lt;email&gt;
