@@ -196,8 +196,10 @@ var commands = {
   list: coronerList,
   report: coronerReport,
   latency: coronerLatency,
+  tenant: coronerTenant,
   flamegraph: coronerFlamegraph,
   control: coronerControl,
+  invite: coronerInvite,
   ls: coronerList,
   describe: coronerDescribe,
   token: coronerToken,
@@ -714,6 +716,244 @@ function coronerLimit(argv, config) {
 
     errx('Unknown subcommand.');
   }
+}
+
+function tenantURL(config, tn) {
+  var ix = config.endpoint.indexOf('.');
+  var s = [config.endpoint.substr(0, ix), config.endpoint.substr(ix)];
+
+  return 'https://' + tn + s[1];
+}
+
+function coronerInvite(argv, config) {
+  var options = null;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  var usageText =
+      'Usage: morgue invite <create | list | resend>\n' +
+      '  create <username> <email>\n' +
+      '    --role=<"guest" | "member" | "admin">\n' +
+      '    --metadata=<metadata>\n' +
+      '    --tenant=<tenant name>\n' +
+      '    --method=<password | saml | pam>\n' +
+      '  delete <token>\n' +
+      '  resend <token>';
+
+  if (argv.h || argv.help) {
+    console.log(usageText);
+    process.exit(0);
+  }
+
+  var universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  var bpg = coronerBpgSetup(coroner, argv);
+  var model = bpg.get();
+
+  var action = argv._[1];
+  if (!action)
+    errx(usageText);
+
+  if (action === 'list') {
+    console.log(printf("%6s %20s %8s %30s %s",
+      "Tenant", "Username", "Method", "Email", "Token"));
+
+    for (var i = 0; i < model.signup_pending.length; i++) {
+      var token = model.signup_pending[i].get('token');
+      var username = model.signup_pending[i].get('username');
+      var email = model.signup_pending[i].get('email');
+      var method = model.signup_pending[i].get('method');
+      var sp_universe = model.signup_pending[i].get('universe');
+
+      console.log(printf("%6d %20s %8s %30s %s",
+        sp_universe, username, method, email, token.substr(0, 12) + '...'));
+    }
+
+    process.exit(0);
+  } else if (action === 'delete') {
+    var token = argv._[2];
+    var matchToken;
+
+    if (!token)
+      errx('Usage: morgue invite delete <token substring>');
+
+    for (var i = 0; i < model.signup_pending.length; i++) {
+      if ((model.signup_pending[i].get('token')).indexOf(token) > -1) {
+        if (matchToken)
+          errx('supplied token is ambiguous.');
+
+        matchToken = model.signup_pending[i];
+      }
+    }
+
+    if (!matchToken)
+      errx('invitation not found.');
+
+    bpg.delete(matchToken);
+    try {
+      bpg.commit();
+    } catch (e) {
+      errx(e + '');
+    }
+
+    console.log('Invitation successfully deleted.'.blue);
+    process.exit(0);
+  } else if (action === 'create') {
+    var username = argv._[2];
+    var email = argv._[3];
+    var metadata = argv.metadata ? argv.metadata : ' ';
+    var role = argv.role ? argv.role : 'member';
+    var method = argv.method ? argv.method : 'password';
+    var tenant = argv.tenant ? argv.tenant : universe;
+    var un;
+
+    if (!tenant || !username || !email || !metadata || !role || !method)
+      errx(usageText);
+
+    /* First, validate that a universe with the specified name exists. */
+    for (var i = 0; i < model.universe.length; i++) {
+      if (model.universe[i].get('name') === tenant) {
+        un = model.universe[i];
+        break;
+      }
+    }
+
+    if (!un)
+      errx('failed to find tenant ' + tenant + '.');
+
+    var signup = bpg.new('signup_pending');
+    signup.set('token', '0');
+    signup.set('role', role);
+    signup.set('method', method);
+    signup.set('universe', un.get('id'));
+    signup.set('email', email);
+    signup.set('username', username);
+    bpg.create(signup);
+
+    try {
+      bpg.commit();
+    } catch (e) {
+      errx(e + '');
+    }
+
+    console.log(('Invitation successfully created for ' + email).blue);
+
+    process.stderr.write('Sending e-mail...');
+    coroner.endpoint = tenantURL(config, un.get('name'));
+    coroner.post('/api/signup', { universe: un.get('name') }, {
+      "action" : "resend",
+      "form" : {
+        "username" : username
+      }
+    }, null, function(e, r) {
+      if (e)
+        errx(e);
+
+      if (r.status !== 'ok')
+        errx(r.message);
+
+      process.stderr.write('done\n');
+      process.exit(0);
+    });
+  } else {
+    errx(usageText);
+  }
+}
+
+function coronerTenant(argv, config) {
+  var options = null;
+  var universe;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  var usageText =
+      'Usage: morgue tenant <list | create | delete>\n' +
+      '\n' +
+      '  create <name>: Create a tenant with the specified name.\n' +
+      '  delete <name>: Delete a tenant with the specified name.\n' +
+      '           list: List all tenants on your instance.\n';
+
+  if (argv.h || argv.help) {
+    console.log(usageText);
+    process.exit(0);
+  }
+
+  universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  /* The sub-command. */
+  var action = argv._[1];
+
+  var bpg = coronerBpgSetup(coroner, argv);
+  var model = bpg.get();
+
+  if (action === 'list') {
+    console.log(printf("%4s %-20s %s", "ID", "Tenant", "URL"));
+
+    for (var i = 0; i < model.universe.length; i++) {
+      var id = model.universe[i].get('id');
+      var name = model.universe[i].get('name');
+      var url = tenantURL(config, name);
+
+      console.log(printf("%4d %-20s %s", id, name, url));
+    }
+
+    process.exit(0);
+  }
+
+  if (action === 'delete') {
+    var name = argv._[2];
+
+    if (!name)
+      errx('Usage: morgue tenant delete <tenant name>');
+
+    for (var i = 0; i < model.universe.length; i++) {
+      if (model.universe[i].get('name') == name) {
+        bpg.delete(model.universe[i], { cascade: true });
+        try {
+          bpg.commit();
+        } catch (e) {
+          errx(e + '');
+        }
+
+        console.log('Tenant successfully deleted.'.blue);
+        process.exit(0);
+      }
+    }
+
+    errx('tenant not found.');
+    process.exit(0);
+  }
+
+  if (action === 'create') {
+    var name = argv._[2];
+
+    if (!name)
+      errx('Usage: morgue tenant create <tenant name>');
+
+    var universe = bpg.new('universe');
+    universe.set('id', 0);
+    universe.set('name', name);
+    bpg.create(universe);
+
+    try {
+      bpg.commit();
+    } catch (e) {
+      errx(e + '');
+    }
+
+    console.log(('Tenant successfully created at ' +
+      tenantURL(config, name)).blue);
+    console.log('Wait a few minutes for propagation to complete.'.blue);
+    process.exit(0);
+  }
+
+  errx(usageText);
 }
 
 function coronerToken(argv, config) {
