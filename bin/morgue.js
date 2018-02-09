@@ -220,6 +220,8 @@ var commands = {
   user: coronerUser,
 };
 
+process.stdout.on('error', function(){process.exit(0);});
+process.stderr.on('error', function(){process.exit(0);});
 main();
 
 function coronerError(argv, config) {
