@@ -640,7 +640,7 @@ function coronerLimit(argv, config) {
         console.log(st);
       }
 
-      process.exit(0);
+      return;
     });
   } else {
     var bpg = coronerBpgSetup(coroner, argv);
@@ -676,7 +676,7 @@ function coronerLimit(argv, config) {
           limit.get('universe') + ']...').yellow);
       bpg.delete(limit);
       bpg.commit();
-      process.exit(0);
+      return;
     }
 
     if (action === 'create') {
@@ -711,7 +711,7 @@ function coronerLimit(argv, config) {
       }
 
       console.log('Limit successfully created.'.blue);
-      process.exit(0);
+      return;
     }
 
     errx('Unknown subcommand.');
@@ -743,7 +743,7 @@ function coronerInvite(argv, config) {
 
   if (argv.h || argv.help) {
     console.log(usageText);
-    process.exit(0);
+    return;
   }
 
   var universe = argv.universe;
@@ -773,7 +773,7 @@ function coronerInvite(argv, config) {
         sp_universe, username, method, role, email, token.substr(0, 12) + '...'));
     }
 
-    process.exit(0);
+    return;
   } else if (action === 'delete') {
     var token = argv._[2];
     var matchToken;
@@ -801,7 +801,7 @@ function coronerInvite(argv, config) {
     }
 
     console.log('Invitation successfully deleted.'.blue);
-    process.exit(0);
+    return;
   } else if (action === 'create') {
     var username = argv._[2];
     var email = argv._[3];
@@ -857,7 +857,7 @@ function coronerInvite(argv, config) {
         errx(r.message);
 
       process.stderr.write('done\n');
-      process.exit(0);
+      return;
     });
   } else {
     errx(usageText);
@@ -880,7 +880,7 @@ function coronerTenant(argv, config) {
 
   if (argv.h || argv.help) {
     console.log(usageText);
-    process.exit(0);
+    return;
   }
 
   universe = argv.universe;
@@ -904,7 +904,7 @@ function coronerTenant(argv, config) {
       console.log(printf("%4d %-20s %s", id, name, url));
     }
 
-    process.exit(0);
+    return;
   }
 
   if (action === 'delete') {
@@ -923,12 +923,12 @@ function coronerTenant(argv, config) {
         }
 
         console.log('Tenant successfully deleted.'.blue);
-        process.exit(0);
+        return;
       }
     }
 
     errx('tenant not found.');
-    process.exit(0);
+    return;
   }
 
   if (action === 'create') {
@@ -951,7 +951,7 @@ function coronerTenant(argv, config) {
     console.log(('Tenant successfully created at ' +
       tenantURL(config, name)).blue);
     console.log('Wait a few minutes for propagation to complete.'.blue);
-    process.exit(0);
+    return;
   }
 
   errx(usageText);
@@ -997,7 +997,7 @@ function coronerToken(argv, config) {
   if (action == 'list') {
     if (!model.api_token) {
       console.log('No API tokens found.'.blue);
-      process.exit(0);
+      return;
     }
 
     model.api_token.sort(function(a, b) {
@@ -1033,7 +1033,7 @@ function coronerToken(argv, config) {
         token.get('project') + '),owner=' + token.get('owner'));
     }
 
-    process.exit(0);
+    return;
   }
 
   if (action === 'delete') {
@@ -1059,7 +1059,7 @@ function coronerToken(argv, config) {
         token.get('id') + ']...').yellow);
     bpg.delete(token);
     bpg.commit();
-    process.exit(0);
+    return;
   }
 
   if (action === 'create') {
@@ -1139,7 +1139,7 @@ function coronerLatency(argv, config) {
 
           console.log(l);
         }
-        process.exit(0);
+        return;
     });
   } else if (action === 'activate') {
     var samples = 4096;
@@ -1177,7 +1177,7 @@ function coronerLatency(argv, config) {
           process.exit(1);
         }
 
-        process.exit(0);
+        return;
     });
   } else if (action === 'deactivate') {
     coroner.control2(universe, 'histogram',
@@ -1209,7 +1209,7 @@ function coronerLatency(argv, config) {
           process.exit(1);
         }
 
-        process.exit(0);
+        return;
     });
   } else if (action === 'extract') {
     coroner.control2(universe, 'histogram',
@@ -1235,7 +1235,7 @@ function coronerLatency(argv, config) {
         } else {
           console.log(JSON.stringify(hs,null,2));
         }
-        process.exit(0);
+        return;
     });
   }
 }
@@ -1278,7 +1278,7 @@ function coronerReport(argv, config) {
     /* Print all report objects. */
     if (!model.report) {
       console.log('No scheduled reports found.'.blue);
-      process.exit(0);
+      return;
     }
 
     model.report.sort(function(a, b) {
@@ -1313,7 +1313,7 @@ function coronerReport(argv, config) {
       console.log('');
     }
 
-    process.exit(0);
+    return;
   }
 
   if (action === 'delete') {
@@ -1331,7 +1331,7 @@ function coronerReport(argv, config) {
             model.report[i].get('title') + ']...').yellow);
         bpg.delete(model.report[i]);
         bpg.commit();
-        process.exit(0);
+        return;
       }
     }
 
@@ -1358,7 +1358,7 @@ function coronerReport(argv, config) {
           errx(error);
 
         console.log('Report scheduled for immediate sending.'.blue);
-        process.exit(0);
+        return;
     });
   }
 
@@ -1736,7 +1736,7 @@ function coronerDescribe(argv, config) {
 
     if (argv.json) {
       console.log(JSON.stringify(cd, null, 2));
-      process.exit(0);
+      return;
     }
 
     var unused = 0;
@@ -2171,7 +2171,7 @@ function put_benchmark(coroner, argv, files, p) {
     if (argv.printids)
       console.log(sprintf('Object IDs: %s', JSON.stringify(objects)).blue);
     if (failed === 0)
-      process.exit(0);
+      return;
     errx(sprintf("%d of %d submissions failed.", failed, n_samples));
   }).catch((e) => {
     errx(e.message);
@@ -2273,7 +2273,7 @@ function coronerPut(argv, config) {
     var failed = tasks.length - success;
     if (failed === 0) {
       console.log('Success.'.success);
-      process.exit(0);
+      return;
     }
     errx(sprintf("%d of %d submissions failed.", failed, tasks.length));
   }).catch((e) => {
@@ -2639,7 +2639,7 @@ function coronerSymbol(argv, config) {
         console.log(table(data, tableFormat));
       }
 
-      process.exit(0);
+      return;
     }
 
     if (action === 'archives') {
@@ -2886,7 +2886,7 @@ function coronerScrubber(argv, config) {
 
     if (!model.scrubber) {
       console.log('No scrubber found.'.blue);
-      process.exit(0);
+      return;
     }
 
     for (var i = 0; i < model.scrubber.length; i++) {
@@ -2906,7 +2906,7 @@ function coronerScrubber(argv, config) {
       console.log('        enable: ' + scrubber.get('enable'));
     }
 
-    process.exit(0);
+    return;
   }
 
   if (action === 'delete') {
@@ -2925,7 +2925,7 @@ function coronerScrubber(argv, config) {
         } catch (em) {
           errx(em);
         }
-        process.exit(0);
+        return;
       }
     }
 
@@ -3525,7 +3525,7 @@ function coronerNuke(argv, config) {
   }
 
   console.log('Success'.blue);
-  process.exit(0);
+  return;
 }
 
 /**
@@ -3607,7 +3607,7 @@ function coronerList(argv, config) {
 
     console.log(pp);
     if (!argv.raw)
-      process.exit(0);
+      return;
   }
 
   if (argv.benchmark) {
@@ -3636,7 +3636,7 @@ function coronerList(argv, config) {
           if (--n_samples == 0) {
             printSamples(requests, samples, start, process.hrtime(),
                 concurrency);
-            process.exit(0);
+            return;
           }
 
           coroner.query(p.universe, p.project, query, queryPr);
@@ -3659,7 +3659,7 @@ function coronerList(argv, config) {
         }
 
         console.log(pp);
-        process.exit(0);
+        return;
       }
 
       var rp = new crdb.Response(result.response);
@@ -3668,7 +3668,7 @@ function coronerList(argv, config) {
         var results = rp.unpack();
 
         console.log(JSON.stringify(results, null, 2));
-        process.exit(0);
+        return;
       }
 
       coronerPrint(query, rp, result.response);
@@ -4066,7 +4066,7 @@ function coronerLogin(argv, config, cb) {
   }], function (err, result) {
     if (err) {
       if (err.message === "canceled") {
-        process.exit(0);
+        return;
       } else {
         throw err;
       }
