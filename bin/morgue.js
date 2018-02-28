@@ -3673,7 +3673,7 @@ function coronerList(argv, config) {
         return;
       }
 
-      coronerPrint(query, rp, result.response);
+      coronerPrint(query, rp, result.response, null, result._.runtime);
 
       var date_label;
       if (d_age) {
@@ -3895,7 +3895,7 @@ function callstackPrint(cs) {
   process.stdout.write('\n');
 }
 
-function objectPrint(g, object, renderer, fields) {
+function objectPrint(g, object, renderer, fields, runtime) {
   var string = String(g);
   var field, start, stop, sa;
 
@@ -3973,8 +3973,16 @@ function objectPrint(g, object, renderer, fields) {
       console.log(' Last Occurrence: '.label + stop);
   }
 
-  if (object.count)
-      console.log('     Occurrences: '.yellow.bold + object.count);
+  if (object.count) {
+      var label = object.count + '';
+
+      if (runtime && runtime.filter && runtime.filter.rows > 0) {
+        label += printf(" (%.2f%%)",
+            (object.count / runtime.filter.rows) * 100);
+      }
+
+      console.log('     Occurrences: '.yellow.bold + label);
+  }
 
   for (field in object) {
     var match;
@@ -4014,7 +4022,7 @@ function objectPrint(g, object, renderer, fields) {
   }
 }
 
-function coronerPrint(query, rp, raw, columns) {
+function coronerPrint(query, rp, raw, columns, runtime) {
   var results = rp.unpack();
   var fields = rp.fields();
   var g;
@@ -4035,7 +4043,7 @@ function coronerPrint(query, rp, raw, columns) {
   };
 
   for (g in results) {
-    objectPrint(g, results[g], renderer, fields);
+    objectPrint(g, results[g], renderer, fields, runtime);
     process.stdout.write('\n');
   }
 
