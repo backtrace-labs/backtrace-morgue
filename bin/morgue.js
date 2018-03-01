@@ -11,6 +11,8 @@ const ip        = require('ip');
 const bar       = require('./bar.js');
 const ta        = require('time-ago');
 const histogram = require('./histogram.js');
+const intersect = require('intersect');
+const levenshtein = require('levenshtein-sse');
 const printf    = require('printf');
 const moment    = require('moment');
 const moment_tz = require('moment-timezone');
@@ -196,6 +198,7 @@ var commands = {
   report: coronerReport,
   latency: coronerLatency,
   tenant: coronerTenant,
+  similarity: coronerSimilarity,
   flamegraph: coronerFlamegraph,
   control: coronerControl,
   invite: coronerInvite,
@@ -3362,6 +3365,122 @@ function coronerBpg(argv, config) {
       return;
     }
     console.log(JSON.stringify(r,null,2));
+  });
+}
+
+function coronerSimilarity(argv, config) {
+  abortIfNotLoggedIn(config);
+  var query, p;
+  var unique = argv.unique;
+  var reverse = argv.reverse;
+
+  var coroner = coronerClientArgv(config, argv);
+
+  if (argv._.length < 2) {
+    return usage("Missing project, universe arguments.");
+  }
+
+  p = coronerParams(argv, config);
+
+  var aq = argvQuery(argv);
+  query = aq.query;
+  var d_age = aq.age;
+  var data = '';
+  var le = {};
+
+  query.group = [ 'fingerprint' ];
+  query.fold = {
+    'callstack' : [['head']]
+  };
+
+  coroner.query(p.universe, p.project, query, function (err, result) {
+    if (err) {
+      errx(err.message);
+    }
+
+    var rp = new crdb.Response(result.response);
+    rp = rp.unpack();
+
+    /*
+     * The first step is to build a map of all fingerprints. Every fingerprint
+     * will consist of an array of strings.
+     */
+    for (var fingerprint in rp) {
+      var frj = rp[fingerprint]['head(callstack)'];
+
+      if (!frj || !frj[0])
+        continue;
+
+      var fr = JSON.parse(frj).frame;
+
+      /* If threshold is specified, callstack length must exceed. */
+      if (argv.threshold && fr.length < argv.threshold)
+        continue;
+
+      /*
+       * Last but not least, someone may wish to truncate the array.
+       */
+
+      le[fingerprint] = { callstack: fr };
+
+      if (argv.truncate) {
+        le[fingerprint].target = fr.slice(0, argv.truncate + 1);
+      } else {
+        le[fingerprint].target = fr;
+      }
+
+      le[fingerprint].scores = {};
+    }
+
+    /*
+     * Now, we have the centralized mapping. From here, we can validate
+     * similarity. For every group, for every group, compute the levenshtein
+     * distance.
+     */
+    for (var fj_a in le) {
+      for (var fj_b in le) {
+        if (fj_b === fj_a)
+          continue;
+
+        le[fj_a].scores[fj_b] = levenshtein(le[fj_a].target,
+            le[fj_b].target);
+      }
+    }
+
+    /*
+     * We have no computed the edit distance to every group. Let's sort
+     * and we're ready to print.
+     */
+    for (var fj in le) {
+      var source = le[fj];
+      var label = '';
+      var pr = false;
+
+      label +=  'Target: '.bold.yellow + fj.substring(0, 12) + '...\n' +
+        '      ' + JSON.stringify(source.callstack) + '\n' + 'Similar:'.bold;
+
+      for (fj_a in source.scores) {
+        /* Skip entry if edit distance is too large. */
+        if (argv.distance && source.scores[fj_a] > argv.distance)
+          continue;
+
+        /* If a union threshold is provided, compute and filter. */
+        if (argv.union && intersect(le[fj_a].callstack, source.callstack).length < argv.union)
+          continue;
+
+        if (pr === false) {
+          pr = true;
+          console.log(label);
+        }
+
+        var s = printf("  %3d %s",
+            source.scores[fj_a], JSON.stringify(le[fj_a].callstack));
+        console.log(s);
+      }
+
+      if (pr === true)
+        process.stdout.write('\n')
+    }
   });
 }
 

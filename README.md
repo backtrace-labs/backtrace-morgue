@@ -655,6 +655,21 @@ $ morgue tenant list
    4 test1                https://test1.sp.backtrace.io
 ```
 
+### similarity
+
+Compute the similarity and list acceptably similar crash groups according
+to their callstack attribute.
+
+```
+Usage: morgue similarity <[universe]/project> [filter expression]
+    [--threshold=N]     The minimum length of the callstack for groups to
+                        consider for similarity analysis.
+    [--union=N]         The minimum number of common symbols between
+                        two groups.
+    [--distance=N]      The maximum acceptable edit distance between
+                        two groups.
+```
+
 ### invite
 
 Invite new users into your system. Requires you to have logged in.
