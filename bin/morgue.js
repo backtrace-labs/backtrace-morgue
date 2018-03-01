@@ -9,7 +9,7 @@ const minimist  = require('minimist');
 const os        = require('os');
 const ip        = require('ip');
 const bar       = require('./bar.js');
-const timeago   = require('time-ago');
+const ta        = require('time-ago');
 const histogram = require('./histogram.js');
 const printf    = require('printf');
 const moment    = require('moment');
@@ -31,7 +31,6 @@ var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
 var callstackError = false;
 var error = colors.red;
-var ta = timeago();
 var range_start = null;
 var range_stop = null;
 var endpoint;
