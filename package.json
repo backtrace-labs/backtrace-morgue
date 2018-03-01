@@ -39,9 +39,9 @@
     "prompt": "^1.0.0",
     "request": "^2.80.0",
     "streamsink": "^1.2.0",
-    "sync-request": "^4.0.1",
+    "sync-request": "^5.0.0",
     "table": "^4.0.1",
-    "time-ago": "^0.1.0"
+    "time-ago": "^0.2.1"
   },
   "preferGlobal": "true",
   "bin": {
@@ -49,8 +49,8 @@
   },
   "devDependencies": {
     "babel-preset-env": "^1.1.8",
-    "del": "^2.2.2",
+    "del": "^3.0.0",
     "gulp": "^3.9.1",
-    "gulp-babel": "^6.1.2"
+    "gulp-babel": "^7.0.1"
   }
 }
