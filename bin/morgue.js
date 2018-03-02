@@ -3371,8 +3371,6 @@ function coronerBpg(argv, config) {
 function coronerSimilarity(argv, config) {
   abortIfNotLoggedIn(config);
   var query, p;
-  var unique = argv.unique;
-  var reverse = argv.reverse;
 
   var coroner = coronerClientArgv(config, argv);
 
@@ -3387,6 +3385,7 @@ function coronerSimilarity(argv, config) {
   var d_age = aq.age;
   var data = '';
   var le = {};
+  var limited;
 
   query.group = [ 'fingerprint' ];
   query.fold = {
@@ -3400,6 +3399,31 @@ function coronerSimilarity(argv, config) {
 
     var rp = new crdb.Response(result.response);
     rp = rp.unpack();
+
+    /*
+     * If a limit is provided, then this specifies that scoring should be
+     * constrained to the top N groups.
+     */
+    if (argv.limit) {
+      var sr = [];
+
+      /* Squash into an array. */
+      for (var fingerprint in rp) {
+        rp[fingerprint].fingerprint = fingerprint;
+        sr.push(rp[fingerprint]);
+      }
+
+      /* Sort the array. */
+      sr.sort(function(a, b) {
+        return (a.count < b.count) - (a.count > b.count);
+      });
+
+      /* Now, we create a map of fingerprints that belong here. */
+      limited = {};
+      for (var i = 0; i < argv.limit && i < sr.length; i++) {
+        limited[sr[i].fingerprint] = true;
+      }
+    }
 
     /*
      * The first step is to build a map of all fingerprints. Every fingerprint
@@ -3438,6 +3462,10 @@ function coronerSimilarity(argv, config) {
      * distance.
      */
     for (var fj_a in le) {
+      /* If a limit exists, then only bother with the group if it's there. */
+      if (limited && !limited[fj_a])
+        continue;
+
       for (var fj_b in le) {
         if (fj_b === fj_a)
           continue;
