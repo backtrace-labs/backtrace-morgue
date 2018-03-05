@@ -3371,7 +3371,7 @@ function coronerBpg(argv, config) {
 function coronerSimilarity(argv, config) {
   abortIfNotLoggedIn(config);
   var query, p;
-  var fingerprint;
+  var fp_filter;
 
   var coroner = coronerClientArgv(config, argv);
 
@@ -3380,7 +3380,7 @@ function coronerSimilarity(argv, config) {
   }
 
   if (argv.fingerprint) {
-    fingerprint = argv.fingerprint;
+    fp_filter = argv.fingerprint;
     delete argv.fingerprint;
   }
 
@@ -3476,7 +3476,7 @@ function coronerSimilarity(argv, config) {
        * If a fingerprint is specified, print the details for that
        * fingerprint.
        */
-      if (fingerprint && fj_a.indexOf(fingerprint) < 0)
+      if (fp_filter && fj_a.indexOf(fp_filter) < 0)
         continue;
 
       for (var fj_b in le) {
