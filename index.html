@@ -480,13 +480,14 @@ as below.</p>
    <span class="hljs-number">4</span> test1                http<span class="hljs-variable">s:</span>//test1.<span class="hljs-keyword">sp</span>.backtrace.io</pre><h3>similarity</h3>
 <p>Compute the similarity and list acceptably similar crash groups according
 to their callstack attribute.</p>
-<pre>Usage: morgue similarity &lt;[universe]/project&gt; [<span class="hljs-built_in">filter</span> expression]
+<pre>Usage: morgue similarity &lt;[universe]/project&gt; [filter expression]
     [<span class="hljs-comment">--threshold=N]     The minimum length of the callstack for groups to</span>
                         consider <span class="hljs-keyword">for</span> similarity analysis.
-    [<span class="hljs-comment">--union=N]         The minimum number of common symbols between</span>
-                        <span class="hljs-literal">two</span> groups.
+    [<span class="hljs-comment">--intersect=N]     The minimum number of common symbols between</span>
+                        two groups.
     [<span class="hljs-comment">--distance=N]      The maximum acceptable edit distance between</span>
-                        <span class="hljs-literal">two</span> groups.</pre><h3>invite</h3>
+                        two groups.
+    [<span class="hljs-comment">--fingerprint=N]   A fingerprint to compute similarity to.</span></pre><h3>invite</h3>
 <p>Invite new users into your system. Requires you to have logged in.</p>
 <pre>Usage: morgue invite &lt;create | list | resend&gt;
   create &lt;username&gt; &lt;email&gt;
