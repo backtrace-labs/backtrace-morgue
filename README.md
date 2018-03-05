@@ -664,10 +664,11 @@ to their callstack attribute.
 Usage: morgue similarity <[universe]/project> [filter expression]
     [--threshold=N]     The minimum length of the callstack for groups to
                         consider for similarity analysis.
-    [--union=N]         The minimum number of common symbols between
+    [--intersect=N]     The minimum number of common symbols between
                         two groups.
     [--distance=N]      The maximum acceptable edit distance between
                         two groups.
+    [--fingerprint=N]   A fingerprint to compute similarity to.
 ```
 
 ### invite

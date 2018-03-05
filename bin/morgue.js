@@ -3371,11 +3371,17 @@ function coronerBpg(argv, config) {
 function coronerSimilarity(argv, config) {
   abortIfNotLoggedIn(config);
   var query, p;
+  var fingerprint;
 
   var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
     return usage("Missing project, universe arguments.");
+  }
+
+  if (argv.fingerprint) {
+    fingerprint = argv.fingerprint;
+    delete argv.fingerprint;
   }
 
   p = coronerParams(argv, config);
@@ -3466,6 +3472,13 @@ function coronerSimilarity(argv, config) {
       if (limited && !limited[fj_a])
         continue;
 
+      /*
+       * If a fingerprint is specified, print the details for that
+       * fingerprint.
+       */
+      if (fingerprint && fj_a.indexOf(fingerprint) < 0)
+        continue;
+
       for (var fj_b in le) {
         if (fj_b === fj_a)
           continue;
@@ -3493,7 +3506,7 @@ function coronerSimilarity(argv, config) {
           continue;
 
         /* If a union threshold is provided, compute and filter. */
-        if (argv.union && intersect(le[fj_a].callstack, source.callstack).length < argv.union)
+        if (argv.intersect && intersect(le[fj_a].callstack, source.callstack).length < argv.intersect)
           continue;
 
         if (pr === false) {
