@@ -3368,6 +3368,40 @@ function coronerBpg(argv, config) {
   });
 }
 
+/*
+ * Print frames in j, relative to availability in k. Different functions
+ * are bolded accordingly.
+ */
+function printFrame(fr_a, fr_b) {
+  var pcs = '';
+  var ln = 0;
+
+  for (var j = 0; j < fr_a.length; j++) {
+    if (j > 0) {
+      pcs += ' ← ';
+      ln += 3;
+    }
+
+    ln += fr_a[j].length;
+    if (ln > 80) {
+      pcs += '\n        ';
+      ln = 0;
+    }
+
+    if (j < fr_b.length && fr_a[j] !== fr_b[j]) {
+      if (fr_b.indexOf(fr_a[j]) <= 0) {
+        pcs += fr_a[j].red.bold;
+      } else {
+        pcs += fr_a[j].yellow;
+      }
+    } else {
+      pcs += fr_a[j];
+    }
+  }
+
+  return pcs;
+}
+
 function coronerSimilarity(argv, config) {
   abortIfNotLoggedIn(config);
   var query, p;
@@ -3514,8 +3548,8 @@ function coronerSimilarity(argv, config) {
           console.log(label);
         }
 
-        var s = printf("  %3d %s",
-            source.scores[fj_a], JSON.stringify(le[fj_a].callstack));
+        var s = printf("  %3d %s", source.scores[fj_a],
+          printFrame(le[fj_a].callstack, source.callstack));
         console.log(s);
       }
 
