@@ -3384,18 +3384,24 @@ function printFrame(fr_a, fr_b) {
 
     ln += fr_a[j].length;
     if (ln > 80) {
-      pcs += '\n        ';
+      if (j > 0)
+        pcs += '\n        ';
+
       ln = 0;
     }
 
-    if (j < fr_b.length && fr_a[j] !== fr_b[j]) {
-      if (fr_b.indexOf(fr_a[j]) <= 0) {
-        pcs += fr_a[j].red.bold;
+    if (j < fr_b.length) {
+      if (fr_a[j] !== fr_b[j]) {
+        if (fr_b.indexOf(fr_a[j]) <= 0) {
+          pcs += fr_a[j].red.bold;
+        } else {
+          pcs += fr_a[j].yellow;
+        }
       } else {
-        pcs += fr_a[j].yellow;
+        pcs += fr_a[j];
       }
     } else {
-      pcs += fr_a[j];
+      pcs += fr_a[j].red.bold;
     }
   }
 
