@@ -3177,10 +3177,11 @@ function argvQuery(argv) {
 
     for (i = 0; i < argv.filter.length; i++) {
       var r = argv.filter[i];
+      var expr = [];
 
       r = r.split(',');
-      if (r.length < 3) {
-        errx('Filter must be of form <column>,<operation>,<value>.');
+      if (r.length < 2) {
+        errx('Filter must be of form <column>,<operation>[,<value>].');
       }
 
       if (r[0] === 'timestamp')
@@ -3188,7 +3189,14 @@ function argvQuery(argv) {
 
       if (!query.filter[0][r[0]])
         query.filter[0][r[0]] = [];
-      query.filter[0][r[0]].push([r[1], r[2]]);
+
+      /* Some operators don't require an argument. */
+      if (r.length == 2)
+        expr = [r[1]];
+      else if (r.length == 3)
+        expr = [r[1], r[2]];
+
+      query.filter[0][r[0]].push(expr);
     }
   }
 
