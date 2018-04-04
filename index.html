@@ -501,9 +501,9 @@ to their callstack attribute.</p>
 <p>Below, we invite a new user into the tenant currently logged into (or
 the first tenant, if multiple exist). The default settings for the user
 are to use password authentication and have a <code>member</code> role.</p>
-<pre>$ morgue invite <span class="hljs-keyword">create</span> <span class="hljs-keyword">user</span> <span class="hljs-keyword">user</span>@gmail.com
-Invitation successfully created <span class="hljs-keyword">for</span> <span class="hljs-keyword">user</span>@backtrace.io
-Sending <span class="hljs-built_in">e</span>-mail...done</pre><p>1.1 Invite a User as an Administrator</p>
+<pre>$ morgue invite <span class="hljs-keyword">create</span> &lt;username&gt; &lt;<span class="hljs-keyword">user</span> <span class="hljs-built_in">e</span>-mail&gt;</pre><pre>$ morgue invite sbahra user@backtrace.<span class="hljs-built_in">io</span>
+Invitation successfully created <span class="hljs-keyword">for</span> user@backtrace.<span class="hljs-built_in">io</span>
+Sending e-mail...done</pre><p>1.1 Invite a User as an Administrator</p>
 <pre>$ morgue invite <span class="hljs-keyword">create</span> <span class="hljs-keyword">user</span> <span class="hljs-keyword">user</span>@gmail.com --<span class="hljs-keyword">role</span>=admin
 Invitation successfully created <span class="hljs-keyword">for</span> <span class="hljs-keyword">user</span>@backtrace.io
 Sending <span class="hljs-built_in">e</span>-mail...done</pre><p>1.2 Invite a User into a Particular Tenant</p>
