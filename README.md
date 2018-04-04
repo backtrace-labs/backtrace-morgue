@@ -695,7 +695,11 @@ the first tenant, if multiple exist). The default settings for the user
 are to use password authentication and have a `member` role.
 
 ```
-$ morgue invite create user user@gmail.com
+$ morgue invite create <username> <user e-mail>
+```
+
+```
+$ morgue invite sbahra user@backtrace.io
 Invitation successfully created for user@backtrace.io
 Sending e-mail...done
 ```
