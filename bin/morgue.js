@@ -4088,13 +4088,15 @@ function callstackPrint(cs) {
   length = 4;
 
   if (!ARGV.verbose && !ARGV.l) {
-    var options = {};
+    var options = { dynamic: true };
     var label = new Callstack(frames);
 
     if (ARGV.collapse)
       options.dynamic = true;
-    if (ARGV.suffix)
+    if (ARGV.suffix) {
       options.suffix = ARGV.suffix;
+      options.dynamic = false;
+    }
 
     frames = label.render(options);
   }
