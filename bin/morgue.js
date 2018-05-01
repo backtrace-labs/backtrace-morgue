@@ -2,6 +2,7 @@
 
 'use strict';
 
+const Callstack = require('../lib/callstack.js');
 const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
 const BPG       = require('../lib/bpg.js');
@@ -38,6 +39,7 @@ var range_stop = null;
 var endpoint;
 var endpointToken;
 var reverse = 1;
+var ARGV;
 const configDir = path.join(os.homedir(), ".morgue");
 const configFile = path.join(configDir, "current.json");
 
@@ -4084,6 +4086,19 @@ function callstackPrint(cs) {
   process.stdout.write('\n    ');
 
   length = 4;
+
+  if (!ARGV.verbose && !ARGV.l) {
+    var options = {};
+    var label = new Callstack(frames);
+
+    if (ARGV.collapse)
+      options.dynamic = true;
+    if (ARGV.suffix)
+      options.suffix = ARGV.suffix;
+
+    frames = label.render(options);
+  }
+
   for (i = 0; i < frames.length; i++) {
     length += frames[i].length + 4;
 
@@ -4861,6 +4876,8 @@ function main() {
     /* Don't convert arguments that are often hex strings. */
     "string" : [ "first", "last", "fingerprint", "attachment-id", "_" ]
   });
+
+  ARGV = argv;
 
   if (argv.v || argv.version) {
     console.log(packageJson.version);
