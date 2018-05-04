@@ -2290,6 +2290,8 @@ function coronerPut(argv, config) {
 function samplingParams(coroner, action, argv, config) {
   var params = coronerParams(argv, config);
   params.action = action;
+  if (argv.group)
+    argv.fingerprint = argv.group;
   if (argv.fingerprint) {
     params.fingerprints = argv.fingerprint;
     if (!Array.isArray(params.fingerprints)) {
@@ -2392,6 +2394,11 @@ function samplingStatusProject(argv, config, universe, project) {
       backoffs.missing_symbols, backoffs.private_missing_symbols);
   }
 
+  if (argv.verbose && backoffs.accepts) {
+    top_line += sprintf(" (accepts %d rejects %d misses %d failures %d)",
+      backoffs.accepts, backoffs.rejects, backoffs.misses, backoffs.failures);
+  }
+
   now = Math.round((new Date()).valueOf() / 1000);
   console.log(sprintf("%s:", name));
   console.log(sprintf("  %s", buckets));
@@ -2426,7 +2433,7 @@ function samplingStatusProject(argv, config, universe, project) {
         next = sprintf("after %s", secondsToTimespec(next_time - now));
       }
     }
-    console.log(sprintf("    %s: %d objects, last accept %s, next %s",
+    console.log(sprintf("    \"%s\": %d objects, last accept %s, next %s",
       group.id ? group.id : "unknown", group.count, last.toString(), next));
   }
 }
@@ -4804,7 +4811,7 @@ function retentionStatus(coroner, argv, config) {
       return usageRetentionStatus();
     if (name === undefined)
       return usageRetentionStatus();
-    if (name.indexOf("/") == -1)
+    if (name.indexOf("/") != -1)
       return usageRetentionStatus("Type specified, so name must not contain /");
   }
 
