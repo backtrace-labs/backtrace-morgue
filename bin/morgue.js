@@ -1733,9 +1733,9 @@ function coronerDescribe(argv, config) {
 
     cd.sort(function(a, b) {
       if (a.state === "disabled" && b.state === "enabled")
-        return -1;
-      if (a.state === "enabled" && b.state === "disabled")
         return 1;
+      if (a.state === "enabled" && b.state === "disabled")
+        return -1;
 
       if (a.custom === true && b.custom === false)
         return 1;
