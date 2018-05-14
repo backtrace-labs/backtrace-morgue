@@ -1762,21 +1762,23 @@ function coronerDescribe(argv, config) {
         continue;
 
       if (!argv.a && it.statistics && it.statistics.used === false) {
-        unused++;
-        continue;
+        if (it.custom === false) {
+          unused++;
+          continue;
+        }
       }
 
       name = printf("%*s", it.name, ml);
       if (it.state && it.state === 'enabled') {
         if (it.custom === true) {
           if (it.statistics && it.statistics.used === false) {
-            process.stdout.write((name + ': ' + it.description).grey);
+            process.stdout.write((name + ': [unused] ' + it.description).grey);
           } else {
             process.stdout.write(name.blue + ': ' + it.description);
           }
         } else {
           if (it.statistics && it.statistics.used === false) {
-            process.stdout.write((name + ': ' + it.description).grey);
+            process.stdout.write((name + ': [unused] ' + it.description).grey);
           } else {
             process.stdout.write(name.yellow + ': ' + it.description);
           }
