@@ -1769,7 +1769,7 @@ function coronerDescribe(argv, config) {
       }
 
       name = printf("%*s", it.name, ml);
-      if (it.state && it.state === 'enabled') {
+      if (!it.state || (it.state && it.state === 'enabled')) {
         if (it.custom === true) {
           if (it.statistics && it.statistics.used === false) {
             process.stdout.write((name + ': [unused] ' + it.description).grey);
