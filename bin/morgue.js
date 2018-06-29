@@ -3914,6 +3914,11 @@ function coronerList(argv, config) {
         console.log('Timing:'.yellow);
 
         var o = '';
+        var aggs = result._.runtime.aggregate;
+        if ('time' in aggs)
+          aggs = aggs.time
+        else if ('pre_sort' in aggs)
+          aggs = aggs.pre_sort + aggs.post_sort;
 
         o += '     Rows: '.yellow + result._.runtime.filter.rows + '\n';
         o += '   Filter: '.yellow + result._.runtime.filter.time + 'us (' +
@@ -3922,7 +3927,7 @@ function coronerList(argv, config) {
         o += '    Group: '.yellow + result._.runtime.group_by.time + 'us (' +
           Math.ceil(result._.runtime.group_by.time /
             result._.runtime.group_by.groups) + 'us / group)\n';
-        o += 'Aggregate: '.yellow + result._.runtime.aggregate.time + 'us\n';
+        o += 'Aggregate: '.yellow + aggs + 'us\n';
         o += '     Sort: '.yellow + result._.runtime.sort.time + 'us\n';
         o += '    Total: '.yellow + result._.runtime.total_time + 'us';
         console.log(o + '\n');
