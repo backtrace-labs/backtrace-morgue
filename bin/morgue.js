@@ -258,6 +258,9 @@ function coronerParams(argv, config) {
       p.project = split[1];
     }
   }
+  if (argv.token) {
+    p.token = argv.token;
+  }
 
   return p;
 }
