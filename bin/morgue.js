@@ -2278,7 +2278,7 @@ function coronerPut(argv, config) {
   }
   for (var i = 0; i < files.length; i++) {
     var path = files[i].path;
-    if (form || attachments.length > 0) {
+    if (form || attachments.length > 0 || argv.multipart) {
       tasks.push(coroner.promise('put_form', path, attachments, p).
         then((r) => success_cb(r, path)).catch((e) => failure_cb(path, e)));
     } else {
