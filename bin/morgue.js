@@ -2235,6 +2235,10 @@ function coronerPut(argv, config) {
     }
   }
 
+  if (argv.sync) {
+    p.sync = true;
+  }
+
   if (argv.reuse) {
     p.http_opts = { forever: true };
   }
@@ -2270,11 +2274,25 @@ function coronerPut(argv, config) {
   }
 
   var success_cb = function(r, path) {
-    console.log(sprintf("%s: Success.", path).success);
+    if (r.fingerprint) {
+      console.log(sprintf("%s: Success: %s, fingerprint: %s.", path,
+        r.unique ? "Unique" : "Not unique", r.fingerprint).success);
+    } else {
+      console.log(sprintf("%s: Success.", path).success);
+    }
     success++;
   }
   var failure_cb = function(path, e) {
-    err(sprintf("%s: %s", path, e.message));
+    var j;
+    var errstr = sprintf("%s: %s", path, e.message);
+    if (e.response_obj.body) {
+      try {
+        j = JSON.parse(e.response_obj.body);
+        if (j && j.error && j.error.message)
+          errstr += sprintf(" (error %d: %s)", j.error.code, j.error.message);
+      } catch (e) {}
+    }
+    err(errstr);
   }
   for (var i = 0; i < files.length; i++) {
     var path = files[i].path;
