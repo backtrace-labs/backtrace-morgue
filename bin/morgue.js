@@ -207,10 +207,12 @@ var commands = {
   ls: coronerList,
   describe: coronerDescribe,
   token: coronerToken,
+  session: coronerSession,
   limit: coronerLimit,
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
+  logout: coronerLogout,
   modify: coronerModify,
   nuke: coronerNuke,
   delete: coronerDelete,
@@ -618,6 +620,25 @@ function coronerUser(argv, config) {
   userReset(argv, config);
 }
 
+/**
+ * @brief Implements the logout command.
+ */
+function coronerLogout(argv, config) {
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  coroner.http_get('/api/logout', { token: argv.token || coroner.config.token },
+    null, function(error, result) {
+      if (error)
+        errx(error + '');
+
+      console.log('Logged out.'.blue);
+  });
+}
+
+/**
+ * @brief Implements the limit command.
+ */
 function coronerLimit(argv, config) {
   var options = null;
   var project, universe, pid, un, target;
@@ -870,6 +891,115 @@ function coronerInvite(argv, config) {
     });
   } else {
     errx(usageText);
+  }
+}
+
+function coronerSession(argv, config) {
+  var options = null;
+  var universe;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  var usageText =
+      'Usage: morgue session <list>\n' +
+      '\n' +
+      '  list : List active sessions.\n'
+      ;
+
+  if (argv.h || argv.help) {
+    console.log(usageText);
+    return;
+  }
+
+  universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  /* The sub-command. */
+  var action = argv._[1];
+  var qs = { token: argv.token || coroner.config.token };
+
+  if (action === 'list') {
+    if (argv.g)
+      qs.scope = 'global';
+    if (argv.u)
+      qs.scope = 'user';
+    if (argv.s)
+      qs.scope = 'session';
+
+    if (argv.scope) {
+      if (argv.scope === 'global') {
+        qs.scope = 'global';
+      } else if (argv.scope === 'user') {
+        qs.scope = 'user';
+      } else if (argv.scope === 'session') {
+        qs.scope = 'session';
+      } else {
+        errx('scope must be one of global, user or session');
+      }
+    }
+
+    coroner.http_get('/api/session', qs, null, function(error, result) {
+      if (error)
+        errx(error + '');
+
+      var rp = JSON.parse(result.bodyData);
+
+      console.log(JSON.stringify(rp, null, 2));
+    });
+
+    return;
+  } else if (action === 'set') {
+    var resources;
+
+    try {
+      resources = JSON.parse(argv._[2]);
+    } catch (error) {
+      errx('resources must be a valid JSON object: ' + error);
+    }
+
+    coroner.post("/api/session", qs, {
+      'action' : 'set',
+      'form' : {
+        'resources' : resources
+      }
+    }, null, function(e, r) {
+      if (e)
+        errx(e + '');
+
+      if (r.status === 'ok') {
+        console.log(JSON.stringify(r.form,null,2));
+        console.log('\nSuccess.'.blue);
+      } else {
+        errx(r);
+      }
+
+      return;
+    });
+  } else if (action === 'unset') {
+    var resources = argv._.slice(2, argv._.length);
+
+    coroner.post("/api/session", qs, {
+      'action' : 'unset',
+      'form' : {
+        'resources' : resources
+      }
+    }, null, function(e, r) {
+      if (e)
+        errx(e + '');
+
+      if (r.status === 'ok') {
+        console.log(JSON.stringify(r.form,null,2));
+        console.log('\nSuccess.'.blue);
+      } else {
+        errx(r);
+      }
+
+      return;
+    });
+  } else {
+    errx('unknown sub-command, expecting set, unset or list');
   }
 }
 
