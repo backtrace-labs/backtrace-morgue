@@ -558,8 +558,9 @@ Usage: morgue token create --project=<project> --capability=<capability>
 
 Capability can be any of:
  * symbol:post - Enable symbol uploads with the specified API token.
- * error:post - Enable error and dump submission with the specified API token.
- * query:post - Enable queries to be issued using the specified token.
+ * error:post  - Enable error and dump submission with the specified API token.
+ * query:post  - Enable queries to be issued using the specified token.
+ * sync:post   - Allow for slower but more verbose submission.
 
 Multiple capabilities can be specified by using `--capability` multiple times
 or using a comma-separated list.
