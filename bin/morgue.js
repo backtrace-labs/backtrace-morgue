@@ -13,7 +13,6 @@ const bar       = require('./bar.js');
 const ta        = require('time-ago');
 const histogram = require('./histogram.js');
 const intersect = require('intersect');
-const levenshtein = require('levenshtein-sse');
 const printf    = require('printf');
 const moment    = require('moment');
 const moment_tz = require('moment-timezone');
@@ -29,6 +28,12 @@ const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
 const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
+
+try {
+  const levenshtein = require('levenshtein-sse');
+} catch (e) {
+  levenshtein = null;
+}
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -3593,6 +3598,9 @@ function coronerSimilarity(argv, config) {
   var query, p;
   var fp_filter;
 
+  if (levenshtein === null)
+    errx('morgue similary is unavailable on your host');
+
   var coroner = coronerClientArgv(config, argv);
 
   if (argv._.length < 2) {
@@ -4449,6 +4457,29 @@ function coronerPrint(query, rp, raw, columns, runtime) {
   return;
 }
 
+function loginComplete(coroner, argv, err, cb) {
+  if (err) {
+    errx("Unable to authenticate: " + err.message + ".");
+  }
+
+  saveConfig(coroner, function(err) {
+    if (err) {
+      errx("Unable to save config: " + err.message + ".");
+    }
+
+    console.log('Logged in'.success + ' ' +
+      ('[' + coroner.config.token + ']').grey);
+
+    if (cb) {
+      cb(coroner, argv);
+    }
+
+    return coroner;
+  });
+
+  return;
+}
+
 /**
  * @brief Implements the login command.
  */
@@ -4461,6 +4492,15 @@ function coronerLogin(argv, config, cb) {
 
   const coroner = coronerClient(config, !!argv.k, argv.debug, endpoint,
     argv.timeout);
+
+  /*
+   * If a token is supplied, immediately to go login path.
+   */
+  if (argv.token) {
+    return coroner.login_token(argv.token, function(err) {
+      loginComplete(coroner, argv, err, cb);
+    });
+  }
 
   promptLib.get([{
       name: 'username',
@@ -4482,21 +4522,8 @@ function coronerLogin(argv, config, cb) {
     }
 
     coroner.login(result.username, result.password, function(err) {
-      if (err) {
-        errx("Unable to authenticate: " + err.message + ".");
-      }
-
-      saveConfig(coroner, function(err) {
-        if (err) {
-          errx("Unable to save config: " + err.message + ".");
-        }
-
-        console.log('Logged in'.success + ' ' +
-          ('[' + coroner.config.token + ']').grey);
-
-        if (cb) {
-          cb(coroner, argv);
-        }
+      return coroner.login(result.username, result.password, function(err) {
+        loginComplete(coroner, argv, err, cb);
       });
     });
   });
