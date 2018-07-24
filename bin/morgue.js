@@ -29,8 +29,10 @@ const packageJson = require(path.join(__dirname, "..", "package.json"));
 const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
 
+var levenshtein;
+
 try {
-  const levenshtein = require('levenshtein-sse');
+  levenshtein = require('levenshtein-sse');
 } catch (e) {
   levenshtein = null;
 }
