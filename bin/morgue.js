@@ -1831,6 +1831,7 @@ function coronerGet(argv, config) {
 function coronerDescribe(argv, config) {
   abortIfNotLoggedIn(config);
 
+  var options = {};
   var query = {};
   var p;
   var filter = null;
@@ -1841,11 +1842,15 @@ function coronerDescribe(argv, config) {
     return usage("Missing universe, project arguments.");
   }
 
+  if (argv.table) {
+    options.table = argv.table;
+  }
+
   p = coronerParams(argv, config);
   if (Array.isArray(argv._) === true && argv._[2])
     filter = argv._[2];
 
-  coroner.describe(p.universe, p.project, function (error, result) {
+  coroner.describe(p.universe, p.project, options, function (error, result) {
     var cd, i;
     var ml = 0;
 
@@ -3329,7 +3334,10 @@ function parseSortTerm(term) {
 
 function argvQuery(argv) {
   var query = {};
-  var d_age = '1M';
+  var d_age = null;
+
+  if (argv.table === 'objects')
+    d_age = '1M';
 
   if (argv['raw-query']) {
     return { query: JSON.parse(argv['raw-query']) };
@@ -3414,7 +3422,7 @@ function argvQuery(argv) {
     ];
 
     d_age = null;
-  } else {
+  } else if (argv.table === 'objects') {
     query.filter[0].timestamp.push([ 'greater-than', 0 ]);
   }
 
@@ -3434,7 +3442,7 @@ function argvQuery(argv) {
     } else {
       query.select = [ argv.select ];
     }
-  } else {
+  } else if (argv.table === 'objects') {
     query.fold = {
       'timestamp' : [['range'], ['bin']]
     };
@@ -3935,6 +3943,10 @@ function coronerList(argv, config) {
 
   p = coronerParams(argv, config);
 
+  if (!argv.table) {
+    argv.table = 'objects';
+  }
+
   var aq = argvQuery(argv);
   query = aq.query;
   var d_age = aq.age;
@@ -3992,6 +4004,36 @@ function coronerList(argv, config) {
     if (attr)
       fold(query, attr, op);
   });
+
+  if (argv.table != 'objects') {
+    query.table = argv.table;
+  }
+
+  if (argv.set) {
+    var set = argv.set;
+
+    if (!Array.isArray(set))
+      set = [argv.set];
+
+    query.set = {};
+    set.forEach((s) => {
+      var kv = s.split("=");
+      query.set[kv[0]] = kv[1];
+    });
+  }
+
+  if (argv.clear) {
+    var clear = argv.clear;
+
+    if (!Array.isArray(clear))
+      clear = [argv.clear];
+
+    if (!query.set)
+      query.set = {};
+    clear.forEach((c) => {
+      query.set[c] = null;
+    });
+  }
 
   if (argv.query) {
     var pp = JSON.stringify(query);
@@ -4053,22 +4095,30 @@ function coronerList(argv, config) {
         return;
       }
 
-      var rp = new crdb.Response(result.response);
-
-      if (argv.json) {
-        var results = rp.unpack();
-
-        console.log(JSON.stringify(results, null, 2));
-        return;
-      }
-
-      coronerPrint(query, rp, result.response, null, result._.runtime);
-
-      var date_label;
-      if (d_age) {
-        date_label = 'as of ' + d_age + ' ago';
+      if (query.set) {
+        if (result.response.result === 'success')
+          console.log('Success'.blue);
+        else
+          console.log('result:\n' + JSON.stringify(result.response));
       } else {
-        date_label = 'with a time range of ' + argv.time;
+
+        var rp = new crdb.Response(result.response);
+
+        if (argv.json) {
+          var results = rp.unpack();
+
+          console.log(JSON.stringify(results, null, 2));
+          return;
+        }
+
+        coronerPrint(query, rp, result.response, null, result._.runtime);
+
+        var date_label;
+        if (d_age) {
+          date_label = 'as of ' + d_age + ' ago';
+        } else {
+          date_label = 'with a time range of ' + argv.time;
+        }
       }
 
       if (argv.verbose) {
@@ -4090,6 +4140,9 @@ function coronerList(argv, config) {
             result._.runtime.group_by.groups) + 'us / group)\n';
         o += 'Aggregate: '.yellow + aggs + 'us\n';
         o += '     Sort: '.yellow + result._.runtime.sort.time + 'us\n';
+        if (result._.runtime.set) {
+          o += '      Set: '.yellow + result._.runtime.set.time + 'us\n';
+        }
         o += '    Total: '.yellow + result._.runtime.total_time + 'us';
         console.log(o + '\n');
       }
