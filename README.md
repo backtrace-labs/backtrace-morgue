@@ -363,7 +363,7 @@ The following options support partial deletes:
 ### flamegraph
 
 ```
-Usage: morgue flamegraph [--filter=<filter expression>] [--reverse] [--unique] [-o file.svg]
+Usage: morgue flamegraph <[universe/]project> [--filter=<filter expression>] [--reverse] [--unique] [-o file.svg]
 ```
 
 Generate a flamegraph of callstacks of all objects matching the specified
