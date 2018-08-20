@@ -3313,8 +3313,9 @@ function secondsToTimespec(age_val) {
 function argvQueryFilterOnly(argv) {
   if (argv.select || argv.filter || argv.fingerprint || argv.age || argv.time) {
     /* Object must be returned for query to be chainable. */
-    if (!argv.select && !argv.template)
-      argv.template = 'select';
+    if (!argv.select && !argv.template) {
+      argv.select = 'object';
+    }
     return argvQuery(argv);
   }
   return null;
