@@ -269,6 +269,9 @@ function coronerParams(argv, config) {
   }
   if (argv.token) {
     p.token = argv.token;
+  } else if (argv["api-token"]) {
+    /* argv.token is used for other things as well. */
+    p.token = argv["api-token"];
   }
 
   return p;
