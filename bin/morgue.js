@@ -216,6 +216,7 @@ var commands = {
   token: coronerToken,
   session: coronerSession,
   limit: coronerLimit,
+  set: coronerSet,
   get: coronerGet,
   put: coronerPut,
   login: coronerLogin,
@@ -3928,6 +3929,62 @@ function coronerNuke(argv, config) {
   }
 
   console.log('Success'.blue);
+  return;
+}
+
+function coronerSet(argv, config) {
+  abortIfNotLoggedIn(config);
+  var query;
+  var p;
+
+  var coroner = coronerClientArgv(config, argv);
+
+  if (argv._.length < 2) {
+    return usage("Missing project, universe arguments");
+  }
+
+  p = coronerParams(argv, config);
+
+  if (!argv.table) {
+    argv.table = 'objects';
+  }
+
+  var aq = argvQuery(argv);
+  query = aq.query;
+
+  delete(query.fold);
+  delete(query.factor);
+
+  if (!argv.time && !argv.age) {
+    for (var i = 0; i < query.filter.length; i++) {
+      delete(query.filter[i].timestamp);
+    }
+  }
+
+  var set = {};
+  for (var i = 0; i < argv._.length; i++) {
+    if (argv._[i].indexOf('=') === -1)
+      continue;
+
+    var kv = argv._[i].split('=');
+
+    set[kv[0]] = kv[1];
+  }
+
+  query.set = set;
+
+  if (argv.table)
+    query.table = argv.table;
+
+  coroner.query(p.universe, p.project, query, function (err, result) {
+    if (err) {
+      errx(err.message);
+    }
+
+    console.log('Success.'.success);
+    return;
+  });
+
   return;
 }
 
