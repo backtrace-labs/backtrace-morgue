@@ -3405,6 +3405,9 @@ function argvQuery(argv) {
   if (argv.time) {
     var tm = chrono.parse(argv.time);
 
+    if (tm.length === 0)
+      errx('invalid time specifier "' + argv.time + '"');
+
     if (tm.length > 1)
       errx('only a single date or range is permitted.'.error);
 
