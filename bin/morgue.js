@@ -3411,24 +3411,47 @@ function argvQuery(argv) {
 
   if (argv.time) {
     var tm = chrono.parse(argv.time);
+    var ts_attr = 'timestamp';
+    var ts_s, ts_e;
 
-    if (tm.length > 1)
-      errx('only a single date or range is permitted.'.error);
+    if (argv.debug)
+      console.log('tm = ', JSON.stringify(tm, null, 4));
 
-    if (!tm[0].start)
-      errx('date specification lacks start date'.error);
+    if (tm.length === 0)
+      errx('invalid time specifier "' + argv.time + '"');
 
-    if (!tm[0].end)
-      errx('date specification lacks end date'.error);
+    if (tm.length > 1) {
+      if (tm.length === 2) {
+        /* See whether it parsed as two starts and no ends. */
+        if (tm[0].start && tm[1].start && !tm[0].end && !tm[1].end) {
+          ts_s = tm[0].start.date();
+          ts_e = tm[1].start.date();
+        }
+      }
+      if (!ts_s)
+        errx('only a single date or range is permitted.'.error);
+    } else {
+      if (!tm[0].start)
+        errx('date specification lacks start date'.error);
 
-    var ts_s = tm[0].start.date();
+      if (!tm[0].end)
+        errx('date specification lacks end date'.error);
+
+      ts_s = tm[0].start.date();
+      ts_e = tm[0].end.date();
+    }
+
+    /* Treat zero start time as greater than zero to exclude unset values. */
     ts_s = parseInt(ts_s / 1000);
+    if (ts_s === 0)
+      ts_s = 1;
+    ts_e = parseInt(ts_e / 1000);
 
-    var ts_e;
-    if (tm[0].end)
-      ts_e = parseInt(tm[0].end.date() / 1000);
+    /* If user specifies a timestamp attribute, use it. */
+    if (argv["timestamp-attribute"] && argv["timestamp-attribute"].length > 0)
+      ts_attr = argv["timestamp-attribute"];
 
-    query.filter[0].timestamp = [
+    query.filter[0][ts_attr] = [
       [ 'at-least', ts_s ],
       [ 'less-than', ts_e ]
     ];
