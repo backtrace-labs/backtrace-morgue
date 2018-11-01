@@ -1168,6 +1168,13 @@ function coronerToken(argv, config) {
       console.log('  capabilities=' + token.get('capabilities') +
         ',project=' + pm[token.get('project')] + '(' +
         token.get('project') + '),owner=' + token.get('owner'));
+
+      var metadata = token.get('metadata');
+      if (metadata) {
+        console.log('  metadata:');
+        var jm = JSON.stringify(JSON.parse(metadata), null, 2);
+        console.log(jm);
+      }
     }
 
     for (var i = 0; i < model.token.length; i++) {
