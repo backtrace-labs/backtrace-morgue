@@ -913,9 +913,11 @@ function coronerSession(argv, config) {
   var coroner = coronerClientArgv(config, argv);
 
   var usageText =
-      'Usage: morgue session <list>\n' +
+      'Usage: morgue session <list | set | unset>\n' +
       '\n' +
-      '  list : List active sessions.\n'
+      '   list : List active sessions.\n'
+      '    set : Set resource override values.\n'
+      '  unset : Unset resource override values.\n'
       ;
 
   if (argv.h || argv.help) {
@@ -968,6 +970,66 @@ function coronerSession(argv, config) {
       resources = JSON.parse(argv._[2]);
     } catch (error) {
       errx('resources must be a valid JSON object: ' + error);
+    }
+
+    if (argv.persist) {
+      var universe_id, owner;
+      var bpg = coronerBpgSetup(coroner, argv);
+
+      process.stderr.write('Persisting...'.blue);
+
+      universe_id = config.config.universe.id;
+      owner = config.config.user.uid;
+
+      var model = bpg.get();
+
+      for (var key in resources) {
+        var ro = bpg.new('resource_override');
+        var previous;
+
+        if (argv.persist === 'universe') {
+          ro.set('uid', 0);
+        } else {
+          ro.set('uid', owner);
+          if (argv.uid)
+            ro.set('uid', argv.uid);
+        }
+
+        ro.set('universe', universe_id);
+        ro.set('name', key);
+        ro.set('value', JSON.stringify(resources[key]));
+        ro.set('owner', owner);
+
+        /*
+         * Check for the presence of a duplicate, if so, modification
+         * is performed.
+         */
+        for (var i = 0; i < model.resource_override.length; i++) {
+          if (model.resource_override[i].get("universe") === universe_id &&
+              model.resource_override[i].get("uid") == ro.get("uid")) {
+            previous = model.resource_override[i];
+            break;
+          }
+        }
+
+        if (previous) {
+          bpg.modify(model.resource_override[i], {
+            'value' : JSON.stringify(resources[key])
+          });
+        } else {
+          bpg.create(ro);
+        }
+
+        try {
+          bpg.commit();
+        } catch (error) {
+          errx(error + '');
+        }
+
+        process.stderr.write('done\n'.blue);
+      }
+
+      return;
     }
 
     coroner.post("/api/session", qs, {
