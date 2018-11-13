@@ -909,8 +909,18 @@ function coronerSession(argv, config) {
   var options = null;
   var universe;
 
-  abortIfNotLoggedIn(config);
-  var coroner = coronerClientArgv(config, argv);
+  if (!argv.endpoint && !argv.universe)
+    abortIfNotLoggedIn(config);
+
+  var coroner;
+
+  if (argv.endpoint) {
+    config.config = coroner;
+    config.endpoint = argv.endpoint;
+    coroner = coronerClient(config, true, !!argv.debug, argv._[1], argv.timeout);
+  } else {
+    coroner = coronerClientArgv(config, argv);
+  }
 
   var usageText =
       'Usage: morgue session <list | set | unset>\n' +
@@ -926,8 +936,12 @@ function coronerSession(argv, config) {
   }
 
   universe = argv.universe;
-  if (!universe)
+  if (!universe) {
+    if (argv.endpoint)
+      errx('--universe= must be specified');
+
     universe = Object.keys(config.config.universes)[0];
+  }
 
   /* The sub-command. */
   var action = argv._[1];
@@ -1004,11 +1018,13 @@ function coronerSession(argv, config) {
          * Check for the presence of a duplicate, if so, modification
          * is performed.
          */
-        for (var i = 0; i < model.resource_override.length; i++) {
-          if (model.resource_override[i].get("universe") === universe_id &&
-              model.resource_override[i].get("uid") == ro.get("uid")) {
-            previous = model.resource_override[i];
-            break;
+        if (model.resource_override) {
+          for (var i = 0; i < model.resource_override.length; i++) {
+            if (model.resource_override[i].get("universe") === universe_id &&
+                model.resource_override[i].get("uid") == ro.get("uid")) {
+              previous = model.resource_override[i];
+              break;
+            }
           }
         }
 
