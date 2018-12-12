@@ -204,6 +204,7 @@ var commands = {
   bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
+  clean: coronerClean,
   report: coronerReport,
   latency: coronerLatency,
   tenant: coronerTenant,
@@ -4094,6 +4095,134 @@ function coronerSet(argv, config) {
   });
 
   return;
+}
+
+/**
+ * @brief: Implements the clean command.
+ */
+function coronerClean(argv, config) {
+  abortIfNotLoggedIn(config);
+  var query;
+  var p;
+
+  var coroner = coronerClientArgv(config, argv);
+
+  if (argv._.length < 2) {
+    return usage("Missing project, universe arguments");
+  }
+
+  p = coronerParams(argv, config);
+
+  if (!argv.table) {
+    argv.table = 'objects';
+  }
+
+  var aq = argvQuery(argv);
+  query = aq.query;
+  var d_age = aq.age;
+
+  query.group = ["fingerprint"];
+  query.order = [{"name":";count","ordering":"descending"}];
+
+  /* First, extract the top N fingerprint objects. */
+  coroner.query(p.universe, p.project, query, function (err, result) {
+    var fingerprint = [];
+    var keep = 3;
+
+    if (argv.keep)
+      keep = parseInt(argv.keep);
+
+    if (keep === 0)
+      errx('--keep must be greater than 0');
+
+    if (err) {
+      errx(err.message);
+    }
+
+    var rp = new crdb.Response(result.response);
+    for (var i = 0; i < rp.json.values.length; i++)
+      fingerprint.push(rp.json.values[i][0]);
+
+    /* Now, we construct a selection query for all objects matching these. */
+    delete(query.group);
+    delete(query.fold);
+    delete(query.order);
+
+    query.limit = 10000;
+    query.order = [{"name":"timestamp","ordering":"descending"}];
+
+    query.select = ["fingerprint", "_deleted", "timestamp", "object.size"];
+    if (!query.filter[0]["fingerprint"])
+      query.filter[0]["fingerprint"] = [];
+    query.filter[0]["fingerprint"].push(["regular-expression",
+      fingerprint.join("|")]);
+
+    coroner.query(p.universe, p.project, query, function (err, result) {
+      var groups = {};
+      var targets = [];
+      var saved = 0;
+      var deleted = 0;
+
+      if (err) {
+        errx(err.message);
+      }
+
+      var rp = new crdb.Response(result.response);
+      rp = rp.unpack();
+
+      /* At this point, we construct a map for every single fingerprint. */
+
+      var objects = rp['*'];
+      for (var i = 0; i < objects.length; i++) {
+        var fp = objects[i].fingerprint;
+        var deleted = objects[i]._deleted;
+        var total = 0;
+
+        if (deleted === 1) {
+          continue;
+        }
+
+        if (!groups[fp])
+          groups[fp] = [];
+
+        groups[fp].push([objects[i].id, objects[i]['object.size']]);
+      }
+
+      /* Now go through every and delete all but N. */
+      for (var j in groups) {
+        if (groups[j].length <= keep) {
+          continue;
+        }
+
+        total += groups[j].length;
+
+        var update = groups[j].slice(keep, groups[j].length);
+
+        /* Compute disk saving and flatten. */
+        for (var k = keep; k < groups[j].length; k++) {
+          deleted++;
+          saved += groups[j][k][1] / 1024;
+        }
+
+        groups[j] = update;
+
+        for (var k = 0; k < update.length; k++)
+          targets.push(update[k][0]);
+      }
+
+      process.stderr.write(deleted + ' / ' + total + ' objects deleted across ' +
+          Object.keys(groups).length + ' fingerprint(s) saving at least ' + Math.floor(saved / 1024) + 'MB.\n');
+
+      if (argv.output) {
+        for (var i = 0; i < targets.length; i++)
+          process.stdout.write(targets[i] + ' ');
+
+        process.stdout.write('\n');
+      }
+
+      return;
+    });
+  });
 }
 
 /**
