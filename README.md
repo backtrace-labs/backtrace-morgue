@@ -54,7 +54,7 @@ If output is provided, then all object identifiers are output to stdout. Statist
 are output to stderr. It is then possible to chain this into morgue delete:
 
 ```
-$ morgue keep blackhole --output > file.txt
+$ morgue clean blackhole --output > file.txt
 $ morgue delete blackhole --physical-only `cat file.txt`
 ```
 
