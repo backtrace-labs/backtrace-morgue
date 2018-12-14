@@ -233,6 +233,8 @@ var commands = {
   scrubber: coronerScrubber,
   setup: coronerSetup,
   user: coronerUser,
+  merge: coronerMerge,
+  unmerge: coronerUnmerge,
 };
 
 process.stdout.on('error', function(){process.exit(0);});
@@ -630,6 +632,54 @@ function coronerUser(argv, config) {
 
   argv._.shift();
   userReset(argv, config);
+}
+
+function dump_obj(o)
+{
+  console.log(require('util').inspect(o, {showHidden: false, depth: null}));
+}
+
+function _coronerMerge(argv, config, action) {
+  abortIfNotLoggedIn(config);
+  if (argv._.length === 0) {
+    userUsage();
+  }
+  const coroner = coronerClientArgv(config, argv);
+
+  if (argv._.length < 2) {
+    return usage("Missing project, universe arguments");
+  }
+  const p = coronerParams(argv, config);
+  let fingerprints = argv._;
+
+  fingerprints.splice(0,2);
+  const query = {
+    actions: {
+      fingerprint: [
+	{
+	  type: action,
+	  arguments: fingerprints
+	}
+      ]
+    }
+  };
+
+  dump_obj(query);
+
+  coroner.query(p.universe, p.project, query, function(err, result) {
+    if (err) {
+      errx(err.message);
+    }
+    console.log('Success.'.success);
+  });
+}
+
+function coronerMerge(argv, config) {
+  return _coronerMerge(argv, config, 'merge');
+}
+
+function coronerUnmerge(argv, config) {
+  return _coronerMerge(argv, config, 'unmerge');
 }
 
 /**
