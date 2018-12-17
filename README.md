@@ -435,6 +435,25 @@ Usage: morgue report <project> delete <report integer identifier>
 Usage: morgue report <project> list
 ```
 
+#### merge and unmerge
+
+```
+Usage: morgue merge <project> list of fingerprints
+Usage: morgue unmerge <project> list of fingerprints
+```
+
+Fingerprints can be merged and unmerged to a group via those commands. A
+group on a fingerprint is currently represented as a sha256 with mostly
+zeros in the beginning. Those special group fingerprints can be used in
+further merge commands to enlargen the group even more.
+
+Unmerging only accepts real fingerprints and doesn't work with groups. It
+separates the fingerprint from the group. After the operation it is
+visible as an independent fingerprint again.
+
+When listing crashes, fingerprint;original can be used to get the original
+fingerprint from before the grouping process if wanted.
+
 ### repair
 
 ```
