@@ -447,9 +447,9 @@ group on a fingerprint is currently represented as a sha256 with mostly
 zeros in the beginning. Those special group fingerprints can be used in
 further merge commands to enlargen the group even more.
 
-Unmerging only accepts real fingerprints and doesn't work with groups. It
-separates the fingerprint from the group. After the operation it is
-visible as an independent fingerprint again.
+Unmerging accepts real fingerprints and groups. It separates the
+fingerprint from the group. After the operation the fingerprint is
+independent again.
 
 When listing crashes, fingerprint;original can be used to get the original
 fingerprint from before the grouping process if wanted.
