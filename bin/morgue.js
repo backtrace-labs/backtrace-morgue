@@ -5353,7 +5353,7 @@ function retentionSublevel(level) {
     return null;
 }
 
-function retentionStatusDump(obj, name, level, indent) {
+function retentionStatusDump(argv, obj, name, level, indent) {
   var action, crit, header, i, rule, s;
   var spaces = '';
 
@@ -5365,7 +5365,8 @@ function retentionStatusDump(obj, name, level, indent) {
   header = spaces + level;
   if (name)
     header += " " + name;
-  console.log(header + ": policy state: " + obj.state);
+  if (obj.state !== "not installed" || !argv.recursive || argv.debug)
+    console.log(header + ": policy state: " + obj.state);
   spaces += '  ';
 
   if (obj.state !== "not installed") {
@@ -5383,7 +5384,7 @@ function retentionStatusDump(obj, name, level, indent) {
     var keys = Object.keys(obj.children);
     var sublevel = retentionSublevel(level);
     for (i = 0; sublevel !== null && i < keys.length; i++) {
-      retentionStatusDump(obj.children[keys[i]], keys[i], sublevel, indent + 2);
+      retentionStatusDump(argv, obj.children[keys[i]], keys[i], sublevel, indent + 2);
     }
   }
 }
@@ -5434,7 +5435,7 @@ function retentionStatus(coroner, argv, config) {
     if (argv.raw)
       console.log(JSON.stringify(r, null, 4));
     else
-      retentionStatusDump(r, null, level, 0);
+      retentionStatusDump(argv, r, null, level, 0);
   }).catch(std_failure_cb);
 }
 
