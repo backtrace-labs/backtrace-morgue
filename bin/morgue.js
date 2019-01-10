@@ -5160,7 +5160,7 @@ function retentionSet(bpg, objects, argv, config) {
     rules[0].actions[0].subsets = ["physical"];
   }
 
-  if (rtn_type === "instance") {
+  if (rtn_type === "instance_retention") {
     if (argv._.length > 0) {
       return retentionUsage("Instances do not have names.");
     }
