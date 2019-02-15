@@ -4961,7 +4961,7 @@ function coronerCallstack(argv, config) {
   coroner = coronerClientArgv(config, argv);
   p = coronerParams(argv, config);
   csparams = Object.assign({
-    format: "json",
+    format: argv.format || "json",
     fulljson: true,
   }, p);
 
