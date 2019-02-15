@@ -28,6 +28,7 @@ const url       = require('url');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
 const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
+const zlib      = require('zlib');
 
 var levenshtein;
 
@@ -204,6 +205,7 @@ var commands = {
   bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
+  callstack: coronerCallstack,
   clean: coronerClean,
   report: coronerReport,
   latency: coronerLatency,
@@ -4941,6 +4943,60 @@ function unpackQueryObjects(objects, qresult) {
       objects.push(oidToString(o.object));
     });
   }
+}
+
+function callstackUsage(str) {
+  if (str)
+    err(str + "\n");
+  console.error("Usage: morgue callstack <project> [<object>|<filename>]");
+  process.exit(1);
+}
+
+/**
+ * @brief Implements the callstack command.
+ */
+function coronerCallstack(argv, config) {
+  var coroner, csparams, data, p, params, obj;
+
+  coroner = coronerClientArgv(config, argv);
+  p = coronerParams(argv, config);
+  csparams = Object.assign({
+    format: "json",
+    fulljson: true,
+  }, p);
+
+  argv._.shift();
+  argv._.shift();
+  if (argv._.length != 1) {
+    return callstackUsage("Must specify one object.");
+  }
+  obj = argv._[0];
+
+  if (fs.existsSync(obj)) {
+    data = JSON.parse(fs.readFileSync(obj, 'utf8'));
+    coroner.promise('post', '/api/callstack', csparams, data, null).then((csr) => {
+      console.log(JSON.stringify(csr, null, 4));
+    }).catch(std_failure_cb);
+    return;
+  }
+
+  /*
+   * Fetch the json resource, then submit it to /api/callstack, dumping the
+   * JSON response.
+   */
+  params = {resource: "json.gz"};
+
+  coroner.promise('http_fetch', p.universe, p.project, obj, params).then((hr) => {
+    try {
+      data = JSON.parse(zlib.gunzipSync(hr.bodyData).toString("utf8"));
+    } catch (e) {
+      data = hr.bodyData;
+    }
+
+    return coroner.promise('post', '/api/callstack', csparams, data, null).then((csr) => {
+        console.log(JSON.stringify(csr, null, 4));
+      }).catch(std_failure_cb);
+  }).catch(std_failure_cb);
 }
 
 /**

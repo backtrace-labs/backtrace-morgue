@@ -790,3 +790,19 @@ substring) for deletion.
 $ morgue invite delete f8922
 Invitation successfully deleted.
 ```
+
+### callstack
+
+Use this command to check the callstack results for a given object.
+
+### Example (using object id)
+
+```
+$ morgue callstack project oid
+```
+
+### Example (using local file, must be JSON)
+
+```
+$ morgue callstack project file.json
+```
