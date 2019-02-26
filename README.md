@@ -375,8 +375,10 @@ Usage: morgue delete <[universe/]project> <oid1> [... oidN]
 Object IDs must be specified; they can be found in `morgue list` output.
 The object ID printed in the example above is `9d33`.
 
-The following options support partial deletes:
-`--physical-only`: Only delete the physical object; retain indexing.
+By default, this command (as of 2019-02-26) requests physical-only deletion,
+which retains only indexing.  The previous `--physical-only` argument is a
+no-op.  The following options affect this behavior:
+`--all`: Delete all related data, including indexing.
 `--crdb-only`: Only delete the indexed data; requires physically deleted objects.
 
 ### flamegraph

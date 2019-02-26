@@ -5095,11 +5095,11 @@ function coronerDelete(argv, config) {
     }
   }
 
-  if (physical_only || crdb_only) {
+  if (!argv.all) {
     params.subsets = [];
-    if (physical_only)
+    if (!crdb_only)
       params.subsets.push("physical");
-    if (crdb_only)
+    else
       params.subsets.push("crdb");
   }
 
