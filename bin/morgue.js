@@ -4948,28 +4948,40 @@ function unpackQueryObjects(objects, qresult) {
 function callstackUsage(str) {
   if (str)
     err(str + "\n");
-  console.error("Usage: morgue callstack <project> [<object>|<filename>]");
+  console.error("Usage: morgue callstack <subcommand>:");
+  console.error("   morgue callstack evaluate <project> [--format=fmt] <object>|<filename>");
+  console.error("     Evaluate a specific object/file.");
+  console.error("");
+  console.error("   morgue callstack get <--format=format>");
+  console.error("     Retrieve the ruleset for a specific format.");
+  console.error("");
+  console.error("   morgue callstack list");
+  console.error("     Dump all rulesets.");
+  console.error("");
   process.exit(1);
 }
 
-/**
- * @brief Implements the callstack command.
- */
-function coronerCallstack(argv, config) {
-  var coroner, csparams, data, p, params, obj;
-
-  coroner = coronerClientArgv(config, argv);
-  p = coronerParams(argv, config);
-  csparams = Object.assign({
-    format: argv.format || "json",
+function coronerCallstackParams(argv, p, action) {
+  var csparams = Object.assign({
+    action: action,
+    format: argv.format || "minidump",
     fulljson: true,
   }, p);
+  if (argv.language)
+    csparams.language = argv.language;
+  if (argv.platform)
+    csparams.platform = argv.platform;
+  return csparams;
+}
 
-  argv._.shift();
-  argv._.shift();
+function coronerCallstackEval(argv, coroner, p) {
+  const csparams = coronerCallstackParams(argv, p, "evaluate");
+  var data, params, obj;
+
   if (argv._.length != 1) {
-    return callstackUsage("Must specify one object.");
+    return callstackUsage("evaluate: Must specify one object.");
   }
+
   obj = argv._[0];
 
   if (fs.existsSync(obj)) {
@@ -4997,6 +5009,59 @@ function coronerCallstack(argv, config) {
         console.log(JSON.stringify(csr, null, 4));
       }).catch(std_failure_cb);
   }).catch(std_failure_cb);
+}
+
+function coronerCallstackList(argv, coroner, p) {
+  const csparams = coronerCallstackParams(argv, p, "list");
+
+  coroner.promise('get', '/api/callstack', csparams).then((csr) => {
+    var json = JSON.parse(csr.toString("utf8"));
+    console.log(JSON.stringify(json, null, 4));
+  }).catch(std_failure_cb);
+}
+
+function coronerCallstackGet(argv, coroner, p) {
+  const csparams = coronerCallstackParams(argv, p, "get");
+
+  coroner.promise('get', '/api/callstack', csparams).then((csr) => {
+    var json = JSON.parse(csr.toString("utf8"));
+    console.log(JSON.stringify(json, null, 4));
+  }).catch(std_failure_cb);
+}
+
+/**
+ * @brief Implements the callstack command.
+ */
+function coronerCallstack(argv, config) {
+  var coroner, fn, p, subcmd;
+
+  const subcmd_map = {
+    evaluate: coronerCallstackEval,
+    eval: coronerCallstackEval,
+    list: coronerCallstackList,
+    get: coronerCallstackGet,
+  };
+
+  argv._.shift();
+  if (argv._.length === 0) {
+    return callstackUsage("No request specified.");
+  }
+
+  subcmd = argv._[0];
+  if (subcmd === "--help" || subcmd === "help" || subcmd === "-h")
+    return callstackUsage();
+
+  coroner = coronerClientArgv(config, argv);
+  p = coronerParams(argv, config);
+  argv._.shift(); /* remove subcmd */
+  argv._.shift(); /* remove project */
+
+  fn = subcmd_map[subcmd];
+  if (fn) {
+    return fn(argv, coroner, p);
+  }
+
+  coronerCallstackUsage("Invalid callstack subcommand '" + subcmd + "'.");
 }
 
 /**

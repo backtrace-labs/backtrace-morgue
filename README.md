@@ -791,18 +791,18 @@ $ morgue invite delete f8922
 Invitation successfully deleted.
 ```
 
-### callstack
+### callstack evaluate
 
 Use this command to check the callstack results for a given object.
 
 ### Example (using object id)
 
 ```
-$ morgue callstack project oid
+$ morgue callstack evaluate project oid
 ```
 
 ### Example (using local file, must be JSON)
 
 ```
-$ morgue callstack project file.json
+$ morgue callstack evaluate project file.json
 ```
