@@ -3893,13 +3893,6 @@ function coronerSimilarity(argv, config) {
     }
 
     /*
-     Display a URL to triage view with all similar fingerprints
-     */
-    var triage_url = coroner.endpoint + '/p/' + p.project + '/triage?aperture=[["relative",' +
-        '["floating","all"]],[["fingerprint",["regular-expression","'
-    var first_fp = true;
-
-    /*
      * We have no computed the edit distance to every group. Let's sort
      * and we're ready to print.
      */
@@ -3923,11 +3916,6 @@ function coronerSimilarity(argv, config) {
         if (pr === false) {
           pr = true;
           console.log(label);
-          if (!first_fp) {
-              triage_url += '|';
-          }
-          triage_url += fj;
-          first_fp = false;
         }
 
         var s = printf("  %3d %s", source.scores[fj_a],
@@ -3938,8 +3926,6 @@ function coronerSimilarity(argv, config) {
       if (pr === true)
         process.stdout.write('\n')
     }
-    triage_url += '"]]]]';
-    console.log("View in Backtrace: ".bold.green + triage_url);
   });
 }
 
