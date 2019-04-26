@@ -3901,7 +3901,7 @@ function coronerSimilarity(argv, config) {
       var label = '';
       var pr = false;
 
-      label +=  'Target: '.bold.yellow + fj.substring(0, 12) + '...\n' +
+      label +=  'Target: '.bold.yellow + fj + '\n' +
         '      ' + JSON.stringify(source.callstack) + '\n' + 'Similar:'.bold;
 
       for (fj_a in source.scores) {
