@@ -3788,6 +3788,10 @@ function coronerSimilarity(argv, config) {
     delete argv.fingerprint;
   }
 
+  if (argv.share && !argv.fingerprint) {
+    return usage("--share flag requires --fingerprint");
+  }
+
   p = coronerParams(argv, config);
 
   var aq = argvQuery(argv);
@@ -3900,8 +3904,9 @@ function coronerSimilarity(argv, config) {
       var source = le[fj];
       var label = '';
       var pr = false;
-      var triage_url = coroner.endpoint + '/p/' + p.project + '/triage?aperture=[["relative",' +
-        '["floating","all"]],[["fingerprint",["regular-expression","';
+      if (fp_filter && argv.share)
+        var triage_url = coroner.endpoint + '/p/' + p.project + '/triage?aperture=[["relative",' +
+          '["floating","all"]],[["fingerprint",["regular-expression","';
 
       label +=  'Target: '.bold.yellow + fj + '\n' +
         '      ' + JSON.stringify(source.callstack) + '\n' + 'Similar:'.bold;
@@ -3918,20 +3923,23 @@ function coronerSimilarity(argv, config) {
         if (pr === false) {
           pr = true;
           console.log(label);
-          triage_url += fj;
+          if (fp_filter && argv.share)
+            triage_url += fj;
         }
 
         var s = printf("  %3d %s", source.scores[fj_a],
           printFrame(le[fj_a].callstack, source.callstack));
-        triage_url += '|' + fj_a;
+        if (fp_filter && argv.share)
+          triage_url += '|' + fj_a;
         console.log(s);
       }
       if (pr === true) {
-        triage_url += '"]]]]';
         if (fp_filter && argv.share) {
+          triage_url += '"]]]]';
           console.log("\nView in Backtrace: ".bold.green + triage_url);
         }
         process.stdout.write('\n');
+
       }
     }
   });
