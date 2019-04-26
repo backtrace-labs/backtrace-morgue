@@ -3900,6 +3900,8 @@ function coronerSimilarity(argv, config) {
       var source = le[fj];
       var label = '';
       var pr = false;
+      var triage_url = coroner.endpoint + '/p/' + p.project + '/triage?aperture=[["relative",' +
+        '["floating","all"]],[["fingerprint",["regular-expression","';
 
       label +=  'Target: '.bold.yellow + fj + '\n' +
         '      ' + JSON.stringify(source.callstack) + '\n' + 'Similar:'.bold;
@@ -3909,22 +3911,28 @@ function coronerSimilarity(argv, config) {
         if (argv.distance && source.scores[fj_a] > argv.distance)
           continue;
 
-        /* If a union threshold is provided, compute and filter. */
-        if (argv.intersect && intersect(le[fj_a].callstack, source.callstack).length < argv.intersect)
+          /* If a union threshold is provided, compute and filter. */
+          if (argv.intersect && intersect(le[fj_a].callstack, source.callstack).length < argv.intersect)
           continue;
 
-        if (pr === false) {
-          pr = true;
-          console.log(label);
-        }
+          if (pr === false) {
+              pr = true;
+              console.log(label);
+              triage_url += fj;
+          }
 
-        var s = printf("  %3d %s", source.scores[fj_a],
-          printFrame(le[fj_a].callstack, source.callstack));
+          var s = printf("  %3d %s", source.scores[fj_a],
+              printFrame(le[fj_a].callstack, source.callstack));
+          triage_url += '|' + fj_a;
         console.log(s);
       }
-
-      if (pr === true)
-        process.stdout.write('\n')
+      if (pr === true) {
+          triage_url += '"]]]]';
+          if (fp_filter && argv.share) {
+              console.log("\nView in Backtrace: ".bold.green + triage_url);
+          }
+          process.stdout.write('\n');
+      }
     }
   });
 }
