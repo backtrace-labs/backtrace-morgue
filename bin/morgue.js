@@ -3783,13 +3783,13 @@ function coronerSimilarity(argv, config) {
     return usage("Missing project, universe arguments.");
   }
 
+  if (argv.share && !argv.fingerprint) {
+    return usage("--share flag requires --fingerprint");
+  }
+
   if (argv.fingerprint) {
     fp_filter = argv.fingerprint;
     delete argv.fingerprint;
-  }
-
-  if (argv.share && !argv.fingerprint) {
-    return usage("--share flag requires --fingerprint");
   }
 
   p = coronerParams(argv, config);
@@ -3936,7 +3936,7 @@ function coronerSimilarity(argv, config) {
       if (pr === true) {
         if (fp_filter && argv.share) {
           triage_url += '"]]]]';
-          console.log("\nView in Backtrace: ".bold.green + triage_url);
+          console.log("\nLink: ".bold.green + triage_url);
         }
         process.stdout.write('\n');
 
