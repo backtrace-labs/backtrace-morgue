@@ -3783,6 +3783,10 @@ function coronerSimilarity(argv, config) {
     return usage("Missing project, universe arguments.");
   }
 
+  if (argv.share && !argv.fingerprint) {
+    return usage("--share flag requires --fingerprint");
+  }
+
   if (argv.fingerprint) {
     fp_filter = argv.fingerprint;
     delete argv.fingerprint;
@@ -3900,6 +3904,9 @@ function coronerSimilarity(argv, config) {
       var source = le[fj];
       var label = '';
       var pr = false;
+      if (fp_filter && argv.share)
+        var triage_url = coroner.endpoint + '/p/' + p.project + '/triage?aperture=[["relative",' +
+          '["floating","all"]],[["fingerprint",["regular-expression","';
 
       label +=  'Target: '.bold.yellow + fj + '\n' +
         '      ' + JSON.stringify(source.callstack) + '\n' + 'Similar:'.bold;
@@ -3909,22 +3916,31 @@ function coronerSimilarity(argv, config) {
         if (argv.distance && source.scores[fj_a] > argv.distance)
           continue;
 
-        /* If a union threshold is provided, compute and filter. */
+          /* If a union threshold is provided, compute and filter. */
         if (argv.intersect && intersect(le[fj_a].callstack, source.callstack).length < argv.intersect)
           continue;
 
         if (pr === false) {
           pr = true;
           console.log(label);
+          if (fp_filter && argv.share)
+            triage_url += fj;
         }
 
         var s = printf("  %3d %s", source.scores[fj_a],
           printFrame(le[fj_a].callstack, source.callstack));
+        if (fp_filter && argv.share)
+          triage_url += '|' + fj_a;
         console.log(s);
       }
+      if (pr === true) {
+        if (fp_filter && argv.share) {
+          triage_url += '"]]]]';
+          console.log("\nLink: ".bold.green + triage_url);
+        }
+        process.stdout.write('\n');
 
-      if (pr === true)
-        process.stdout.write('\n')
+      }
     }
   });
 }
