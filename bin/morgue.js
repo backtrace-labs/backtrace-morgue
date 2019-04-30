@@ -4772,7 +4772,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
        * If a callstack is present then render it in a pretty fashion.
        */
       if (ob.callstack) {
-        process.stdout.write('  callstack:'.yellow.bold);
+        process.stdout.write(('  ' + fields[a] + ':').yellow.bold);
         callstackPrint(ob.callstack);
       }
     }
@@ -4833,7 +4833,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
     }
 
     if (fields[field] === 'callstack') {
-      process.stdout.write('callstack:'.yellow.bold);
+      process.stdout.write(field.label.yellow.bold + ':');
       callstackPrint(object[field]);
       continue;
     }
