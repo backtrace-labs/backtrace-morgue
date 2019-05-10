@@ -5018,7 +5018,7 @@ function coronerCallstackEval(argv, coroner, p) {
     try {
       data = JSON.parse(zlib.gunzipSync(hr.bodyData).toString("utf8"));
     } catch (e) {
-      data = hr.bodyData;
+      data = JSON.parse(hr.bodyData);
     }
 
     return coroner.promise('post', '/api/callstack', csparams, data, null).then((csr) => {
