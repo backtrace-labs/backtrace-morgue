@@ -202,6 +202,7 @@ function prompt_for(items) {
 
 var commands = {
   attachment: coronerAttachment,
+  attribute: coronerAttribute,
   bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
@@ -3726,6 +3727,152 @@ function coronerBpg(argv, config) {
       return;
     }
     console.log(JSON.stringify(r,null,2));
+  });
+}
+
+function subcmdProcess(argv, config, opts) {
+  var subcmd;
+  var fn = null;
+
+  abortIfNotLoggedIn(config);
+  argv._.shift();
+  if (argv._.length === 0) {
+    return opts.usageFn("No request specified.");
+  }
+
+  subcmd = argv._.shift();
+  if (subcmd === "--help" || subcmd == "help")
+    return opts.usageFn();
+
+  opts.state = {
+    coroner: coronerClientArgv(config, argv),
+  };
+  if (opts.setupFn)
+    opts.setupFn(config, argv, opts, subcmd)
+
+  fn = opts.subcmds[subcmd];
+  if (fn) {
+    return fn(argv, config, opts);
+  }
+
+  opts.usageFn("Invalid subcommand '" + subcmd + "'.");
+}
+
+function attributeUsageFn(str) {
+  if (str)
+    err(str + "\n");
+  console.error("Usage: morgue attribute <create|delete> <project> <name> [options]");
+  console.error("");
+  console.error("Options for create (all but format are required):");
+  console.error("  --type=T         Specify type.");
+  console.error("  --description=D  Specify description.");
+  console.error("  --format=F       Specify formatting hint.");
+  process.exit(1);
+}
+
+function attributeSetupFn(config, argv, opts, subcmd) {
+  opts.params = {
+    projname: argv._[0],
+    attrname: argv._[1],
+  };
+  if (!opts.params.projname)
+    return attributeUsageFn("Missing project name.");
+  if (!opts.params.attrname)
+    return attributeUsageFn("Missing attribute name.");
+
+  opts.state.bpg = coronerBpgSetup(opts.state.coroner, argv);
+  opts.state.model = opts.state.bpg.get();
+  opts.state.project = opts.state.model.project.find((proj) => {
+    return proj.fields.name === opts.params.projname;
+  });
+  if (!opts.state.project)
+    return attributeUsageFn("Project not found.");
+
+  if (subcmd !== 'create') {
+    opts.state.attribute = opts.state.model.attribute.find((attrib) => {
+      return attrib.fields.name === opts.params.attrname;
+    });
+    if (!opts.state.attribute)
+      return attributeUsageFn("Attribute not found.");
+    opts.state.attr_key = {
+      project: opts.state.attribute.fields.project,
+      name: opts.state.attribute.fields.name,
+    };
+  }
+}
+
+function bpgCbFn(name, type) {
+  return (e, r) => {
+    if (e) {
+      console.error(`${name} ${type} failed: ${e}`);
+      return;
+    }
+    console.log(`${name} ${type} succeeded!`);
+  };
+}
+
+function bpgSingleRequest(request) {
+  return JSON.stringify({ actions: [ request ] });
+}
+
+function attributeSet(argv, config, opts) {
+  const state = opts.state;
+  if (!argv.description) {
+    return attributeUsageFn("Must specify new description.");
+  }
+
+  const request = bpgSingleRequest({
+    action: "modify",
+    type: "configuration/attribute",
+    key: state.attr_key,
+    fields: {
+      description: argv.description,
+    },
+  });
+
+  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'update'));
+}
+
+function attributeDelete(argv, config, opts) {
+  const state = opts.state;
+  const request = bpgSingleRequest({
+    action: "delete",
+    type: "configuration/attribute",
+    key: state.attr_key,
+  });
+  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'delete'));
+}
+
+function attributeCreate(argv, config, opts) {
+  const state = opts.state;
+
+  if (!argv.type) return attributeUsageFn("Must specify type.");
+  if (!argv.description) return attributeUsageFn("Must specify description.");
+
+  const request = bpgSingleRequest({
+    action: "create",
+    type: "configuration/attribute",
+    object: {
+      name: opts.params.attrname,
+      project: state.project.fields.pid,
+      type: argv.type,
+      description: argv.description,
+      format: argv.format,
+    },
+  });
+
+  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'create'));
+}
+
+function coronerAttribute(argv, config) {
+  subcmdProcess(argv, config, {
+    usageFn: attributeUsageFn,
+    setupFn: attributeSetupFn,
+    subcmds: {
+      //set: attributeSet, - not supported
+      create: attributeCreate,
+      delete: attributeDelete,
+    },
   });
 }
 
