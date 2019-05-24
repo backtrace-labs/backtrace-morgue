@@ -3740,7 +3740,7 @@ function subcmdProcess(argv, config, opts) {
     return opts.usageFn("No request specified.");
   }
 
-  subcmd = argv._.shift();
+  subcmd = argv._[0];
   if (subcmd === "--help" || subcmd == "help")
     return opts.usageFn();
 
@@ -3771,22 +3771,33 @@ function attributeUsageFn(str) {
 }
 
 function attributeSetupFn(config, argv, opts, subcmd) {
+  if (argv.length < 3) {
+    return attributeUsageFn("Incomplete command.");
+  }
+
   opts.params = {
-    projname: argv._[0],
-    attrname: argv._[1],
+    attrname: argv._[2],
   };
-  if (!opts.params.projname)
-    return attributeUsageFn("Missing project name.");
   if (!opts.params.attrname)
     return attributeUsageFn("Missing attribute name.");
 
   opts.state.bpg = coronerBpgSetup(opts.state.coroner, argv);
   opts.state.model = opts.state.bpg.get();
-  opts.state.project = opts.state.model.project.find((proj) => {
-    return proj.fields.name === opts.params.projname;
+  opts.state.context = coronerParams(argv, config);
+
+  const ctx = opts.state.context;
+  opts.state.universe = opts.state.model.universe.find((univ) => {
+    return univ.fields.name === ctx.universe;
   });
-  if (!opts.state.project)
-    return attributeUsageFn("Project not found.");
+  if (!opts.state.universe)
+    return attributeUsageFn(`Universe ${ctx.universe} not found.`);
+  opts.state.project = opts.state.model.project.find((proj) => {
+    return proj.fields.universe === opts.state.universe.fields.id &&
+      proj.fields.name === ctx.project;
+  });
+  if (!opts.state.project) {
+    return attributeUsageFn( `Project ${ctx.universe}/${ctx.project} not found.`);
+  }
 
   if (subcmd !== 'create') {
     opts.state.attribute = opts.state.model.attribute.find((attrib) => {
