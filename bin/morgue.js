@@ -116,6 +116,11 @@ function std_success_cb(r) {
   console.log('Success'.blue);
 }
 
+function std_json_cb(r) {
+  console.log('Success:'.blue);
+  console.log(JSON.stringify(r, null, 4));
+}
+
 function std_failure_cb(e) {
   var msg = e.toString();
 
@@ -232,6 +237,7 @@ var commands = {
   reprocess: coronerReprocess,
   retention: coronerRetention,
   sampling: coronerSampling,
+  service: coronerService,
   symbol: coronerSymbol,
   scrubber: coronerScrubber,
   setup: coronerSetup,
@@ -2841,6 +2847,34 @@ function coronerSampling(argv, config) {
   samplingUsage("Invalid sampling subcommand '" + subcmd + "'.");
 }
 
+function serviceUsageFn(str) {
+  if (str)
+    err(str + "\n");
+  console.error("Usage: morgue service <list|status>");
+}
+
+function serviceList(argv, config, opts) {
+  opts.state.coroner.promise('svclayer', 'list', null, null)
+    .then(std_json_cb).catch(std_failure_cb);
+}
+
+function serviceTokenCommand(argv, config, opts) {
+  const p = {token: opts.state.coroner.config.token};
+  opts.state.coroner.promise('svclayer', opts.state.subcmd, p, null)
+    .then(std_json_cb).catch(std_failure_cb);
+}
+
+function coronerService(argv, config) {
+  subcmdProcess(argv, config, {
+    usageFn: serviceUsageFn,
+    subcmds: {
+      list: serviceList,
+      status: serviceTokenCommand,
+      rescan: serviceTokenCommand,
+    },
+  });
+}
+
 /**
  * @brief: Implements the symbol list command.
  */
@@ -3746,6 +3780,7 @@ function subcmdProcess(argv, config, opts) {
 
   opts.state = {
     coroner: coronerClientArgv(config, argv),
+    subcmd: subcmd,
   };
   if (opts.setupFn)
     opts.setupFn(config, argv, opts, subcmd)
