@@ -5270,7 +5270,7 @@ function coronerCallstack(argv, config) {
     return fn(argv, coroner, p);
   }
 
-  coronerCallstackUsage("Invalid callstack subcommand '" + subcmd + "'.");
+  callstackUsage("Invalid callstack subcommand '" + subcmd + "'.");
 }
 
 /**
