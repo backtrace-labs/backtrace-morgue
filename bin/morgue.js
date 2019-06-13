@@ -5407,8 +5407,8 @@ function callstackUsage(str) {
   console.error("   morgue callstack evaluate <project> [--name=name] <object>|<filename>");
   console.error("     Evaluate a specific object/file.");
   console.error("");
-  console.error("   morgue callstack get <--name=name>");
-  console.error("     Retrieve the ruleset for the optional name.");
+  console.error("   morgue callstack get <--format=format>");
+  console.error("     Retrieve the ruleset for a specific format.");
   console.error("");
   process.exit(1);
 }
