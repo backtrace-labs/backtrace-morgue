@@ -5164,9 +5164,6 @@ function callstackUsage(str) {
   console.error("   morgue callstack get <--format=format>");
   console.error("     Retrieve the ruleset for a specific format.");
   console.error("");
-  console.error("   morgue callstack list");
-  console.error("     Dump all rulesets.");
-  console.error("");
   process.exit(1);
 }
 
@@ -5220,15 +5217,6 @@ function coronerCallstackEval(argv, coroner, p) {
   }).catch(std_failure_cb);
 }
 
-function coronerCallstackList(argv, coroner, p) {
-  const csparams = coronerCallstackParams(argv, p, "list");
-
-  coroner.promise('get', '/api/callstack', csparams).then((csr) => {
-    var json = JSON.parse(csr.toString("utf8"));
-    console.log(JSON.stringify(json, null, 4));
-  }).catch(std_failure_cb);
-}
-
 function coronerCallstackGet(argv, coroner, p) {
   const csparams = coronerCallstackParams(argv, p, "get");
 
@@ -5247,7 +5235,6 @@ function coronerCallstack(argv, config) {
   const subcmd_map = {
     evaluate: coronerCallstackEval,
     eval: coronerCallstackEval,
-    list: coronerCallstackList,
     get: coronerCallstackGet,
   };
 
