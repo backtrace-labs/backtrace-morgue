@@ -5173,7 +5173,7 @@ function callstackUsage(str) {
 function coronerCallstackParams(argv, p, action) {
   var csparams = Object.assign({
     action: action,
-    format: argv.format || "minidump",
+    name: argv.format || "minidump",
     fulljson: true,
   }, p);
   if (argv.language)
