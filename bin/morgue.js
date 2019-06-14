@@ -5282,15 +5282,15 @@ function coronerDeduplicationAdd(argv, coroner, p, bpg, rules) {
     const data = JSON.parse(fs.readFileSync(argv.rules, 'utf8'));
     rules.set('rules', JSON.stringify(data));
 
-    let priority = -1
-    if(argv.priority && parseInt(argv.priority) != 0)
-      priority = parseInt(argv.priority)
+    let priority = -1;
+    if (argv.priority && parseInt(argv.priority) != 0)
+      priority = parseInt(argv.priority);
     rules.set('priority', priority);
     bpg.create(rules);
     bpg.commit();
     console.log(`Rule ${argv.name} created`.blue);
   } else {
-    return deduplicationUsage(`Unknown file ${argv.rules}`)
+    return deduplicationUsage(`Unknown file ${argv.rules}`);
   }
 }
 
@@ -5301,8 +5301,7 @@ function coronerDeduplicationDelete(argv, coroner, p, bpg, rules) {
 }
 
 function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
-
-  var delta = {}
+  var delta = {};
 
   if (argv.priority && parseInt(argv.priority) != 0)
     delta.priority = parseInt(argv.priority);
@@ -5317,7 +5316,7 @@ function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
 }
 
 function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
-  const model = bpg.get()
+  const model = bpg.get();
 
   const printDeduplicationList = function(data, verbose) {
 
@@ -5337,7 +5336,7 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
       ]]);
     }
 
-    console.log(table(table_data))
+    console.log(table(table_data));
 
     if (verbose === true) {
 
@@ -5358,11 +5357,11 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
             e.platform,
             e.object,
             e.replacement,
-          ]
+          ];
           return arr;
         })
-        const to_print = verbose_table_data.concat(mapped)
-        console.log(table(to_print))
+        const to_print = verbose_table_data.concat(mapped);
+        console.log(table(to_print));
       }
 
     }
@@ -5385,8 +5384,8 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
 
     printDeduplicationList([found], argv.verbose);
   } else {
-    let fields = model.deduplication.map((e) => e.fields)
-    fields.sort((l, r) => l.priority - r.priority)
+    let fields = model.deduplication.map((e) => e.fields);
+    fields.sort((l, r) => l.priority - r.priority);
 
     printDeduplicationList(fields, argv.verbose);
   }
@@ -5423,33 +5422,33 @@ function coronerDeduplication(argv, config) {
 
   const model = bpg.get('project')
 
-  let pid = null
+  let pid = null;
 
   for (let i = 0; i < model.project.length; i++) {
-    const el = model.project[i]
+    const el = model.project[i];
     if (el.fields.name == p.project) {
-      pid = el.fields.pid
-      break
+      pid = el.fields.pid;
+      break;
     }
   }
 
   if (pid === null) {
-    return deduplicationUsage(`Unknown project ${p.project}`)
+    return deduplicationUsage(`Unknown project ${p.project}`);
   }
 
   let owner = coroner.config.user.uid;
   if (argv.owner !== undefined)
     owner = parseInt(argv.owner);
 
-  let rules = bpg.new('deduplication')
+  let rules = bpg.new('deduplication');
 
   if (argv.name !== undefined)
     rules.set('name', argv.name);
-  rules.set('id', 0)
-  rules.set('project', pid)
-  rules.set('rules', '')
-  rules.set('languages', 'c')
-  rules.set('enabled', 1)
+  rules.set('id', 0);
+  rules.set('project', pid);
+  rules.set('rules', '');
+  rules.set('languages', 'c');
+  rules.set('enabled', 1);
   rules.set('owner', owner);
   // rules.set('priority', priority);
   if(argv.platform)
@@ -5460,7 +5459,7 @@ function coronerDeduplication(argv, config) {
     try {
       return fn(argv, coroner, p, bpg, rules);
     } catch(e) {
-      return deduplicationUsage(e)
+      return deduplicationUsage(e);
     }
   }
 
