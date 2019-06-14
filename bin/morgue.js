@@ -5631,6 +5631,8 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
   } else {
     let fields = model.deduplication.map((e) => e.fields);
     fields.sort((l, r) => l.priority - r.priority);
+    let fields = model.deduplication.map((e) => e.fields)
+    fields.sort((l, r) => l.priority - r.priority)
 
     printDeduplicationList(fields, argv.verbose);
   }
@@ -5685,15 +5687,15 @@ function coronerDeduplication(argv, config) {
   if (argv.owner !== undefined)
     owner = parseInt(argv.owner);
 
-  let rules = bpg.new('deduplication');
+  let rules = bpg.new('deduplication')
 
   if (argv.name !== undefined)
     rules.set('name', argv.name);
-  rules.set('id', 0);
-  rules.set('project', pid);
-  rules.set('rules', '');
-  rules.set('languages', 'c');
-  rules.set('enabled', 1);
+  rules.set('id', 0)
+  rules.set('project', pid)
+  rules.set('rules', '')
+  rules.set('languages', 'c')
+  rules.set('enabled', 1)
   rules.set('owner', owner);
   // rules.set('priority', priority);
   if(argv.platform)
