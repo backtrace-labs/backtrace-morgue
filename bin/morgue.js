@@ -212,6 +212,7 @@ var commands = {
   error: coronerError,
   list: coronerList,
   callstack: coronerCallstack,
+  deduplication: coronerDeduplication,
   clean: coronerClean,
   report: coronerReport,
   latency: coronerLatency,
@@ -5258,6 +5259,212 @@ function coronerCallstack(argv, config) {
   }
 
   callstackUsage("Invalid callstack subcommand '" + subcmd + "'.");
+}
+
+function deduplicationUsage(str) {
+  if (str)
+    err(str + "\n");
+  console.error("Usage: morgue deduplication <subcommand>:");
+  console.error("   morgue deduplication add <universe>/<project> <--name=name> <--rules=rules_file> <--priority=priority>");
+  console.error("     Add deduplication rules to the project.");
+  console.error("");
+  console.error("   morgue deduplication delete <universe>/<project> <--name=name>");
+  console.error("     Remove the deduplication rule from the project.");
+  console.error("");
+  console.error("   morgue deduplication modify <universe>/<project> <--name=name> [--rules=<rules_file>] [--priority=<priority>]");
+  console.error("     Modify deduplication rules from the project.");
+  console.error("");
+  process.exit(1);
+}
+
+function coronerDeduplicationAdd(argv, coroner, p, bpg, rules) {
+  if (fs.existsSync(argv.rules)) {
+    const data = JSON.parse(fs.readFileSync(argv.rules, 'utf8'));
+    rules.set('rules', JSON.stringify(data));
+
+    let priority = -1
+    if(argv.priority && parseInt(argv.priority) != 0)
+      priority = parseInt(argv.priority)
+    rules.set('priority', priority);
+    bpg.create(rules);
+    bpg.commit();
+    console.log(`Rule ${argv.name} created`.blue);
+  } else {
+    return deduplicationUsage(`Unknown file ${argv.rules}`)
+  }
+}
+
+function coronerDeduplicationDelete(argv, coroner, p, bpg, rules) {
+  bpg.delete(rules);
+  bpg.commit();
+  console.log(`Rule ${argv.name} deleted`.blue);
+}
+
+function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
+
+  var delta = {}
+
+  if (argv.priority && parseInt(argv.priority) != 0)
+    delta.priority = parseInt(argv.priority);
+
+  if (argv.rules !== undefined && fs.existsSync(argv.rules)) {
+    const data = JSON.parse(fs.readFileSync(argv.rules, 'utf8'));
+    delta.rules = JSON.stringify(data);
+  }
+  bpg.modify(rules, delta);
+  bpg.commit();
+  console.log(`Rule ${argv.name} modified`.blue);
+}
+
+function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
+  const model = bpg.get()
+
+  const printDeduplicationList = function(data, verbose) {
+
+    let table_data = [
+      [ 'Name', 'Priority', 'Languages', 'Plaforms', 'Rules' ],
+    ];
+
+    for (let i = 0; i < data.length; i++) {
+      const el = data[i]
+      const parsed_rules = JSON.parse(el.rules);
+      table_data = table_data.concat([[
+        el.name,
+        el.priority,
+        el.languages,
+        el.platforms,
+        parsed_rules.length
+      ]]);
+    }
+
+    console.log(table(table_data))
+
+    if (verbose === true) {
+
+      const verbose_table_data = [[
+        'Action',
+        'Function',
+        'Platform',
+        'Object',
+        'Replacement'
+      ]]
+
+      for (let i = 0; i < data.length; i++) {
+        const parsed_rules = JSON.parse(data[i].rules);
+        const mapped = parsed_rules.map(function(e) {
+          const arr = [
+            e.actions,
+            e.function,
+            e.platform,
+            e.object,
+            e.replacement,
+          ]
+          return arr;
+        })
+        const to_print = verbose_table_data.concat(mapped)
+        console.log(table(to_print))
+      }
+
+    }
+  };
+
+  if (argv.name !== undefined) {
+    let found = undefined;
+
+    for (let i = 0; i < model.deduplication.length; i++) {
+      const el = model.deduplication[i].fields
+      if (el.name == argv.name) {
+        found = el;
+        break;
+      }
+    }
+
+    if (found === undefined) {
+      return;
+    }
+
+    printDeduplicationList([found], argv.verbose);
+  } else {
+    let fields = model.deduplication.map((e) => e.fields)
+    fields.sort((l, r) => l.priority - r.priority)
+
+    printDeduplicationList(fields, argv.verbose);
+  }
+}
+
+/**
+ * @brief Implements the deduplication command.
+ */
+function coronerDeduplication(argv, config) {
+  var coroner, fn, p, subcmd;
+
+  const subcmd_map = {
+    add: coronerDeduplicationAdd,
+    delete: coronerDeduplicationDelete,
+    modify: coronerDeduplicationModify,
+    list: coronerDeduplicationList,
+  };
+
+  argv._.shift();
+  if (argv._.length === 0) {
+    return deduplicationUsage("No request specified.");
+  }
+
+  subcmd = argv._[0];
+  if (subcmd === "--help" || subcmd === "help" || subcmd === "-h")
+    return deduplicationUsage();
+
+  coroner = coronerClientArgv(config, argv);
+  p = coronerParams(argv, config);
+  argv._.shift(); /* remove subcmd */
+  argv._.shift(); /* remove project */
+
+  const bpg = coronerBpgSetup(coroner, argv);
+
+  const model = bpg.get('project')
+
+  let pid = null
+
+  for (let i = 0; i < model.project.length; i++) {
+    const el = model.project[i]
+    if (el.fields.name == p.project) {
+      pid = el.fields.pid
+      break
+    }
+  }
+
+  if (pid === null) {
+    return deduplicationUsage(`Unknown project ${p.project}`)
+  }
+
+  let owner = coroner.config.user.uid;
+  if (argv.owner !== undefined)
+    owner = parseInt(argv.owner);
+
+  let rules = bpg.new('deduplication')
+
+  if (argv.name !== undefined)
+    rules.set('name', argv.name);
+  rules.set('id', 0)
+  rules.set('project', pid)
+  rules.set('rules', '')
+  rules.set('languages', 'c')
+  rules.set('enabled', 1)
+  rules.set('owner', owner);
+  // rules.set('priority', priority);
+  if(argv.platform)
+    rules.set('platforms', argv.platform);
+
+  fn = subcmd_map[subcmd];
+  if (fn) {
+    try {
+      return fn(argv, coroner, p, bpg, rules);
+    } catch(e) {
+      return deduplicationUsage(e)
+    }
+  }
+
+  deduplicationUsage("Invalid deduplication subcommand '" + subcmd + "'.");
 }
 
 /**
