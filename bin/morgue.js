@@ -29,6 +29,7 @@ const packageJson = require(path.join(__dirname, "..", "package.json"));
 const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
 const zlib      = require('zlib');
+const symbold = require('../lib/symbold.js');
 
 var levenshtein;
 
@@ -240,6 +241,7 @@ var commands = {
   sampling: coronerSampling,
   service: coronerService,
   symbol: coronerSymbol,
+  symbold: symboldClient,
   scrubber: coronerScrubber,
   setup: coronerSetup,
   user: coronerUser,
@@ -5154,6 +5156,14 @@ function unpackQueryObjects(objects, qresult) {
     });
   }
 }
+
+function symboldClient(argv, config) {
+  const coroner = coronerClientArgv(config, argv);
+  const symboldClient = new symbold.SymboldClient(coroner);
+  argv._.shift();
+  symboldClient.routeMethod(argv);
+}
+
 
 function callstackUsage(str) {
   if (str)
