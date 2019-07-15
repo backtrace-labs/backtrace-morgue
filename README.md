@@ -396,6 +396,168 @@ http://www.brendangregg.com/flamegraphs.html.
 Use `--unique` to only sample unique crashes. Use `--reverse` to begin sampling
 from leaf functions.
 
+
+
+### symbold
+
+Manage Backtrace symbold service
+
+```
+Usage: morgue symbold <symbolserver | whitelist | blacklist | skiplist | status> <action>
+```
+
+
+#### status
+Return Symbold service status for <[universe]/project>
+```
+Usage: morgue symbold status <[universe]/project>
+```
+
+#### symbolserver
+Symbol server allows you to manage symbol servers used by symbold
+
+#### list
+List Symbold symbol server assigned to <[universe]/project>
+```
+Usage: morgue symbold symbolserver list <[universe]/project>
+```
+Example:
+```
+$ morgue symbold symbolserver list backtrace
+```
+
+#### details
+Retruns detailed information about symbol server
+```
+Usage: morgue symbold symbolserver details [symbolserverid]
+```
+
+Example:
+```
+$ morgue symbold symbolserver details 1
+``` 
+Command line above will return detailed information for symbol server with id 1
+
+#### logs
+Returns symbol server logs. You can use page and take arguments to get more/less logs.
+```
+Usage: morgue symbold symbolserver logs [symbolserverid]
+```
+
+Example:
+```
+$ morgue symbold symbolserver logs 1 --take=100 --page=0
+```
+Command above will return first 100 logs from page 0
+
+#### add
+```
+Usage: morgue symbold symbolserver add <[universe]/project> [symbolserverurl] 
+  <--name=...>
+  <--concurrentdownload=...>
+  <--retrylimit=...>
+  <--timeout=...>
+  <--whitelist=...>
+  <--servercredentials.username=...>
+  <--servercredentials.password=...>
+  <--aws.accesskey=...>
+  <--aws.secret=...>
+  <--aws.bucketname=...>
+  <--aws.lowerfile=...>
+  <--aws.lowerid=...>
+  <--aws.usepdb=...>
+  <--proxy.host=...>
+  <--proxy.port=...>
+  <--proxy.username=...>
+  <--proxy.password=...>
+```
+Add new symbol server to symbold service. Available options:
+* `name` - symbol server name,
+* `concurrentdownload` - maximum number of concurrent download that symbolmd will do at the same time,
+* `timeout` - download timeout
+* `whitelist` - determine if symbol server should use whitelist or not,
+* `servercredentials` - symbol server auth options
+* `servercredentials.username` - symbol server auth user name,
+* `servercredentials.password` - symbol server auth password,
+* `aws.accesskey` - AWS S3 access key
+* `aws.secret` - AWS S3 secret
+* `aws.bucketname` - AWS S3 bucket name
+* `aws.lowerfile` - determine if symbold should use lower case symbol name
+* `aws.lowerid` - - determine if symbold should use lower case debug id
+* `aws.usepdb` - determine a way to generate url to S3 symbols
+* `proxy.host` - proxy host
+* `proxy.port` - proxy port
+* `proxy.username` - proxy username
+* `proxy.password` - proxy password
+
+
+Example:
+```
+$ morgue symbold symbolserver backtrace https://symbol.server.com --name=name --timeout=400
+```
+
+#### update
+```
+Usage: morgue symbold symbolserver update [symbolserverid] 
+  <--url=...>
+  <--name=...>
+  <--concurrentdownload=...>
+  <--retrylimit=...>
+  <--timeout=...>
+  <--whitelist=...>
+  <--servercredentials.username=...>
+  <--servercredentials.password=...>
+  <--aws.accesskey=...>
+  <--argv.aws.secret=...>
+  <--argv.aws.bucketname=...>
+  <--argv.aws.lowerfile=...>
+  <--argv.aws.lowerid=...>
+  <--argv.aws.usepdb=...>
+  <--argv.proxy.host=...>
+  <--argv.proxy.port=...>
+  <--argv.proxy.username=...>
+  <--argv.proxy.password=...>
+```
+Update  symbol server with id [symbolServerId]. If aws, proxy and servercredentials data doesn't exists symbold will ignore update server credentials. If any of them exists, symbold will try to update all properties.
+Example:
+```
+$ morgue symbold symbolserver update 1 --url="http://new.symbol.server.url"
+```
+
+#### disable
+```
+Usage: morgue symbold symbolserver disable [symbolserverid] 
+```
+Disable symbol server. Symbold won't use disabled symbol server.
+
+#### enable 
+```
+Usage: morgue symbold symbolserver enable [symbolserverid]
+```
+Enable symbol server.
+
+#### whitelist/blacklist/skiplist
+
+##### add 
+```
+Usage: morgue symbold [whitelist|blacklist] [--name=...]
+```
+Add new element to blacklist/whitelist
+
+
+##### remove 
+```
+Usage : morgue symbold [whitelist|blacklist|skiplist] [--itemid=...]
+```
+
+##### list 
+```
+Usage: morgue symbold [whitelist|blacklist|skiplist] <--page=...> <--take=...>
+```
+List <--take> elements from [whitelist|blacklist|skiplist] from <--page> page
+
+
+
 ### report
 
 Create and manage scheduled reports.
