@@ -11,7 +11,7 @@ gulp.task('compile', [
 ]);
 
 gulp.task('compile-lib', function () {
-  return gulp.src('lib/*.js')
+  return gulp.src('lib/**/*.js')
   .pipe(babel())
   .pipe(gulp.dest('dist/lib'));
 });
