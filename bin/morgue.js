@@ -1426,6 +1426,20 @@ function coronerAudit(argv, config) {
 
         console.log(JSON.stringify(rp.response.audits, null, 2));
       });
+  } else if (action === 'activate') {
+    coroner.control2(universe, 'audit',
+      {
+        'action': 'activate',
+        'form': {
+          'name' : argv._[2]
+        }
+      },
+      function(error, rp) {
+        if (error)
+          errx(error);
+
+        console.log((argv._[2] + ' is activated.').success);
+    });
   } else if (action === 'extract') {
     coroner.control2(universe, 'audit',
       {
