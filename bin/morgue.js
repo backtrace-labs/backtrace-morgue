@@ -5946,7 +5946,7 @@ function retentionSet(bpg, objects, argv, config) {
   act_obj.type = "configuration/" + rtn_type;
   if (!obj) {
     act_obj.action = "create";
-    act_obj.object = { rules: JSON.stringify(rules) };
+    act_obj.object = { id: 0, rules: JSON.stringify(rules) };
     if (rtn_parent_id) {
       act_obj.object[rtn_ptype] = rtn_parent_id;
     }
