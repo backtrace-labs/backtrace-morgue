@@ -210,6 +210,7 @@ var commands = {
   attachment: coronerAttachment,
   attribute: coronerAttribute,
   audit: coronerAudit,
+  log: coronerLog,
   bpg: coronerBpg,
   error: coronerError,
   list: coronerList,
@@ -1415,8 +1416,88 @@ function coronerAudit(argv, config) {
 
   var action = argv._[1];
 
-  if (action === 'list') {
+  if (action === 'extract') {
     coroner.control2(universe, 'audit',
+      {
+        'action': 'extract'
+      },
+      function(error, rp) {
+        if (error)
+          errx(error);
+
+        if (argv.json) {
+          console.log(JSON.stringify(rp, null, 2));
+        } else if (argv.table) {
+          const tableFormat = {
+            columns: {
+              2: {
+                'alignment': 'right'
+              },
+              3: {
+                'alignment': 'right'
+              }
+            },
+            drawHorizontalLine : function(i, s) {
+              if (i === 0 || i === 1 || i === s)
+                return true;
+            }
+          };
+          var m = rp.response.log;
+          var title = [
+            'Time',
+            'Tenant',
+            'Username',
+            'Component',
+            'Result',
+            'Message'
+          ];
+          var data = [title];
+
+          for (let i = 0; i < m.length; i++) {
+            var d = new Date(m[i].timestamp * 1000);
+            var r;
+
+            r = m[i].result;
+            if (r === 0) {
+              r = 'success'.green;
+            } else {
+              r = 'FAILURE'.red.bold;
+            }
+
+            m[i].message = m[i].message.replace(/[\x00-\x1F\x7F-\x9F]/g, "…").substring(0, 100);
+            data.push([d.toLocaleString(),
+              m[i].universe, m[i].username, m[i].subsystem,
+              r, m[i].message]);
+          }
+
+          console.log(table(data, tableFormat));
+        } else {
+            var m = rp.response.log
+
+            for (let i = 0; i < m.length; i++) {
+                process.stdout.write(m[i].message);
+            }
+        }
+      });
+  } else {
+    return usage("Unknown sub-command. Must be extract.");
+  }
+
+  return;
+}
+
+function coronerLog(argv, config) {
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  var universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  var action = argv._[1];
+
+  if (action === 'list') {
+    coroner.control2(universe, 'shml',
       {
         'action': 'list'
       },
@@ -1424,10 +1505,24 @@ function coronerAudit(argv, config) {
         if (error)
           errx(error);
 
-        console.log(JSON.stringify(rp.response.audits, null, 2));
+        console.log(JSON.stringify(rp.response.logs, null, 2));
       });
+  } else if (action === 'deactivate') {
+    coroner.control2(universe, 'shml',
+      {
+        'action': 'deactivate',
+        'form': {
+          'name' : argv._[2]
+        }
+      },
+      function(error, rp) {
+        if (error)
+          errx(error);
+
+        console.log((argv._[2] + ' is deactivated.').success);
+    });
   } else if (action === 'activate') {
-    coroner.control2(universe, 'audit',
+    coroner.control2(universe, 'shml',
       {
         'action': 'activate',
         'form': {
@@ -1441,20 +1536,24 @@ function coronerAudit(argv, config) {
         console.log((argv._[2] + ' is activated.').success);
     });
   } else if (action === 'extract') {
-    coroner.control2(universe, 'audit',
-      {
+    var q = {
         'action': 'extract',
         'form': {
           'name' : argv._[2]
         }
-      },
+    };
+
+    if (argv.universe)
+      q.form.universe = argv.universe;
+
+    coroner.control2(universe, 'shml', q,
       function(error, rp) {
         if (error)
           errx(error);
 
         if (argv.json) {
-          console.log(JSON.stringify(rp,null,2));
-        } else {
+          console.log(JSON.stringify(rp, null, 2));
+        } else if (argv.table) {
           for (let log in rp.response) {
             const tableFormat = {
               columns: {
@@ -1488,6 +1587,7 @@ function coronerAudit(argv, config) {
                 r = r.red;
               }
 
+              m[i].message = m[i].message.replace(/[\x00-\x1F\x7F-\x9F]/g, "…").substring(0, 100);
               data.push([d.toLocaleString(),
                 m[i].universe, m[i].subsystem,
                 r, m[i].message]);
@@ -1495,6 +1595,18 @@ function coronerAudit(argv, config) {
 
             console.log(log.bold);
             console.log(table(data, tableFormat));
+          }
+        } else {
+          for (let log in rp.response) {
+            var m = rp.response[log];
+
+            for (let i = 0; i < m.length; i++) {
+              if (m[i].message[m[i].message.length - 1] === '\n') {
+                process.stdout.write(m[i].message);
+              } else {
+                console.log(m[i].message);
+              }
+            }
           }
         }
       });
