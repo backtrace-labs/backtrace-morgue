@@ -25,9 +25,9 @@
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
     "babel-core": "^6.26.0",
-    "backtrace-node": "^1.0.3",
+    "backtrace-node": "^1.0.5",
     "btoa": "^1.1.2",
-    "chrono-node": "^1.3.4",
+    "chrono-node": "^1.3.11",
     "clone": "^2.1.0",
     "colors": "^1.1.2",
     "extsprintf": "^1.3.0",
@@ -35,8 +35,8 @@
     "ip": "^1.1.4",
     "minimist": "^1.2.0",
     "mkdirp": "^0.5.1",
-    "moment": "^2.15.1",
-    "moment-timezone": "^0.5.13",
+    "moment": "^2.24.0",
+    "moment-timezone": "^0.5.26",
     "printf": "^0.2.5",
     "prompt": "^1.0.0",
     "request": "^2.80.0",
@@ -55,7 +55,7 @@
   "devDependencies": {
     "babel-preset-env": "^1.1.8",
     "del": "^3.0.0",
-    "gulp": "^3.9.1",
+    "gulp": "^4.0.2",
     "gulp-babel": "^7.0.1"
   }
 }
