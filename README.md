@@ -450,6 +450,16 @@ $ morgue symbold symbolserver logs 1 --take=100 --page=0
 ```
 Command above will return first 100 logs from page 0
 
+#### filter logs
+Returns filtered symbol server logs. By using this command you can filter all logs that match your criteria.
+```
+Usage morgue symbold symbolserver logs [symbolserverid] filter [filter]
+```
+
+Example:
+```
+morgue.js symbold symbolserver logs 5 filter a --take=100 --page=1
+```
 #### add
 ```
 Usage: morgue symbold symbolserver add <[universe]/project> [symbolserverurl] 
@@ -525,12 +535,14 @@ $ morgue symbold symbolserver update 1 --url="http://new.symbol.server.url"
 ```
 
 #### disable
+Disable symbol server. Symbold won't use disabled symbol server. 
 ```
 Usage: morgue symbold symbolserver disable [symbolserverid] 
 ```
 Disable symbol server. Symbold won't use disabled symbol server.
 
 #### enable 
+Enable symbol server. Symbold won't use disabled symbol server. 
 ```
 Usage: morgue symbold symbolserver enable [symbolserverid]
 ```
@@ -539,6 +551,7 @@ Enable symbol server.
 #### whitelist/blacklist/skiplist
 
 ##### add 
+Add new element to whitelist/blacklist
 ```
 Usage: morgue symbold [whitelist|blacklist] [--name=...]
 ```
@@ -546,17 +559,85 @@ Add new element to blacklist/whitelist
 
 
 ##### remove 
+Remove element from skiplist/blacklist/skiplist by using element id
 ```
 Usage : morgue symbold [whitelist|blacklist|skiplist] [--itemid=...]
 ```
 
 ##### list 
+List <--take> elements from [whitelist|blacklist|skiplist] from <--page> page
 ```
 Usage: morgue symbold [whitelist|blacklist|skiplist] <--page=...> <--take=...>
 ```
-List <--take> elements from [whitelist|blacklist|skiplist] from <--page> page
 
 
+#### skiplist [only]
+
+##### find 
+Find elements in skiplist
+```
+morgue symbold skiplist find [symbolServerId] [filter] <--page=...> <--take=...>
+```
+Usage: 
+```
+$ morgue symbold skiplist find 5 sample.dll 
+```
+
+
+##### remove all 
+Remove all elements in skiplist
+```
+morgue symbold skiplist remove all [symbolServerId]
+```
+Usage: 
+```
+$ morgue symbold skiplist remove all 5
+```
+
+##### remove by filter
+Remove all elements in skiplist that match filter criteria  
+```
+morgue symbold skiplist remove all [symbolServerId]
+```
+Usage: 
+```
+$ morgue symbold skiplist remove all 5
+```
+
+
+#### queue
+Symbold queue commands
+
+##### list 
+returns all events in symbold queue
+```
+Usage: morgue symbold queue list 
+```
+
+##### Add
+Add event on the top of symbold queue 
+```
+morgue symbold queue <add | create> <universe/project> <missingSymbol> <objectId> 
+```
+Usage:
+```
+$ morgue symbold queue add universe/project "a.pdb,123" 123
+```
+
+##### Size
+Returns queue size - how many reports symbold still have to reprocess
+
+```
+Usage: morgue symbold queue size
+```
+
+
+##### Symbold
+List all missing symbols from symbold events
+
+```
+Usage: morgue symbold queue symbold
+```
 
 ### report
 
