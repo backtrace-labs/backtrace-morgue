@@ -493,15 +493,23 @@ function coronerClient(config, insecure, debug, endpoint, timeout) {
     debug: debug,
     endpoint: endpoint,
     timeout: timeout,
-    config: config.config
+    config: config.config,
   });
 }
 
 function coronerClientArgv(config, argv) {
-  return coronerClient(config, !!argv.k, !!argv.debug, config.endpoint,
-    argv.timeout);
+  if (argv.token && argv.endpoint) {
+    config.config.token = argv.token;
+    config.endpoint = argv.endpoint;
+  }
+  return coronerClient(
+    config,
+    !!argv.k,
+    !!argv.debug,
+    config.endpoint,
+    argv.timeout
+  );
 }
-
 function coronerClientArgvSubmit(config, argv) {
   return coronerClient(config, !!argv.k, argv.debug,
     config.submissionEndpoint, argv.timeout);
