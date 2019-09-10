@@ -1475,7 +1475,12 @@ function coronerAudit(argv, config) {
             var m = rp.response.log
 
             for (let i = 0; i < m.length; i++) {
-                process.stdout.write(m[i].message);
+                process.stdout.write(
+                  printf("%23s %15s %7s %s %s %s\n",
+                    "[" + (new Date(m[i].timestamp * 1000)).toLocaleString() + "]",
+                    m[i].subsystem, m[i].result === 0 ? 'success' : 'FAILURE',
+                    m[i].universe, m[i].username, m[i].message)
+                );
             }
         }
       });
