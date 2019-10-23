@@ -3743,9 +3743,6 @@ function argvQuery(argv) {
   var query = {};
   var d_age = null;
 
-  if (argv.table === 'objects')
-    d_age = '1M';
-
   if (argv['raw-query']) {
     return { query: JSON.parse(argv['raw-query']) };
   }
@@ -3778,9 +3775,6 @@ function argvQuery(argv) {
         errx('Filter must be of form <column>,<operation>[,<value>].');
       }
 
-      if (r[0] === 'timestamp')
-        errx('use --age or --time to filter on timestamp');
-
       if (!query.filter[0][r[0]])
         query.filter[0][r[0]] = [];
 
@@ -3805,6 +3799,9 @@ function argvQuery(argv) {
     query.filter[0].timestamp = [];
 
   if (argv.time) {
+    if (query.filter[0].timestamp && query.filter[0].timestamp.length > 0)
+      errx('Cannot mix --time and timestamp filters');
+
     var tm = chrono.parse(argv.time);
     var ts_attr = 'timestamp';
     var ts_s, ts_e;
@@ -3852,8 +3849,6 @@ function argvQuery(argv) {
     ];
 
     d_age = null;
-  } else if (argv.table === 'objects') {
-    query.filter[0].timestamp.push([ 'greater-than', 0 ]);
   }
 
   if (argv.factor) {
@@ -3903,8 +3898,14 @@ function argvQuery(argv) {
     query.filter[0].fingerprint.push([op, ar]);
   }
 
-  if (argv.age)
+  if (argv.age) {
+    if (query.filter[0].timestamp && query.filter[0].timestamp.length > 0)
+      errx('Cannot mix --age and timestamp filters');
+
     d_age = argv.age;
+  } else if (!query.filter[0].timestamp || query.filter[0].timestamp.length == 0) {
+    d_age = '1M';
+  }
 
   if (d_age) {
     var now = Date.now();
@@ -3928,6 +3929,11 @@ function argvQuery(argv) {
         }
       }
     }
+  }
+
+  if (argv.table === 'objects') {
+    if (!query.filter[0].timestamp || query.filter[0].timestamp.length === 0)
+      query.filter[0].timestamp.push([ 'greater-than', 0 ]);
   }
 
   return { query: query, age: d_age };
