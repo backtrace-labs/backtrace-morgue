@@ -6080,26 +6080,28 @@ function usageRetentionStatus(str) {
   return;
 }
 
+function oiiToString(oii) {
+  if (oii.namespace !== null) {
+    let str = `next namespace ${oii.namespace} oid ${oii.object_id}`;
+    let expiry_ts = parseInt(oii.expiry_time);
+    if (expiry_ts && expiry_ts > 0) {
+      str += ` expires at ${Date(expiry_ts * 1000).toString()}`;
+    } else {
+      str += " no expiry";
+    }
+    return str;
+  } else {
+    return "idle, awaiting new objects";
+  }
+}
+
 function critToString(c) {
   var str = c.type;
   var expiry_ts;
   var expiry_time = 0;
 
   if (c.type === "object-age") {
-    var n_o = c.next_object;
-    str += " " + c.op + " " + c.value + ";";
-    if (n_o.namespace !== null) {
-      str += " next namespace " + n_o.namespace + " oid " + n_o.object_id;
-      expiry_ts = parseInt(n_o.expiry_time);
-      if (expiry_ts && expiry_ts > 0) {
-        expiry_time = new Date(expiry_ts * 1000);
-        str += " expires at " + expiry_time.toString();
-      } else {
-        str += " no expiry";
-      }
-    } else {
-      str += " idle, awaiting new objects";
-    }
+    str += ` ${c.op} ${c.value}; ${oiiToString(c.next_object)}`;
   }
   return str;
 }
@@ -6146,6 +6148,19 @@ function retentionStatusDump(argv, obj, name, level, indent) {
       if (action.subsets && action.subsets.indexOf("physical") != -1)
         s += " (physical only)";
       console.log(spaces + s);
+      if (argv.verbose && crit.next_object && crit.next_object.instances) {
+        for (const noi of crit.next_object.instances) {
+          if (noi.namespace === crit.next_object.namespace)
+            continue;
+          /* Skip namespaces that don't keep objects. */
+          if (!argv.includeall) {
+            if (noi.namespace.endsWith("/symbols"))
+              continue;
+          }
+
+          console.log(spaces + `  -> ${oiiToString(noi)}`);
+        }
+      }
     }
   }
   if (typeof obj.children === 'object') {
