@@ -1570,6 +1570,9 @@ function coronerLog(argv, config) {
           for (let log in rp.response) {
             const tableFormat = {
               columns: {
+                1: {
+                  'alignment': 'right'
+                },
                 2: {
                   'alignment': 'right'
                 }
@@ -1581,9 +1584,8 @@ function coronerLog(argv, config) {
             };
             var m = rp.response[log];
             var title = [
-              'Time',
-              'U',
-              'Action',
+              'Date',
+              'Tenant',
               'Result',
               'Message'
             ];
@@ -1602,7 +1604,7 @@ function coronerLog(argv, config) {
 
               m[i].message = m[i].message.replace(/[\x00-\x1F\x7F-\x9F]/g, "…").substring(0, 100);
               data.push([d.toLocaleString(),
-                m[i].universe, m[i].subsystem,
+                m[i].universe,
                 r, m[i].message]);
             }
 
