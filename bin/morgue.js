@@ -1614,6 +1614,7 @@ function coronerLog(argv, config) {
             var m = rp.response[log];
 
             for (let i = 0; i < m.length; i++) {
+              process.stdout.write((new Date(m[i].timestamp * 1000)).toISOString() + " ");
               if (m[i].message[m[i].message.length - 1] === '\n') {
                 process.stdout.write(m[i].message);
               } else {
