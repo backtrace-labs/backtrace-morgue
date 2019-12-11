@@ -6080,14 +6080,22 @@ function usageRetentionStatus(str) {
   return;
 }
 
-function oiiToString(oii) {
+function oiiToString(oii, crit) {
   if (oii.namespace !== null) {
     let str = `next namespace ${oii.namespace} oid ${oii.object_id}`;
     let expiry_ts = parseInt(oii.expiry_time);
     if (expiry_ts && expiry_ts > 0) {
-      str += ` expires at ${Date(expiry_ts * 1000).toString()}`;
+      str += ` expires at ${new Date(expiry_ts * 1000).toString()}`;
     } else {
-      str += " no expiry";
+      /* estimate expiry time if receive time available */
+      const toff = parseInt(crit.value);
+      expiry_ts = parseInt(oii.recvtime);
+      if (expiry_ts && toff) {
+        expiry_ts += toff;
+        str += ` should expire at ${new Date(expiry_ts * 1000).toString()}`;
+      } else {
+        str += " idle, awaiting new objects";
+      }
     }
     return str;
   } else {
@@ -6097,11 +6105,9 @@ function oiiToString(oii) {
 
 function critToString(c) {
   var str = c.type;
-  var expiry_ts;
-  var expiry_time = 0;
 
   if (c.type === "object-age") {
-    str += ` ${c.op} ${c.value}; ${oiiToString(c.next_object)}`;
+    str += ` ${c.op} ${c.value}; ${oiiToString(c.next_object, c)}`;
   }
   return str;
 }
@@ -6149,7 +6155,8 @@ function retentionStatusDump(argv, obj, name, level, indent) {
         s += " (physical only)";
       console.log(spaces + s);
       if (argv.verbose && crit.next_object && crit.next_object.instances) {
-        for (const noi of crit.next_object.instances) {
+        for (let i = 0; i < crit.next_object.instances.length; i++) {
+          const noi = crit.next_object.instances[i];
           if (noi.namespace === crit.next_object.namespace)
             continue;
           /* Skip namespaces that don't keep objects. */
@@ -6158,7 +6165,7 @@ function retentionStatusDump(argv, obj, name, level, indent) {
               continue;
           }
 
-          console.log(spaces + `  -> ${oiiToString(noi)}`);
+          console.log(spaces + `  -> ${oiiToString(noi, crit)}`);
         }
       }
     }
