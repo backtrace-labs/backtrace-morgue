@@ -2723,9 +2723,17 @@ function put_benchmark(coroner, argv, files, p) {
 }
 
 function coronerPut(argv, config) {
+  console.log(argv)
   abortIfNotLoggedIn(config);
   const form = argv.form_data;
-  var formats = { 'btt' : true, 'minidump' : true, 'json' : true, 'symbols' : true };
+  var formats = {
+    'btt' : true,
+    'minidump' : true,
+    'json' : true,
+    'symbols' : true,
+    'symbols-proguard': true,
+    'sourcemap': true
+  };
   var p;
   var supported_compression = {'gzip' : true, 'deflate' : true};
   var attachments = [];
@@ -2746,6 +2754,11 @@ function coronerPut(argv, config) {
   p.format = argv.format;
   if (p.format === 'symbols' && argv.tag) {
     p.tag = argv.tag;
+  }
+  if (argv.symbolication_id !== undefined)
+    p.symbolication_id = argv.symbolication_id;
+  if (p.format ==='symbols-proguard') {
+    p.format = 'proguard';
   }
   if (p.format === 'minidump') {
     if (argv.kv)
@@ -2798,6 +2811,8 @@ function coronerPut(argv, config) {
   if (argv.benchmark) {
     return put_benchmark(coroner, argv, files, p);
   }
+
+console.log(p)
 
   var success_cb = function(r, path) {
     if (r.fingerprint) {
@@ -5404,11 +5419,11 @@ function callstackUsage(str) {
   if (str)
     err(str + "\n");
   console.error("Usage: morgue callstack <subcommand>:");
-  console.error("   morgue callstack evaluate <project> [--name=name] <object>|<filename>");
+  console.error("   morgue callstack evaluate <project> [--name=fmt] <object>|<filename>");
   console.error("     Evaluate a specific object/file.");
   console.error("");
-  console.error("   morgue callstack get <--name=name>");
-  console.error("     Retrieve the ruleset for the optional name.");
+  console.error("   morgue callstack get [project] [--language=language] <--name=name>");
+  console.error("     Retrieve the ruleset for a specific name.");
   console.error("");
   process.exit(1);
 }
@@ -5416,9 +5431,11 @@ function callstackUsage(str) {
 function coronerCallstackParams(argv, p, action) {
   var csparams = Object.assign({
     action: action,
-    name: argv.format || "minidump",
+    // name: argv.name || "minidump",
     fulljson: true,
   }, p);
+  if (argv.name)
+    csparams.name = argv.name;
   if (argv.language)
     csparams.language = argv.language;
   if (argv.platform)
@@ -5465,6 +5482,9 @@ function coronerCallstackEval(argv, coroner, p) {
 
 function coronerCallstackGet(argv, coroner, p) {
   const csparams = coronerCallstackParams(argv, p, "get");
+
+  console.log(p)
+  console.log(csparams)
 
   coroner.promise('get', '/api/callstack', csparams).then((csr) => {
     var json = JSON.parse(csr.toString("utf8"));
@@ -5566,7 +5586,7 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
   const printDeduplicationList = function(data, verbose) {
 
     let table_data = [
-      [ 'Name', 'Priority', 'Languages', 'Plaforms', 'Rules' ],
+      [ 'Name', 'Priority', 'Languages', 'Plaforms', 'Rules', 'Enabled'],
     ];
 
     for (let i = 0; i < data.length; i++) {
@@ -5577,7 +5597,8 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
         el.priority,
         el.languages,
         el.platforms,
-        parsed_rules.length
+        parsed_rules.length,
+        el.enabled,
       ]]);
     }
 
@@ -5590,7 +5611,8 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
         'Function',
         'Platform',
         'Object',
-        'Replacement'
+        'Replacement',
+        'Attribute',
       ]]
 
       for (let i = 0; i < data.length; i++) {
@@ -5602,6 +5624,7 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
             e.platform,
             e.object,
             e.replacement,
+            e.attribute,
           ];
           return arr;
         })
