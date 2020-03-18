@@ -2723,7 +2723,6 @@ function put_benchmark(coroner, argv, files, p) {
 }
 
 function coronerPut(argv, config) {
-  console.log(argv)
   abortIfNotLoggedIn(config);
   const form = argv.form_data;
   var formats = {
@@ -5431,7 +5430,6 @@ function callstackUsage(str) {
 function coronerCallstackParams(argv, p, action) {
   var csparams = Object.assign({
     action: action,
-    // name: argv.name || "minidump",
     fulljson: true,
   }, p);
   if (argv.name)
@@ -5482,9 +5480,6 @@ function coronerCallstackEval(argv, coroner, p) {
 
 function coronerCallstackGet(argv, coroner, p) {
   const csparams = coronerCallstackParams(argv, p, "get");
-
-  console.log(p)
-  console.log(csparams)
 
   coroner.promise('get', '/api/callstack', csparams).then((csr) => {
     var json = JSON.parse(csr.toString("utf8"));
