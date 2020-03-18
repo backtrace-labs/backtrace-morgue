@@ -246,6 +246,7 @@ var commands = {
   symbold: symboldClient,
   scrubber: coronerScrubber,
   setup: coronerSetup,
+  status: coronerStatus,
   user: coronerUser,
   merge: coronerMerge,
   unmerge: coronerUnmerge,
@@ -3119,6 +3120,50 @@ function coronerService(argv, config) {
       rescan: serviceTokenCommand,
     },
   });
+}
+
+function statusUsage(error_str) {
+  if (typeof error_str === 'string')
+    err(error_str + '\n');
+  console.log("Usage: morgue status <type> ...".error);
+  process.exit(1);
+}
+
+function statusReload(argv, config, params, coroner) {
+  const p = {
+    action: 'status',
+    token: coroner.config.token,
+  };
+
+  coroner.promise('post', '/api/control', null, p, null).then((rsp) => {
+    console.log(JSON.stringify(rsp.reloads, null, 4));
+  }).catch(std_failure_cb);
+}
+
+/**
+ * @brief Implements the status command.
+ */
+function coronerStatus(argv, config) {
+  abortIfNotLoggedIn(config);
+  var fn, object, params, subcmd;
+  var coroner = coronerClientArgv(config, argv);
+  var subcmds = {
+    reload: statusReload,
+  };
+
+  if (argv._.length < 2)
+    statusUsage("Not enough arguments specified.");
+
+  argv._.shift();
+  /* Extract u/p at this point since they'll be in the correct position. */
+  params = coronerParams(argv, config);
+  subcmd = argv._.shift();
+  fn = subcmds[subcmd];
+  if (!fn)
+    statusUsage("No such subcommand " + subcmd);
+
+  argv._.shift();
+  fn(argv, config, params, coroner);
 }
 
 /**
