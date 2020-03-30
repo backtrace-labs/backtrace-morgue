@@ -4938,81 +4938,119 @@ function coronerList(argv, config) {
       })();
     }
   } else {
-    coroner.query(p.universe, p.project, query, function (err, result) {
-      if (err) {
-        errx(err.message);
-      }
+    if (!argv.limit){
+      argv.limit = 100;
+    } else if (argv.limit && argv.limit > 100) {
+      argv.limit = 100;
+    }
+    query.limit = argv.limit;
 
-      if (argv.raw) {
-        var pp;
-
-        try {
-          pp = JSON.stringify(result);
-        } catch (err) {
-          pp = result;
+    function fetchCoronerList() {
+      coroner.query(p.universe, p.project, query, function(err, result) {
+        if (err) {
+          errx(err.message);
         }
 
-        console.log(pp);
-        return;
-      }
+        if (argv.raw) {
+          var pp;
 
-      if (query.set) {
-        if (result.response.result === 'success')
-          console.log('Success'.blue);
-        else
-          console.log('result:\n' + JSON.stringify(result.response));
-      } else {
+          try {
+            pp = JSON.stringify(result);
+          } catch (err) {
+            pp = result;
+          }
 
-        var rp = new crdb.Response(result.response);
-
-        if (argv.json) {
-          var results = rp.unpack();
-
-          console.log(JSON.stringify(results, null, 2));
+          console.log(pp);
           return;
         }
 
-        coronerPrint(query, rp, result.response, null, result._.runtime, argv.csv);
-
-        var date_label;
-        if (d_age) {
-          date_label = 'as of ' + d_age + ' ago';
+        if (query.set) {
+          if (result.response.result === "success") console.log("Success".blue);
+          else console.log("result:\n" + JSON.stringify(result.response));
         } else {
-          date_label = 'with a time range of ' + argv.time;
+          var rp = new crdb.Response(result.response);
+
+          if (argv.json) {
+            var results = rp.unpack();
+
+            console.log(JSON.stringify(results, null, 2));
+            return;
+          }
+
+          coronerPrint(
+            query,
+            rp,
+            result.response,
+            null,
+            result._.runtime,
+            argv.csv
+          );
+
+          var date_label;
+          if (d_age) {
+            date_label = "as of " + d_age + " ago";
+          } else {
+            date_label = "with a time range of " + argv.time;
+          }
         }
-      }
 
-      if (argv.verbose) {
-        console.log('Timing:'.yellow);
+        if (argv.verbose) {
+          console.log("Timing:".yellow);
 
-        var o = '';
-        var aggs = result._.runtime.aggregate;
-        if ('time' in aggs)
-          aggs = aggs.time
-        else if ('pre_sort' in aggs)
-          aggs = aggs.pre_sort + aggs.post_sort;
+          var o = "";
+          var aggs = result._.runtime.aggregate;
+          if ("time" in aggs) aggs = aggs.time;
+          else if ("pre_sort" in aggs) aggs = aggs.pre_sort + aggs.post_sort;
 
-        o += '     Rows: '.yellow + result._.runtime.filter.rows + '\n';
-        o += '   Filter: '.yellow + result._.runtime.filter.time + 'us (' +
-          Math.ceil(result._.runtime.filter.time /
-            result._.runtime.filter.rows * 1000) + 'ns / row)\n';
-        o += '    Group: '.yellow + result._.runtime.group_by.time + 'us (' +
-          Math.ceil(result._.runtime.group_by.time /
-            result._.runtime.group_by.groups) + 'us / group)\n';
-        o += 'Aggregate: '.yellow + aggs + 'us\n';
-        o += '     Sort: '.yellow + result._.runtime.sort.time + 'us\n';
-        if (result._.runtime.set) {
-          o += '      Set: '.yellow + result._.runtime.set.time + 'us\n';
+          o += "     Rows: ".yellow + result._.runtime.filter.rows + "\n";
+          o +=
+            "   Filter: ".yellow +
+            result._.runtime.filter.time +
+            "us (" +
+            Math.ceil(
+              (result._.runtime.filter.time / result._.runtime.filter.rows) * 1000
+            ) +
+            "ns / row)\n";
+          o +=
+            "    Group: ".yellow +
+            result._.runtime.group_by.time +
+            "us (" +
+            Math.ceil(
+              result._.runtime.group_by.time / result._.runtime.group_by.groups
+            ) +
+            "us / group)\n";
+          o += "Aggregate: ".yellow + aggs + "us\n";
+          o += "     Sort: ".yellow + result._.runtime.sort.time + "us\n";
+          if (result._.runtime.set) {
+            o += "      Set: ".yellow + result._.runtime.set.time + "us\n";
+          }
+          o += "    Total: ".yellow + result._.runtime.total_time + "us";
+          console.log(o + "\n");
         }
-        o += '    Total: '.yellow + result._.runtime.total_time + 'us';
-        console.log(o + '\n');
-      }
 
-      var footer = result._.user + ': ' +
-          result._.universe + '/' + result._.project + ' ' + date_label +
-            ' [' + result._.latency + ']';
-      console.log(footer.blue);
-    });
+        var footer =
+          result._.user +
+          ": " +
+          result._.universe +
+          "/" +
+          result._.project +
+          " " +
+          date_label +
+          " [" +
+          result._.latency +
+          "]";
+        console.log(footer.blue);
+        if (result.response.values.some(n => n.length > 1)) {
+          query.offset = query.offset
+            ? query.offset + query.limit
+            : query.limit;
+          fetchCoronerList();
+        } else {
+          console.debug(`Ended reprossing files`);
+        }
+      });
+    }
+    fetchCoronerList();
   }
 }
 
@@ -5374,15 +5412,18 @@ function coronerPrint(query, rp, raw, columns, runtime, csv) {
     range: rangePrint,
   };
 
-  const writeStream = fs.createWriteStream(csv);
+  // write stream to save data to .csv file.
+  // in vase if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
+  const writeStream = csv ? fs.createWriteStream(csv, {
+    flags: 'a' // always try to append data to existing csv file - in case if we need to apply pagination rules
+  }) : undefined;
   for (g in results) {
     objectPrint(g, results[g], renderer, fields, runtime, writeStream);
-      if (writeStream) {
-        writeStream.write('\n');
-      }
     process.stdout.write('\n');
   }
-
+  if(writeStream){
+    writeStream.end();
+  }
   return;
 }
 
