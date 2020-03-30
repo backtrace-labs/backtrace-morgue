@@ -4800,7 +4800,7 @@ function coronerList(argv, config) {
   //validate csv parameter - validate output dir
   let csv = argv.csv;
   if (csv && !fs.existsSync(path.dirname(csv))){
-    return usage("Detected 'csv' option. Path to csv doesn't exist");
+    return usage("Path to destination csv file doesn't exist");
   }
 
   if(csv && !argv.select) {
@@ -4947,10 +4947,11 @@ function coronerList(argv, config) {
     // otherwise we want to aggregate data - so backend, won't return 
     // too many rows from database
     if(argv.select){
+      const defaultLimit = 1000;
       if (!argv.limit){
-        argv.limit = 100;
-      } else if (argv.limit && argv.limit > 100) {
-        argv.limit = 100;
+        argv.limit = defaultLimit;
+      } else if (argv.limit && argv.limit > defaultLimit) {
+        argv.limit = defaultLimit;
       }
       query.limit = argv.limit;
     }
