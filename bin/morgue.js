@@ -4797,6 +4797,11 @@ function coronerList(argv, config) {
     return usage("Missing project, universe arguments");
   }
 
+  //validate csv parameter 
+  if (argv.csv && !fs.existsSync(path.dirname(argv.csv))){
+    return usage("Detected 'csv' option. Path to csv doesn't exist");
+  }
+
   p = coronerParams(argv, config);
 
   if (!argv.table) {
@@ -4967,7 +4972,7 @@ function coronerList(argv, config) {
           return;
         }
 
-        coronerPrint(query, rp, result.response, null, result._.runtime);
+        coronerPrint(query, rp, result.response, null, result._.runtime, argv.csv);
 
         var date_label;
         if (d_age) {
@@ -5213,7 +5218,7 @@ function callstackPrint(cs) {
   process.stdout.write('\n');
 }
 
-function objectPrint(g, object, renderer, fields, runtime) {
+function objectPrint(g, object, renderer, fields, runtime, csvWriter) {
   var string = String(g);
   var field, start, stop, sa;
 
@@ -5254,8 +5259,11 @@ function objectPrint(g, object, renderer, fields, runtime) {
 
         if (a === 'callstack')
           continue;
-
-        console.log('  ' + a.yellow.bold + ': ' + fieldFormat(ob[a], fields[a]));
+        const prettyValue = fieldFormat(ob[a], fields[a]);
+        if(csvWriter){
+          csvWriter.write(prettyValue + ';');
+        }
+        console.log("  " + a.yellow.bold + ": " + prettyValue);
       }
 
       /*
@@ -5263,7 +5271,13 @@ function objectPrint(g, object, renderer, fields, runtime) {
        */
       if (ob.callstack) {
         process.stdout.write(('  ' + fields[a] + ':').yellow.bold);
+        if(csvWriter){
+          csvWriter.write(ob.callstack + ";");
+        }
         callstackPrint(ob.callstack);
+      }
+      if(csvWriter){
+        csvWriter.write('\n');
       }
     }
 
@@ -5340,7 +5354,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
   }
 }
 
-function coronerPrint(query, rp, raw, columns, runtime) {
+function coronerPrint(query, rp, raw, columns, runtime, csv) {
   var results = rp.unpack();
   var fields = rp.fields();
   var g;
@@ -5360,8 +5374,12 @@ function coronerPrint(query, rp, raw, columns, runtime) {
     range: rangePrint,
   };
 
+  const writeStream = fs.createWriteStream(csv);
   for (g in results) {
-    objectPrint(g, results[g], renderer, fields, runtime);
+    objectPrint(g, results[g], renderer, fields, runtime, writeStream);
+      if (writeStream) {
+        writeStream.write('\n');
+      }
     process.stdout.write('\n');
   }
 
