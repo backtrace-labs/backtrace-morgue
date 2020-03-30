@@ -4797,9 +4797,14 @@ function coronerList(argv, config) {
     return usage("Missing project, universe arguments");
   }
 
-  //validate csv parameter 
-  if (argv.csv && !fs.existsSync(path.dirname(argv.csv))){
+  //validate csv parameter - validate output dir
+  let csv = argv.csv;
+  if (csv && !fs.existsSync(path.dirname(csv))){
     return usage("Detected 'csv' option. Path to csv doesn't exist");
+  }
+
+  if(csv && !argv.select) {
+    return usage("You can export data to the .csv file only when you specify --select parameters")
   }
 
   p = coronerParams(argv, config);
@@ -4938,13 +4943,17 @@ function coronerList(argv, config) {
       })();
     }
   } else {
-    if (!argv.limit){
-      argv.limit = 100;
-    } else if (argv.limit && argv.limit > 100) {
-      argv.limit = 100;
+    // apply limit options when select attribute exists
+    // otherwise we want to aggregate data - so backend, won't return 
+    // too many rows from database
+    if(argv.select){
+      if (!argv.limit){
+        argv.limit = 100;
+      } else if (argv.limit && argv.limit > 100) {
+        argv.limit = 100;
+      }
+      query.limit = argv.limit;
     }
-    query.limit = argv.limit;
-
     function fetchCoronerList() {
       coroner.query(p.universe, p.project, query, function(err, result) {
         if (err) {
@@ -4963,6 +4972,14 @@ function coronerList(argv, config) {
           console.log(pp);
           return;
         }
+        // determine type of response - if json values contain only one element
+        // it means that we're working in aggregated data (*)
+        // otherwise we used filters to specify different values
+        const aggregatedData = argv.select === undefined;
+
+        // determine if we should print any data to stream to output 
+        // if limit option was used
+        const anyData = result.response.values.some(n => n.length > 1);
 
         if (query.set) {
           if (result.response.result === "success") console.log("Success".blue);
@@ -4977,13 +4994,18 @@ function coronerList(argv, config) {
             return;
           }
 
+            
+
+          if(!anyData || aggregatedData) {
+            csv = undefined;
+          }
           coronerPrint(
             query,
             rp,
             result.response,
             null,
             result._.runtime,
-            argv.csv
+            csv
           );
 
           var date_label;
@@ -5040,14 +5062,12 @@ function coronerList(argv, config) {
           result._.latency +
           "]";
         console.log(footer.blue);
-        if (result.response.values.some(n => n.length > 1)) {
+        if (anyData && !aggregatedData) {
           query.offset = query.offset
             ? query.offset + query.limit
             : query.limit;
           fetchCoronerList();
-        } else {
-          console.debug(`Ended reprossing files`);
-        }
+        } 
       });
     }
     fetchCoronerList();
