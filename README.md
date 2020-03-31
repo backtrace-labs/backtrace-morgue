@@ -47,7 +47,7 @@ Retroactively apply sampling on a fingerprint. The default is to keep
 3 objects retained for every fingerprint. This is configurable.
 
 ```
-Usage: morgue keep <[<universe>/]project> [--keep=N] [<query filter>] [--output]
+Usage: morgue clean <[<universe>/]project> [--keep=N] [<query filter>] [--output]
 ```
 
 If output is provided, then all object identifiers are output to stdout. Statistics
