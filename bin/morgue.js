@@ -4968,8 +4968,10 @@ function coronerList(argv, config) {
       const anyData = result.response.values.some(n => n.length > 1);
 
       if (query.set) {
-        if (result.response.result === "success") console.log("Success".blue);
-        else console.log("result:\n" + JSON.stringify(result.response));
+        if (result.response.result === 'success')
+          console.log('Success'.blue);
+        else
+          console.log('result:\n' + JSON.stringify(result.response));
       } else {
         var rp = new crdb.Response(result.response);
 
@@ -4996,9 +4998,9 @@ function coronerList(argv, config) {
 
         var date_label;
         if (d_age) {
-          date_label = "as of " + d_age + " ago";
+          date_label = 'as of ' + d_age + ' ago';
         } else {
-          date_label = "with a time range of " + argv.time;
+          date_label = 'with a time range of ' + argv.time;
         }
       }
 
@@ -5031,7 +5033,7 @@ function coronerList(argv, config) {
       var footer = result._.user + ': ' +
           result._.universe + '/' + result._.project + ' ' + date_label +
             ' [' + result._.latency + ']';
-      console.log(footer.blue); 
+      console.log(footer.blue);
     });
   
   }
