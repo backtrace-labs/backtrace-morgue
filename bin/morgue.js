@@ -4902,9 +4902,7 @@ function coronerList(argv, config) {
   }
 
   if (argv.query) {
-    var pp = JSON.stringify(query);
-
-    console.log(pp);
+    console.log(JSON.stringify(query));
     if (!argv.raw)
       return;
   }
@@ -4943,135 +4941,99 @@ function coronerList(argv, config) {
       })();
     }
   } else {
-    // apply limit options when select attribute exists
-    // otherwise we want to aggregate data - so backend, won't return 
-    // too many rows from database
-    if(argv.select){
-      const defaultLimit = 1000;
-      if (!argv.limit){
-        argv.limit = defaultLimit;
-      } else if (argv.limit && argv.limit > defaultLimit) {
-        argv.limit = defaultLimit;
+    coroner.query(p.universe, p.project, query, function(err, result) {
+      if (err) {
+        errx(err.message);
       }
-      query.limit = argv.limit;
-    }
-    function fetchCoronerList() {
-      coroner.query(p.universe, p.project, query, function(err, result) {
-        if (err) {
-          errx(err.message);
+
+      if (argv.raw) {
+        var pp;
+
+        try {
+          pp = JSON.stringify(result);
+        } catch (err) {
+          pp = result;
         }
 
-        if (argv.raw) {
-          var pp;
+        console.log(pp);
+        return;
+      }
+      // determine type of response - if json values contain only one element
+      // it means that we're working in aggregated data (*)
+      // otherwise we used filters to specify different values
+      const aggregatedData = argv.select === undefined;
 
-          try {
-            pp = JSON.stringify(result);
-          } catch (err) {
-            pp = result;
-          }
+      // determine if we should print any data to stream to output 
+      // if limit option was used
+      const anyData = result.response.values.some(n => n.length > 1);
 
-          console.log(pp);
+      if (query.set) {
+        if (result.response.result === "success") console.log("Success".blue);
+        else console.log("result:\n" + JSON.stringify(result.response));
+      } else {
+        var rp = new crdb.Response(result.response);
+
+        if (argv.json) {
+          var results = rp.unpack();
+
+          console.log(JSON.stringify(results, null, 2));
           return;
         }
-        // determine type of response - if json values contain only one element
-        // it means that we're working in aggregated data (*)
-        // otherwise we used filters to specify different values
-        const aggregatedData = argv.select === undefined;
 
-        // determine if we should print any data to stream to output 
-        // if limit option was used
-        const anyData = result.response.values.some(n => n.length > 1);
+          
 
-        if (query.set) {
-          if (result.response.result === "success") console.log("Success".blue);
-          else console.log("result:\n" + JSON.stringify(result.response));
+        if(!anyData || aggregatedData) {
+          csv = undefined;
+        }
+        coronerPrint(
+          query,
+          rp,
+          result.response,
+          null,
+          result._.runtime,
+          csv
+        );
+
+        var date_label;
+        if (d_age) {
+          date_label = "as of " + d_age + " ago";
         } else {
-          var rp = new crdb.Response(result.response);
-
-          if (argv.json) {
-            var results = rp.unpack();
-
-            console.log(JSON.stringify(results, null, 2));
-            return;
-          }
-
-            
-
-          if(!anyData || aggregatedData) {
-            csv = undefined;
-          }
-          coronerPrint(
-            query,
-            rp,
-            result.response,
-            null,
-            result._.runtime,
-            csv
-          );
-
-          var date_label;
-          if (d_age) {
-            date_label = "as of " + d_age + " ago";
-          } else {
-            date_label = "with a time range of " + argv.time;
-          }
+          date_label = "with a time range of " + argv.time;
         }
+      }
 
-        if (argv.verbose) {
-          console.log("Timing:".yellow);
+      if (argv.verbose) {
+        console.log('Timing:'.yellow);
 
-          var o = "";
-          var aggs = result._.runtime.aggregate;
-          if ("time" in aggs) aggs = aggs.time;
-          else if ("pre_sort" in aggs) aggs = aggs.pre_sort + aggs.post_sort;
+        var o = '';
+        var aggs = result._.runtime.aggregate;
+        if ('time' in aggs)
+          aggs = aggs.time
+        else if ('pre_sort' in aggs)
+          aggs = aggs.pre_sort + aggs.post_sort;
 
-          o += "     Rows: ".yellow + result._.runtime.filter.rows + "\n";
-          o +=
-            "   Filter: ".yellow +
-            result._.runtime.filter.time +
-            "us (" +
-            Math.ceil(
-              (result._.runtime.filter.time / result._.runtime.filter.rows) * 1000
-            ) +
-            "ns / row)\n";
-          o +=
-            "    Group: ".yellow +
-            result._.runtime.group_by.time +
-            "us (" +
-            Math.ceil(
-              result._.runtime.group_by.time / result._.runtime.group_by.groups
-            ) +
-            "us / group)\n";
-          o += "Aggregate: ".yellow + aggs + "us\n";
-          o += "     Sort: ".yellow + result._.runtime.sort.time + "us\n";
-          if (result._.runtime.set) {
-            o += "      Set: ".yellow + result._.runtime.set.time + "us\n";
-          }
-          o += "    Total: ".yellow + result._.runtime.total_time + "us";
-          console.log(o + "\n");
+        o += '     Rows: '.yellow + result._.runtime.filter.rows + '\n';
+        o += '   Filter: '.yellow + result._.runtime.filter.time + 'us (' +
+          Math.ceil(result._.runtime.filter.time /
+            result._.runtime.filter.rows * 1000) + 'ns / row)\n';
+        o += '    Group: '.yellow + result._.runtime.group_by.time + 'us (' +
+          Math.ceil(result._.runtime.group_by.time /
+            result._.runtime.group_by.groups) + 'us / group)\n';
+        o += 'Aggregate: '.yellow + aggs + 'us\n';
+        o += '     Sort: '.yellow + result._.runtime.sort.time + 'us\n';
+        if (result._.runtime.set) {
+          o += '      Set: '.yellow + result._.runtime.set.time + 'us\n';
         }
+        o += '    Total: '.yellow + result._.runtime.total_time + 'us';
+        console.log(o + '\n');
+      }
 
-        var footer =
-          result._.user +
-          ": " +
-          result._.universe +
-          "/" +
-          result._.project +
-          " " +
-          date_label +
-          " [" +
-          result._.latency +
-          "]";
-        console.log(footer.blue);
-        if (anyData && !aggregatedData) {
-          query.offset = query.offset
-            ? query.offset + query.limit
-            : query.limit;
-          fetchCoronerList();
-        } 
-      });
-    }
-    fetchCoronerList();
+      var footer = result._.user + ': ' +
+          result._.universe + '/' + result._.project + ' ' + date_label +
+            ' [' + result._.latency + ']';
+      console.log(footer.blue); 
+    });
+  
   }
 }
 
