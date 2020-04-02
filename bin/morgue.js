@@ -30,6 +30,7 @@ const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
 const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 var levenshtein;
 
@@ -4941,7 +4942,7 @@ function coronerList(argv, config) {
       })();
     }
   } else {
-    coroner.query(p.universe, p.project, query, function(err, result) {
+    coroner.query(p.universe, p.project, query, async function(err, result) {
       if (err) {
         errx(err.message);
       }
@@ -4988,7 +4989,7 @@ function coronerList(argv, config) {
           console.log(`Cannot generate .csv file - detected empty data response or aggregated data request.`);
           csv = undefined;
         }
-        coronerPrint(
+        await coronerPrint(
           query,
           rp,
           result.response,
@@ -5242,7 +5243,7 @@ function callstackPrint(cs) {
   process.stdout.write('\n');
 }
 
-function objectPrint(g, object, renderer, fields, runtime, csvWriter) {
+function objectPrint(g, object, renderer, fields, runtime) {
   var string = String(g);
   var field, start, stop, sa;
 
@@ -5283,9 +5284,6 @@ function objectPrint(g, object, renderer, fields, runtime, csvWriter) {
 
         if (a === 'callstack')
           continue;
-        if(csvWriter){
-          csvWriter.write(ob[a] + ';');
-        }
         console.log("  " + a.yellow.bold + ": " + fieldFormat(ob[a], fields[a]));
       }
 
@@ -5294,13 +5292,7 @@ function objectPrint(g, object, renderer, fields, runtime, csvWriter) {
        */
       if (ob.callstack) {
         process.stdout.write(('  ' + fields[a] + ':').yellow.bold);
-        if(csvWriter){
-          csvWriter.write(ob.callstack + ";");
-        }
         callstackPrint(ob.callstack);
-      }
-      if(csvWriter){
-        csvWriter.write('\n');
       }
     }
 
@@ -5377,7 +5369,7 @@ function objectPrint(g, object, renderer, fields, runtime, csvWriter) {
   }
 }
 
-function coronerPrint(query, rp, raw, columns, runtime, csv) {
+async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
   var results = rp.unpack();
   var fields = rp.fields();
   var g;
@@ -5399,16 +5391,23 @@ function coronerPrint(query, rp, raw, columns, runtime, csv) {
 
   // write stream to save data to .csv file.
   // in case if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
-  const writeStream = csv ? fs.createWriteStream(csv, {
-    flags: 'a' // always try to append data to existing csv file - in case if we need to apply pagination rules
-  }) : undefined;
+  let csvWriter = undefined;
+  if (csvPath) {
+    const header = Object.keys(rp._fields).map(n => { return { id: n, title: n}});
+    csvWriter =  createCsvWriter({
+      path: csvPath,
+      header,
+      append: true,
+    });
+  }
   for (g in results) {
-    objectPrint(g, results[g], renderer, fields, runtime, writeStream);
+    objectPrint(g, results[g], renderer, fields, runtime);
+    if(csvWriter && results[g]){
+      await csvWriter.writeRecords(results[g]);
+    }
     process.stdout.write('\n');
   }
-  if(writeStream){
-    writeStream.end();
-  }
+ 
   return;
 }
 
