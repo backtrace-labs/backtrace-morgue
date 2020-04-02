@@ -838,8 +838,8 @@ function tenantURL(config, tn) {
    * Get tenant separator. In Coronerd <1.46, this is always "." because
    * it wasn't exposed via /api/config.
    */
-  var tsep = config.config.tenant_separator;
-  if (tsep === undefined)
+  let tsep = config.config.tenant_separator;
+  if (!tsep)
     tsep = '.';
 
   /*
@@ -847,10 +847,10 @@ function tenantURL(config, tn) {
    * If this were just a split on ., it'd probably change the root domain
    * in this case.
    */
-  if (config.config.universe === undefined || config.config.universe === null)
+  if (!config.config.universe)
     return config.endpoint;
 
-  var uname = config.config.universe.name;
+  const uname = config.config.universe.name;
 
   return config.endpoint.replace(uname + tsep, tn + tsep);
 }
