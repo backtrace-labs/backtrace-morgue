@@ -5036,8 +5036,7 @@ function coronerList(argv, config) {
           result._.universe + '/' + result._.project + ' ' + date_label +
             ' [' + result._.latency + ']';
       console.log(footer.blue);
-    });
-  
+    });  
   }
 }
 
@@ -5284,7 +5283,8 @@ function objectPrint(g, object, renderer, fields, runtime) {
 
         if (a === 'callstack')
           continue;
-        console.log("  " + a.yellow.bold + ": " + fieldFormat(ob[a], fields[a]));
+        
+          console.log('  ' + a.yellow.bold + ': ' + fieldFormat(ob[a], fields[a]));
       }
 
       /*
@@ -5406,8 +5406,7 @@ async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
       await csvWriter.writeRecords(results[g]);
     }
     process.stdout.write('\n');
-  }
- 
+  } 
   return;
 }
 
