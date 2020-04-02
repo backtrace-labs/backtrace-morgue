@@ -4984,7 +4984,8 @@ function coronerList(argv, config) {
 
           
 
-        if(!anyData || aggregatedData) {
+        if(!anyData || aggregatedData && csv) {
+          console.log(`Cannot generate .csv file - detected empty data response or aggregated data request.`);
           csv = undefined;
         }
         coronerPrint(
@@ -5282,11 +5283,10 @@ function objectPrint(g, object, renderer, fields, runtime, csvWriter) {
 
         if (a === 'callstack')
           continue;
-        const prettyValue = fieldFormat(ob[a], fields[a]);
         if(csvWriter){
-          csvWriter.write(prettyValue + ';');
+          csvWriter.write(ob[a] + ';');
         }
-        console.log("  " + a.yellow.bold + ": " + prettyValue);
+        console.log("  " + a.yellow.bold + ": " + fieldFormat(ob[a], fields[a]));
       }
 
       /*
@@ -5398,7 +5398,7 @@ function coronerPrint(query, rp, raw, columns, runtime, csv) {
   };
 
   // write stream to save data to .csv file.
-  // in vase if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
+  // in case if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
   const writeStream = csv ? fs.createWriteStream(csv, {
     flags: 'a' // always try to append data to existing csv file - in case if we need to apply pagination rules
   }) : undefined;
