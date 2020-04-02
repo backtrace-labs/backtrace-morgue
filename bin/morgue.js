@@ -834,10 +834,25 @@ function coronerLimit(argv, config) {
 }
 
 function tenantURL(config, tn) {
-  var ix = config.endpoint.indexOf('.');
-  var s = [config.endpoint.substr(0, ix), config.endpoint.substr(ix)];
+  /*
+   * Get tenant separator. In Coronerd <1.46, this is always "." because
+   * it wasn't exposed via /api/config.
+   */
+  var tsep = config.config.tenant_separator;
+  if (tsep === undefined)
+    tsep = '.';
 
-  return 'https://' + tn + s[1];
+  /*
+   * If there is no current universe, return the URL unchanged.
+   * If this were just a split on ., it'd probably change the root domain
+   * in this case.
+   */
+  if (config.config.universe === undefined || config.config.universe === null)
+    return config.endpoint;
+
+  var uname = config.config.universe.name;
+
+  return config.endpoint.replace(uname + tsep, tn + tsep);
 }
 
 function coronerInvite(argv, config) {
