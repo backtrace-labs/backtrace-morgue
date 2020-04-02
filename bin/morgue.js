@@ -4959,9 +4959,7 @@ function coronerList(argv, config) {
         console.log(pp);
         return;
       }
-      // determine type of response - if json values contain only one element
-      // it means that we're working in aggregated data (*)
-      // otherwise we used filters to specify different values
+       // only export to csv if this is a select query 
       const aggregatedData = argv.select === undefined;
 
       // determine if we should print any data to stream to output 
