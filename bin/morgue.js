@@ -834,10 +834,32 @@ function coronerLimit(argv, config) {
 }
 
 function tenantURL(config, tn) {
-  var ix = config.endpoint.indexOf('.');
-  var s = [config.endpoint.substr(0, ix), config.endpoint.substr(ix)];
+  /*
+   * If there is no current universe, return the URL unchanged.
+   * If this were just a split on ., it'd probably change the root domain
+   * in this case.
+   */
+  if (!config.config.universe)
+    return config.endpoint;
 
-  return 'https://' + tn + s[1];
+  const uname = config.config.universe.name;
+  let pattern = uname;
+  let replacement = tn;
+
+  const tsep = config.config.tenant_separator;
+  if (tsep) {
+    /*
+     * Since the universe name and separator are known, go ahead and be
+     * stricter.
+     *
+     * For example, this would prevent localhost from becoming otherhost if
+     * moving from universe local to universe other.
+     */
+    pattern += tsep;
+    replacement += tsep;
+  }
+
+  return config.endpoint.replace(pattern, replacement);
 }
 
 function coronerInvite(argv, config) {
