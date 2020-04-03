@@ -30,6 +30,7 @@ const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
 const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 var levenshtein;
 
@@ -4819,6 +4820,16 @@ function coronerList(argv, config) {
     return usage("Missing project, universe arguments");
   }
 
+  //validate csv parameter - validate output dir
+  let csv = argv.csv;
+  if (csv && !fs.existsSync(path.dirname(csv))){
+    return usage("Path to destination csv file doesn't exist");
+  }
+
+  if(csv && !argv.select) {
+    return usage("You can export data to the .csv file only when you specify --select parameters")
+  }
+
   p = coronerParams(argv, config);
 
   if (!argv.table) {
@@ -4914,9 +4925,7 @@ function coronerList(argv, config) {
   }
 
   if (argv.query) {
-    var pp = JSON.stringify(query);
-
-    console.log(pp);
+    console.log(JSON.stringify(query));
     if (!argv.raw)
       return;
   }
@@ -4955,7 +4964,7 @@ function coronerList(argv, config) {
       })();
     }
   } else {
-    coroner.query(p.universe, p.project, query, function (err, result) {
+    coroner.query(p.universe, p.project, query, async function(err, result) {
       if (err) {
         errx(err.message);
       }
@@ -4972,6 +4981,12 @@ function coronerList(argv, config) {
         console.log(pp);
         return;
       }
+       // only export to csv if this is a select query 
+      const aggregatedData = argv.select === undefined;
+
+      // determine if we should print any data to stream to output 
+      // if limit option was used
+      const anyData = result.response.values.some(n => n.length > 1);
 
       if (query.set) {
         if (result.response.result === 'success')
@@ -4979,7 +4994,6 @@ function coronerList(argv, config) {
         else
           console.log('result:\n' + JSON.stringify(result.response));
       } else {
-
         var rp = new crdb.Response(result.response);
 
         if (argv.json) {
@@ -4989,7 +5003,20 @@ function coronerList(argv, config) {
           return;
         }
 
-        coronerPrint(query, rp, result.response, null, result._.runtime);
+          
+
+        if(!anyData || aggregatedData && csv) {
+          console.log(`Cannot generate .csv file - detected empty data response or aggregated data request.`);
+          csv = undefined;
+        }
+        await coronerPrint(
+          query,
+          rp,
+          result.response,
+          null,
+          result._.runtime,
+          csv
+        );
 
         var date_label;
         if (d_age) {
@@ -5029,7 +5056,7 @@ function coronerList(argv, config) {
           result._.universe + '/' + result._.project + ' ' + date_label +
             ' [' + result._.latency + ']';
       console.log(footer.blue);
-    });
+    });  
   }
 }
 
@@ -5276,8 +5303,8 @@ function objectPrint(g, object, renderer, fields, runtime) {
 
         if (a === 'callstack')
           continue;
-
-        console.log('  ' + a.yellow.bold + ': ' + fieldFormat(ob[a], fields[a]));
+        
+          console.log('  ' + a.yellow.bold + ': ' + fieldFormat(ob[a], fields[a]));
       }
 
       /*
@@ -5362,7 +5389,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
   }
 }
 
-function coronerPrint(query, rp, raw, columns, runtime) {
+async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
   var results = rp.unpack();
   var fields = rp.fields();
   var g;
@@ -5382,11 +5409,24 @@ function coronerPrint(query, rp, raw, columns, runtime) {
     range: rangePrint,
   };
 
+  // write stream to save data to .csv file.
+  // in case if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
+  let csvWriter = undefined;
+  if (csvPath) {
+    const header = Object.keys(rp._fields).map(n => { return { id: n, title: n}});
+    csvWriter =  createCsvWriter({
+      path: csvPath,
+      header,
+      append: true,
+    });
+  }
   for (g in results) {
     objectPrint(g, results[g], renderer, fields, runtime);
+    if(csvWriter && results[g]){
+      await csvWriter.writeRecords(results[g]);
+    }
     process.stdout.write('\n');
-  }
-
+  } 
   return;
 }
 
