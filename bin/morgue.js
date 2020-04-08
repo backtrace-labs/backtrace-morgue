@@ -5408,12 +5408,7 @@ async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
     let header = Object.keys(rp._fields).map(n => { return { id: n, title: n } });
 
     header = header.concat([{title: "object", id: "object"}, {title: "id", id: "id"}]);
-
-    csvWriter = createCsvWriter({
-      path: csvPath,
-      header: header,
-      append: true,
-    });
+    csvWriter = createCsvWriter({path: csvPath, header: header, append: true});
   }
 
   for (g in results) {
@@ -5424,7 +5419,8 @@ async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
       objectPrint(g, results[g], renderer, fields, runtime);
     }
 
-    process.stdout.write('\n');
+    if (!csvWriter)
+      process.stdout.write('\n');
   }
 
   return;
