@@ -4823,15 +4823,9 @@ function coronerList(argv, config) {
     return usage("Missing project, universe arguments");
   }
 
-  //validate csv parameter - validate output dir
   let csv = argv.csv;
-  if (csv && !fs.existsSync(path.dirname(csv))){
-    return usage("Path to destination csv file doesn't exist");
-  }
-
-  if(csv && !argv.select) {
-    return usage("You can export data to the .csv file only when you specify --select parameters")
-  }
+  if (csv && !argv.select)
+      return usage("--csv requires select parameters")
 
   p = coronerParams(argv, config);
 
@@ -4984,13 +4978,11 @@ function coronerList(argv, config) {
         console.log(pp);
         return;
       }
-       // only export to csv if this is a select query 
-      const aggregatedData = argv.select === undefined;
 
-      // determine if we should print any data to stream to output 
-      // if limit option was used
-      const anyData = result.response.values.some(n => n.length > 1);
-
+      /*
+       * Determine if we should print any data to stream to output
+       * if limit option was used.
+       */
       if (query.set) {
         if (result.response.result === 'success')
           console.log('Success'.blue);
@@ -5006,12 +4998,6 @@ function coronerList(argv, config) {
           return;
         }
 
-          
-
-        if(!anyData || aggregatedData && csv) {
-          console.log(`Cannot generate .csv file - detected empty data response or aggregated data request.`);
-          csv = undefined;
-        }
         await coronerPrint(
           query,
           rp,
@@ -5062,7 +5048,6 @@ function coronerList(argv, config) {
     });  
   }
 }
-
 
 function uint128ToUuid(uint128) {
   const uuid_sizes = [8, 4, 4, 4, 12];
@@ -5411,25 +5396,37 @@ async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
     bin: binPrint,
     range: rangePrint,
   };
+  let empty = results && results['*'] && results['*'].length === 0;
 
-  // write stream to save data to .csv file.
-  // in case if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
+  /*
+   * Write stream to save data to .csv file.
+   * In case if user didn't use `csv` option, use undefined to prevent writing .csv files anywhere.
+   */
   let csvWriter = undefined;
-  if (csvPath) {
-    const header = Object.keys(rp._fields).map(n => { return { id: n, title: n}});
-    csvWriter =  createCsvWriter({
+
+  if (csvPath && !empty) {
+    let header = Object.keys(rp._fields).map(n => { return { id: n, title: n } });
+
+    header = header.concat([{title: "object", id: "object"}, {title: "id", id: "id"}]);
+
+    csvWriter = createCsvWriter({
       path: csvPath,
-      header,
+      header: header,
       append: true,
     });
   }
+
   for (g in results) {
-    objectPrint(g, results[g], renderer, fields, runtime);
-    if(csvWriter && results[g]){
-      await csvWriter.writeRecords(results[g]);
+    if (csvWriter) {
+      if (results[g])
+        await csvWriter.writeRecords(results[g]);
+    } else {
+      objectPrint(g, results[g], renderer, fields, runtime);
     }
+
     process.stdout.write('\n');
-  } 
+  }
+
   return;
 }
 
