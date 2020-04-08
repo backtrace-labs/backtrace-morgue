@@ -180,6 +180,10 @@ Usage: morgue list <[<universe>/]project> [substring]
 You may pass `--verbose` in order to get more detailed query performance
 data.
 
+The `--csv=<output file>` option may be passed in with a specified output
+file to output results to a CSV file instead. This may only be used with
+`--select` queries.
+
 #### Filters
 
 The filter option expects a comma-delimited list of the form
