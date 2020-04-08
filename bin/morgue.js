@@ -2247,6 +2247,9 @@ function coronerDescribe(argv, config) {
     return usage("Missing universe, project arguments.");
   }
 
+  if (argv.r)
+    options.disabled = true;
+
   if (argv.table) {
     options.table = argv.table;
   }
