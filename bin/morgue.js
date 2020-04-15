@@ -3162,7 +3162,7 @@ function statusReload(argv, config, params, coroner) {
   };
 
   coroner.promise('post', '/api/control', null, p, null).then((rsp) => {
-    console.log(JSON.stringify(rsp.reloads, null, 4));
+    console.log(JSON.stringify(rsp, null, 4));
   }).catch(std_failure_cb);
 }
 
