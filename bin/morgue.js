@@ -6016,6 +6016,47 @@ function retentionParent(objects, parent_type, name) {
   return bpgObjectFind(objects, parent_type, name, "name");
 }
 
+function addCriterion(rule, type, params) {
+  rule.criteria.push(Object.assign({
+    type
+  }, params || {}));
+}
+
+function addAction(rule, type, params) {
+  rule.actions.push(Object.assign({
+    type
+  }, params || {}));
+}
+
+function getRuleId(str) {
+  const fields = str.split(",");
+  return parseInt(fields[0]);
+}
+
+function checkRuleId(n_rules, field, str) {
+  const fields = str.split(",");
+  const ruleIdStr = fields.shift();
+  const ruleId = parseInt(ruleIdStr);
+
+  if (isNaN(ruleId) === true || ruleId < 0 || ruleId >= n_rules) {
+    retentionUsage(`${field}: '${ruleIdStr}' is not >= 0 and < ${n_rules} rules`);
+  }
+  return [ruleId, fields];
+}
+
+function normalizeRetentionParam(param) {
+  if (param === undefined)
+    return [];
+  if (Number.isInteger(param))
+    return [`${param}`];
+  /* Handle parameter set without a key, special case for 1 rule. */
+  if (param === true)
+    return ["0"];
+  if (!Array.isArray(param))
+    return [param];
+  return param;
+}
+
 function retentionSet(bpg, objects, argv, config) {
   var act_obj = {};
   var rules = [{
@@ -6031,24 +6072,75 @@ function retentionSet(bpg, objects, argv, config) {
   var max_age = argv["max-age"];
   var physical_only = argv["physical-only"];
 
-  if (!max_age) {
-    return retentionUsage("Max age is a required argument.");
-  }
-  if (max_age === "null") {
-    /* Special internal value meaning clear the rules. */
-    rules = [];
-  } else {
-    try {
-      rules[0].criteria[0].time = timespecToSeconds(max_age).toString();
-    } catch (e) {
-      return retentionUsage("Invalid max age '" + max_age + "': " + e.message);
+  /* If argv.rules is not specified, assume only one rule. */
+  if (argv.rules === undefined)
+    argv.rules = 1;
+
+  /* Normalize inputs.  Make all parameters arrays of strings. */
+  argv.age = normalizeRetentionParam(argv.age);
+  argv.compress = normalizeRetentionParam(argv.compress);
+  argv.delete = normalizeRetentionParam(argv.delete);
+
+  /* Convert the old-style --max-age argument to new-style --age. */
+  max_age = normalizeRetentionParam(max_age);
+  for (let mage of max_age) {
+    const fields = mage.split(",");
+    if (fields.length === 1) {
+      argv.age.push(`0,at-least,${mage}`);
+    } else {
+      const [ruleId, fields] = checkRuleId(argv.rules, "max-age", mage);
+      argv.age.push(`${ruleId},at-least,${fields.join(",")}`);
     }
   }
 
-  if (physical_only) {
-    rules[0].actions[0].subsets = ["physical"];
+  /* Convert the old-style --physical-only to new-style --delete. */
+  physical_only = normalizeRetentionParam(physical_only);
+  for (let po of physical_only) {
+    const ruleId = getRuleId(po);
+    if (isNaN(ruleId)) {
+      argv.delete.push(`0,physical`);
+    } else {
+      argv.delete.push(`${ruleId},physical`);
+    }
   }
 
+  /*
+   * Generate the rules.
+   * Make sure every parameter, if specified for a rule, has a valid rule id.
+   */
+  rules = [];
+  for (let i = 0; i < argv.rules; i++)
+    rules[i] = { criteria: [], actions: [] };
+
+  for (const a of argv.age) {
+    const [ruleId, fields] = checkRuleId(argv.rules, "age", a);
+    const [op, time, time_end] = fields;
+    let params = { op, time: timespecToSeconds(time).toString() };
+    if (time_end)
+      params.time_end = timespecToSeconds(time_end).toString();
+    addCriterion(rules[ruleId], "object-age", params);
+  }
+  for (const d of argv.delete) {
+    const [ruleId, fields] = checkRuleId(argv.rules, "delete", d);
+    const [subset] = fields;
+    let params = {};
+    if (subset)
+      params.subsets = [subset];
+    addAction(rules[ruleId], "delete-all", params);
+  }
+  for (const d of argv.compress) {
+    const [ruleId, fields] = checkRuleId(argv.rules, "compress", d);
+    addAction(rules[ruleId], "compress");
+  }
+
+  /* Require every rule to have an age parameter. */
+  for (let rule of rules) {
+    if (!rule.criteria.some((c) => { return c.type === "object-age"; })) {
+      return retentionUsage("Age is a required parameter for every rule.");
+    }
+  }
+
+  /* Determine the target policy being set. */
   if (rtn_type === "instance_retention") {
     if (argv._.length > 0) {
       return retentionUsage("Instances do not have names.");
@@ -6083,10 +6175,18 @@ function retentionSet(bpg, objects, argv, config) {
   } else {
     act_obj.action = "modify";
     act_obj.fields = { rules: JSON.stringify(rules) };
+    act_obj.key = {};
     if (rtn_parent_id) {
-      act_obj.key = {};
       act_obj.key[rtn_ptype] = rtn_parent_id;
+    } else {
+      act_obj.key.id = obj.get("id");
     }
+  }
+
+  if (argv.dryrun) {
+    console.log(`# BPG command that would be executed:`);
+    console.log(JSON.stringify({ actions: [act_obj] }, null, 4));
+    return;
   }
 
   bpgPost(bpg, { actions: [act_obj] }, function(e, r) {
@@ -6100,12 +6200,8 @@ function retentionSet(bpg, objects, argv, config) {
 
 function retentionClear(bpg, objects, argv, config) {
 
-  /* Currently, this is essentially set(max-age="null"). */
-  if (argv["max-age"]) {
-    return retentionUsage("Clear does not take --max-age.");
-  }
-  argv["max-age"] = "null";
-
+  /* Currently, this is essentially set(rules=0). */
+  argv.rules = 0;
   return retentionSet(bpg, objects, argv, config);
 }
 
@@ -6115,12 +6211,27 @@ function retentionNoString(reason, argv) {
   return "max age: unspecified (" + reason + ")";
 }
 
+function ageCritToString(crit) {
+  const max_age = secondsToTimespec(crit.value || crit.time);
+  return `object-age ${crit.op} ${max_age}`;
+}
+
+function deleteActToString(act) {
+  let actstr = "delete-all";
+  if (act.subsets && act.subsets.indexOf("physical") != -1)
+    actstr += "(physical-only)";
+  return actstr;
+}
+
+function compressActToString(act) {
+  let actstr = "compress";
+  return actstr;
+}
+
 function retentionToString(r_obj, argv) {
   var rules = r_obj.get("rules");
   var json = JSON.parse(rules);
   var rule;
-  var action;
-  var criterion;
   var s;
 
   if (Array.isArray(json) === false || json.length === 0)
@@ -6128,19 +6239,24 @@ function retentionToString(r_obj, argv) {
   rule = json[0];
   if (Array.isArray(rule.criteria) === false || rule.criteria.length === 0)
     return retentionNoString("no criterion");
-  criterion = rule.criteria[0];
-  if (Array.isArray(rule.actions) === false || rule.actions.length === 0)
-    return retentionNoString("no actions");
-  action = rule.actions[0];
 
-  if (!action.type || action.type !== "delete-all")
-    return retentionNoString("wrong action");
-  if (!criterion.type || criterion.type !== "object-age")
-    return retentionNoString("wrong criterion");
+  s = "criteria["
+  s += rule.criteria.map((crit) => {
+    if (crit.type === "object-age")
+      return ageCritToString(crit);
+    return "-";
+  }).join(", ");
+  s += "]"
 
-  s = "max age: " + secondsToTimespec(criterion.time);
-  if (action.subsets && action.subsets.indexOf("physical") != -1)
-    s += ", physical only";
+  s += " actions[";
+  s += rule.actions.map((act) => {
+    if (act.type === "compress")
+      return compressActToString(act);
+    if (act.type === "delete-all")
+      return deleteActToString(act);
+    return "-";
+  });
+  s += "]";
 
   return s;
 }
@@ -6201,36 +6317,34 @@ function usageRetentionStatus(str) {
   return;
 }
 
-function oiiToString(oii, crit) {
+function epochsec_to_datestr(sec) {
+  return (new Date(sec * 1000)).toUTCString();
+}
+
+function oiiToString(exp_data) {
+  const oii = exp_data.next_object;
+  const exp_off = exp_data.off;
+
   if (oii.namespace !== null) {
-    let str = `next namespace ${oii.namespace} oid ${oii.object_id}`;
+    let str = `${oii.namespace} oid ${oii.object_id}`;
     let expiry_ts = parseInt(oii.expiry_time);
     if (expiry_ts && expiry_ts > 0) {
-      str += ` expires at ${new Date(expiry_ts * 1000).toString()}`;
+      str += ` expires at ${epochsec_to_datestr(expiry_ts)}`;
     } else {
       /* estimate expiry time if receive time available */
-      const toff = parseInt(crit.value);
+      const toff = parseInt(exp_off);
       expiry_ts = parseInt(oii.recvtime);
       if (expiry_ts && toff) {
         expiry_ts += toff;
-        str += ` should expire at ${new Date(expiry_ts * 1000).toString()}`;
+        str += `, should expire at ${epochsec_to_datestr(expiry_ts)}`;
       } else {
-        str += " idle, awaiting new objects";
+        str += ", idle, awaiting new objects";
       }
     }
     return str;
   } else {
     return "idle, awaiting new objects";
   }
-}
-
-function critToString(c) {
-  var str = c.type;
-
-  if (c.type === "object-age") {
-    str += ` ${c.op} ${c.value}; ${oiiToString(c.next_object, c)}`;
-  }
-  return str;
 }
 
 function retentionSkip(obj, level, name) {
@@ -6250,8 +6364,142 @@ function retentionSublevel(level) {
     return null;
 }
 
+function ageCritStatus(crit) {
+  return ageCritToString(crit);
+}
+
+function deleteActStatus(act) {
+  return deleteActToString(act);
+}
+
+function compressStats(statobj) {
+  let s = `${statobj.n_compressed}/${statobj.n_consumed} compressed`;
+  s += ` ${statobj.n_input_bytes} to ${statobj.n_compressed_bytes} bytes`;
+  s += ` (ratio ${(100 * statobj.n_compressed_bytes / statobj.n_input_bytes).toFixed(2)}%)`;
+  return s;
+}
+
+function compressActStatus(act) {
+  let s = "";
+  if (act.last_id === 0) {
+    s += "not yet run";
+  } else {
+    if (act.running_since) {
+      s += `running since ${epochsec_to_datestr(act.running_since)}`;
+      if (act.runstats) {
+        s += ` (${compressStats(act.runstats)})`;
+      }
+    } else {
+      s += "not running"
+    }
+
+    let last_completed = 0;
+    if (act.total !== undefined && act.total.last_completed !== undefined)
+      last_completed = act.total.last_completed;
+    if (Number.isInteger(last_completed) && last_completed > 0) {
+      s += `, last completed ${epochsec_to_datestr(last_completed)}`;
+      s += `, ${compressStats(act.total)}`;
+    } else if (act.running_since)
+      s += `, never completed`;
+    else
+      s += `, never run`;
+  }
+  return `compress(${s})`;
+}
+
+function ruleTaskStatus(rule) {
+  let items = [];
+  let str = "";
+  if (rule.enabled !== undefined)
+    items.push(rule.enabled ? "enabled" : "disabled");
+  if (rule.target !== undefined) {
+    let target = rule.target;
+    if (Number.isInteger(target))
+      target = epochsec_to_datestr(target);
+    items.push(`target ${target}`);
+    items.push(`count ${rule.count}`);
+  }
+  if (rule.backoff)
+    items.push("backoff");
+  if (rule.pause_begin)
+    items.push(`paused since ${epochsec_to_datestr(rule.pause_begin)}`);
+  return "status[" + items.join(", ") + "]";
+}
+
+function ruleStatusVerbose(rule, argv, exp_off, spaces) {
+  const count = argv.verbose;
+
+  if (!count)
+    return;
+
+  console.log(spaces + `${ruleTaskStatus(rule)}`);
+
+  if (!Number.isInteger(count) || count <= 1)
+    return;
+  if (!rule.next_object || !rule.next_object.instances)
+    return;
+
+  console.log(`${spaces}namespace instances:`);
+  for (let i = 0; i < rule.next_object.instances.length; i++) {
+    const noi = rule.next_object.instances[i];
+    if (noi.namespace === rule.next_object.namespace)
+      continue;
+    /* Skip namespaces that don't keep objects. */
+    if (!argv.includeall) {
+      if (noi.namespace.endsWith("/symbols"))
+        continue;
+    }
+
+    const exp_data = { next_object: noi, off: exp_off };
+    console.log(spaces + `-> ${oiiToString(exp_data)}`);
+  }
+}
+
+function ruleStatus(rule, argv, spaces) {
+  const exp_data = rule.criteria.reduce((exp_data, crit) => {
+    if (exp_data.off === 0) {
+      exp_data.off = crit.value;
+    } else if (exp_off > crit.value) {
+      exp_data.off = crit.value;
+    }
+    if (crit.next_object)
+      exp_data.next_object = crit.next_object;
+    return exp_data;
+  }, { off: 0, next_object: null });
+
+  if (!exp_data.next_object)
+    exp_data.next_object = rule.next_object;
+
+  console.log(spaces + `rule: next_object[${oiiToString(exp_data)}]`);
+
+  /* Indent rule metadata a bit. */
+  spaces += "  ";
+
+  let s = "criteria[";
+  s += rule.criteria.map((crit) => {
+    if (crit.type === "object-age")
+      return ageCritStatus(crit);
+    return "-";
+  }).join(", ");
+  s += "]";
+  console.log(spaces + s);
+
+  s = "actions[";
+  s += rule.actions.map((act) => {
+    if (act.type === "delete-all")
+      return deleteActStatus(act);
+    if (act.type === "compress")
+      return compressActStatus(act);
+    return "-";
+  }).join(", ");
+  s += "]";
+
+  console.log(spaces + s);
+  ruleStatusVerbose(rule, argv, exp_data.off, spaces);
+}
+
 function retentionStatusDump(argv, obj, name, level, indent) {
-  var action, crit, header, i, rule, s;
+  var header, i;
   var spaces = '';
 
   if (retentionSkip(obj, level, name))
@@ -6267,28 +6515,8 @@ function retentionStatusDump(argv, obj, name, level, indent) {
   spaces += '  ';
 
   if (obj.state !== "not installed") {
-    rule = obj.rules[0];
-    crit = rule.criteria[0];
-    action = rule.actions[0];
-    if (action.type === 'delete-all' && crit.type === 'object-age') {
-      s = critToString(crit);
-      if (action.subsets && action.subsets.indexOf("physical") != -1)
-        s += " (physical only)";
-      console.log(spaces + s);
-      if (argv.verbose && crit.next_object && crit.next_object.instances) {
-        for (let i = 0; i < crit.next_object.instances.length; i++) {
-          const noi = crit.next_object.instances[i];
-          if (noi.namespace === crit.next_object.namespace)
-            continue;
-          /* Skip namespaces that don't keep objects. */
-          if (!argv.includeall) {
-            if (noi.namespace.endsWith("/symbols"))
-              continue;
-          }
-
-          console.log(spaces + `  -> ${oiiToString(noi, crit)}`);
-        }
-      }
+    for (let rule of obj.rules) {
+      ruleStatus(rule, argv, spaces);
     }
   }
   if (typeof obj.children === 'object') {
