@@ -6321,7 +6321,7 @@ function epochsec_to_datestr(sec) {
   return (new Date(sec * 1000)).toUTCString();
 }
 
-function oiiToString(exp_data) {
+function oiiToString(exp_data, verbosity) {
   const oii = exp_data.next_object;
   const exp_off = exp_data.off;
 
@@ -6338,6 +6338,8 @@ function oiiToString(exp_data) {
         expiry_ts += toff;
         str += `, should expire at ${epochsec_to_datestr(expiry_ts)}`;
       } else {
+        if (!verbosity || verbosity <= 2)
+          return null;
         str += ", idle, awaiting new objects";
       }
     }
@@ -6451,7 +6453,9 @@ function ruleStatusVerbose(rule, argv, exp_off, spaces) {
     }
 
     const exp_data = { next_object: noi, off: exp_off };
-    console.log(spaces + `-> ${oiiToString(exp_data)}`);
+    let s = oiiToString(exp_data, count);
+    if (s)
+      console.log(spaces + `-> ${s}`);
   }
 }
 
@@ -6470,7 +6474,7 @@ function ruleStatus(rule, argv, spaces) {
   if (!exp_data.next_object)
     exp_data.next_object = rule.next_object;
 
-  console.log(spaces + `rule: next_object[${oiiToString(exp_data)}]`);
+  console.log(spaces + `rule: next_object[${oiiToString(exp_data, 3)}]`);
 
   /* Indent rule metadata a bit. */
   spaces += "  ";
