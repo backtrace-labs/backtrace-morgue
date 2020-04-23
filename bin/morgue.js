@@ -6430,6 +6430,8 @@ function ruleTaskStatus(rule) {
 
 function ruleStatusVerbose(rule, argv, exp_off, spaces) {
   const count = argv.verbose;
+  let num_shown = 0;
+  let num_excluded = 0;
 
   if (!count)
     return;
@@ -6441,21 +6443,33 @@ function ruleStatusVerbose(rule, argv, exp_off, spaces) {
   if (!rule.next_object || !rule.next_object.instances)
     return;
 
-  console.log(`${spaces}namespace instances:`);
   for (let i = 0; i < rule.next_object.instances.length; i++) {
     const noi = rule.next_object.instances[i];
-    if (noi.namespace === rule.next_object.namespace)
+    if (noi.namespace === rule.next_object.namespace) {
+      num_excluded++;
       continue;
+    }
     /* Skip namespaces that don't keep objects. */
     if (!argv.includeall) {
-      if (noi.namespace.endsWith("/symbols"))
+      if (noi.namespace.endsWith("/symbols")) {
+        num_excluded++;
         continue;
+      }
     }
 
     const exp_data = { next_object: noi, off: exp_off };
     let s = oiiToString(exp_data, count);
-    if (s)
+    if (s) {
+      if (num_shown === 0)
+        console.log(`${spaces}namespace instances:`);
+      num_shown++;
       console.log(spaces + `-> ${s}`);
+    }
+  }
+  if (num_shown != rule.next_object.instances.length && argv.verbose >= 2) {
+    let diff = rule.next_object.instances.length - num_shown - num_excluded;
+    if (diff !== 0)
+      console.log(`${spaces}namespace instances: ${diff} not shown`);
   }
 }
 
