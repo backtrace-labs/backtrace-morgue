@@ -6449,6 +6449,7 @@ function ruleStatusVerbose(rule, argv, exp_off, spaces) {
   if (!rule.next_object || !rule.next_object.instances)
     return;
 
+  let instances = [];
   for (let i = 0; i < rule.next_object.instances.length; i++) {
     const noi = rule.next_object.instances[i];
     if (noi.namespace === rule.next_object.namespace) {
@@ -6462,8 +6463,23 @@ function ruleStatusVerbose(rule, argv, exp_off, spaces) {
         continue;
       }
     }
+    /* If instance has no expiry, just push to the end. */
+    if (!noi.expiry || parseInt(noi.expiry) === 0) {
+      instances.push(noi);
+      continue;
+    }
+    let index = 0;
+    for (index = 0; index < instances.length; index++) {
+      if (!instances[index].expiry)
+        break;
+      if (parseInt(noi.expiry) <= parseInt(instances[index].expiry))
+        break;
+    }
+    instances.splice(index, 0, noi);
+  }
 
-    const exp_data = { next_object: noi, off: exp_off };
+  for (let i = 0; i < instances.length; i++) {
+    const exp_data = { next_object: instances[i], off: exp_off };
     let s = oiiToString(exp_data, count);
     if (s) {
       if (num_shown === 0)
