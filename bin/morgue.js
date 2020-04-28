@@ -6324,9 +6324,10 @@ function epochsec_to_datestr(sec) {
 function oiiToString(exp_data, verbosity) {
   const oii = exp_data.next_object;
   const exp_off = exp_data.off;
+  let str = "";
 
   if (oii.namespace !== null) {
-    let str = `${oii.namespace} oid ${oii.object_id}`;
+    str += `${oii.namespace} oid ${oii.object_id}`;
     let expiry_ts = parseInt(oii.expiry_time);
     if (expiry_ts && expiry_ts > 0) {
       str += ` expires at ${epochsec_to_datestr(expiry_ts)}`;
@@ -6343,10 +6344,15 @@ function oiiToString(exp_data, verbosity) {
         str += ", idle, awaiting new objects";
       }
     }
-    return str;
   } else {
-    return "idle, awaiting new objects";
+    str = "idle, awaiting new objects";
   }
+
+  if (verbosity && verbosity >= 2 && oii.last_eval) {
+    let leval = epochsec_to_datestr(parseInt(oii.last_eval));
+    str += ` (last eval ${leval})`;
+  }
+  return str;
 }
 
 function retentionSkip(obj, level, name) {
