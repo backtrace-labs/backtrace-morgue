@@ -6323,21 +6323,22 @@ function epochsec_to_datestr(sec) {
 
 function oiiToString(exp_data, verbosity) {
   const oii = exp_data.next_object;
-  const exp_off = exp_data.off;
+  const toff = parseInt(exp_data.off);
+  const recvtime = parseInt(oii.recvtime);
   let str = "";
 
   if (oii.namespace !== null) {
     str += `${oii.namespace} oid ${oii.object_id}`;
-    let expiry_ts = parseInt(oii.expiry_time);
+    let expiry_ts = parseInt(oii.expiry);
     if (expiry_ts && expiry_ts > 0) {
       str += ` expires at ${epochsec_to_datestr(expiry_ts)}`;
+      if (!isNaN(recvtime) && verbosity >= 3) {
+        str += ` (should expire at ${epochsec_to_datestr(recvtime + toff)})`;
+      }
     } else {
       /* estimate expiry time if receive time available */
-      const toff = parseInt(exp_off);
-      expiry_ts = parseInt(oii.recvtime);
-      if (expiry_ts && toff) {
-        expiry_ts += toff;
-        str += `, should expire at ${epochsec_to_datestr(expiry_ts)}`;
+      if (recvtime && toff) {
+        str += `, should expire at ${epochsec_to_datestr(recvtime + toff)}`;
       } else {
         if (!verbosity || verbosity <= 2)
           return null;
@@ -6463,16 +6464,33 @@ function ruleStatusVerbose(rule, argv, exp_off, spaces) {
         continue;
       }
     }
-    /* If instance has no expiry, just push to the end. */
-    if (!noi.expiry || parseInt(noi.expiry) === 0) {
+
+    /*
+     * Sort instances by expiry time, if they have one, and next by the
+     * next receive time, if they have one.
+     */
+    const noi_expiry = parseInt(noi.expiry) || 0;
+    const noi_recvtime = parseInt(noi.recvtime) || 0;
+    if (noi_expiry === 0 && noi_recvtime === 0) {
       instances.push(noi);
       continue;
     }
     let index = 0;
-    for (index = 0; index < instances.length; index++) {
-      if (!instances[index].expiry)
+    for (; index < instances.length; index++) {
+      const inst_expiry = parseInt(instances[index].expiry);
+      if (noi_expiry > 0) {
+        if (inst_expiry === 0)
+          break;
+        if (noi_expiry <= inst_expiry)
+          break;
+        continue;
+      } else if (inst_expiry > 0)
+        continue;
+
+      const inst_recvtime = parseInt(instances[index].recvtime);
+      if (inst_recvtime === 0)
         break;
-      if (parseInt(noi.expiry) <= parseInt(instances[index].expiry))
+      if (noi_recvtime <= inst_recvtime)
         break;
     }
     instances.splice(index, 0, noi);
