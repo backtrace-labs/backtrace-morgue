@@ -740,26 +740,69 @@ Options for set/clear:
                    valid: instance, universe, project
 
 Options for status:
-  [--type=<universe|project> <name>]
+  --type=T         Specify retention type (default depends on user access)
+                   valid: universe, project
 
 Options for set:
-  --max-age=N      Specify time limit for objects, in seconds
-  --physical-only  Specifies that the policy only delete physical copies;
-		   indexing will be retained.
+  --dryrun         Show the command that will be issued, but don't send it.
+  --rules=N        Specify number of rules to set, which may be referenced
+                   by rule actions/criteria, zero-indexed.  If a rule is not
+                   referenced, rule #0 (the first) will be assumed.
+  --age=[R,]O,T[,TE]
+                   Specifies the matching object age for rule R.
+                   O is the match operation, which may be one of:
+                     'at-least', 'range'
+                   T is the time, and for range, TE is the end time.
+  --max-age=[R,]N  Specify time limit for objects, N, in seconds, for rule R.
+                   Same as --age=[R,]at-least,N.
+  --compress[=R]   Specify that the rule compresses matching object data.
+  --delete=[R,S]   Specify that rule R deletes subsets S (comma-separated).
+                   By default, if no subset is specified, all are deleted.
+                   Valid subsets:
+                   - physical: Object's physical data.
+                   - crdb: Object's attribute data.
+  --physical-only[=R]
+                   Same as --delete=[R,]physical.
+                   Specifies that the policy only delete physical copies;
+                   event data will be retained.
 ```
 
 Configure the retention policy for a given namespace, which can cover the
 coroner instance, or a specific universe or project.
 
-#### Example
+#### Examples
+
+Set project blackhole's policy to delete everything older than 1 hour:
 
 ```
-$ morgue retention clear a_project
+$ morgue retention set blackhole --max-age=3600 --delete
 success
-$ morgue retention set blackhole --max-age=3600
 $ morgue retention list
 Project-level:
-  blackhole: max age: 1h
+  blackhole: criteria[object-age at-least 1h] actions[delete-all]
+$
+```
+
+Set universe foobar's policy to compress after 30 days, and delete only
+physical copies after 90 days:
+
+```
+$ morgue retention set --type=universe foobar --rules=2 --max-age=0,30d --compress=0 --max-age=1,90d --physical-only=1
+success
+$ morgue retention list
+Universe-level:
+  backtrace:
+    rule #0: criteria[object-age at-least 1M] actions[compress]
+    rule #1: criteria[object-age at-least 3M] actions[delete-all(physical-only)]
+$
+```
+
+Set instance policy to compress after 7 days:
+```
+$ morgue retention set --type=instance --max-age=7d --compress
+success
+$ morgue retention list
+Instance-level: criteria[object-age at-least 1w] actions[compress]
 $
 ```
 

@@ -3766,6 +3766,8 @@ function timespecToSeconds(age_val) {
   pre = String(age);
   age_string = String(age_val);
   iu = age_string.substring(pre.length, age_string.length);
+  if (iu.length === 0)
+    iu = 's';
   if (!unit[iu])
     throw new Error("Unknown interval unit '" + iu + "'");
   return parseInt(age * unit[iu]);
@@ -5971,14 +5973,38 @@ function coronerReprocess(argv, config) {
 function retentionUsage(str) {
   if (str)
     err(str + "\n");
-  console.error("Usage: morgue retention <list|set|clear> <name> [options]");
+  console.error("Usage: morgue retention <list|set|status|clear> <name> [options]");
   console.error("");
   console.error("Options for set/clear:");
   console.error("  --type=T         Specify retention type (default: project)");
   console.error("                   valid: instance, universe, project");
   console.error("");
+  console.error("Options for status:");
+  console.error("  --type=T         Specify retention type (default depends on user access)");
+  console.error("                   valid: universe, project");
+  console.error("");
   console.error("Options for set:");
-  console.error("  --max-age=N      Specify time limit for objects, in seconds");
+  console.error("  --dryrun         Show the command that will be issued, but don't send it.");
+  console.error("  --rules=N        Specify number of rules to set, which may be referenced");
+  console.error("                   by rule actions/criteria, zero-indexed.  If a rule is not");
+  console.error("                   referenced, rule #0 (the first) will be assumed.");
+  console.error("  --age=[R,]O,T[,TE]");
+  console.error("                   Specifies the matching object age for rule R.");
+  console.error("                   O is the match operation, which may be one of:");
+  console.error("                     'at-least', 'range'");
+  console.error("                   T is the time, and for range, TE is the end time.");
+  console.error("  --max-age=[R,]N  Specify time limit for objects, N, in seconds, for rule R.");
+  console.error("                   Same as --age=[R,]at-least,N.");
+  console.error("  --compress[=R]   Specify that the rule compresses matching object data.");
+  console.error("  --delete=[R,S]   Specify that rule R deletes subsets S (comma-separated).");
+  console.error("                   By default, if no subset is specified, all are deleted.");
+  console.error("                   Valid subsets:");
+  console.error("                   - physical: Object's physical data.");
+  console.error("                   - crdb: Object's attribute data.");
+  console.error("  --physical-only[=R]");
+  console.error("                   Same as --delete=[R,]physical.");
+  console.error("                   Specifies that the policy only delete physical copies;");
+  console.error("                   event data will be retained.");
   process.exit(1);
 }
 
@@ -6133,10 +6159,13 @@ function retentionSet(bpg, objects, argv, config) {
     addAction(rules[ruleId], "compress");
   }
 
-  /* Require every rule to have an age parameter. */
+  /* Require every rule to have an age parameter and at least one action. */
   for (let rule of rules) {
     if (!rule.criteria.some((c) => { return c.type === "object-age"; })) {
       return retentionUsage("Age is a required parameter for every rule.");
+    }
+    if (rule.actions.length === 0) {
+      return retentionUsage("Must specify at least one action for every rule.");
     }
   }
 
@@ -6228,23 +6257,24 @@ function compressActToString(act) {
   return actstr;
 }
 
-function retentionToString(r_obj, argv) {
-  var rules = r_obj.get("rules");
-  var json = JSON.parse(rules);
-  var rule;
-  var s;
+function ruleString(num, s) {
+  return `rule #${num}: ${s}`;
+}
 
-  if (Array.isArray(json) === false || json.length === 0)
-    return retentionNoString("no rule", argv);
-  rule = json[0];
+function ruleToString(rule) {
+  let s = "";
+
   if (Array.isArray(rule.criteria) === false || rule.criteria.length === 0)
-    return retentionNoString("no criterion");
+    return "no criteria";
+
+  if (Array.isArray(rule.actions) === false || rule.actions.length === 0)
+    return "no actions";
 
   s = "criteria["
   s += rule.criteria.map((crit) => {
     if (crit.type === "object-age")
       return ageCritToString(crit);
-    return "-";
+    return "?";
   }).join(", ");
   s += "]"
 
@@ -6254,11 +6284,37 @@ function retentionToString(r_obj, argv) {
       return compressActToString(act);
     if (act.type === "delete-all")
       return deleteActToString(act);
-    return "-";
+    return "?";
   });
   s += "]";
 
   return s;
+}
+
+function retentionToStrings(r_obj, argv) {
+  const rules = JSON.parse(r_obj.get("rules"));
+  var rule;
+  var s;
+
+  if (Array.isArray(rules) === false || rules.length === 0)
+    return null;
+
+  return rules.map(ruleToString);
+}
+
+function retentionListRules(spaces, rules) {
+  if (rules.length === 1) {
+    /* If only one rule, just list it directly inline. */
+    return ` ${rules[0]}`;
+  }
+  const rules_annotated = rules.map((r, n) => `rule #${n}: ${r}`);
+  return `\n${spaces}${rules_annotated.join(`\n${spaces}`)}`;
+}
+
+function retentionListNamespaceRules(ns_obj, rules) {
+  let s = `${ns_obj.get("name")}:`;
+
+  return `  ${ns_obj.get("name")}:${retentionListRules("    ", rules)}`;
 }
 
 function retentionList(bpg, objects, argv, config) {
@@ -6271,21 +6327,22 @@ function retentionList(bpg, objects, argv, config) {
   }
 
   if ((r = objects["instance_retention"])) {
-    var str = retentionToString(r[0], argv);
-    if (str)
-      console.log("Instance-level: " + str);
+    const rules = retentionToStrings(r[0], argv);
+    if (rules) {
+      console.log(`Instance-level:${retentionListRules("  ", rules)}`);
+    }
   }
 
   if ((r = objects["universe_retention"])) {
     before = count;
     r.forEach(function(r_obj) {
-      var universe = bpgObjectFind(objects, "universe", r_obj.get("universe"));
-      var str = retentionToString(r_obj, argv);
-      if (str) {
+      const universe = bpgObjectFind(objects, "universe", r_obj.get("universe"));
+      const rules = retentionToStrings(r_obj, argv);
+      if (rules) {
         if (count === before)
           console.log("Universe-level:");
         count++;
-        console.log("  " + universe.get("name") + ": " + str);
+        console.log(retentionListNamespaceRules(universe, rules));
       }
     });
   }
@@ -6293,13 +6350,13 @@ function retentionList(bpg, objects, argv, config) {
   if ((r = objects["project_retention"])) {
     before = count;
     r.forEach(function(r_obj) {
-      var project = bpgObjectFind(objects, "project", r_obj.get("project"));
-      var str = retentionToString(r_obj, argv);
-      if (str) {
+      const project = bpgObjectFind(objects, "project", r_obj.get("project"));
+      const rules = retentionToStrings(r_obj, argv);
+      if (rules) {
         if (count === before)
           console.log("Project-level:");
         count++;
-        console.log("  " + project.get("name") + ": " + str);
+        console.log(retentionListNamespaceRules(project, rules));
       }
     });
   }
@@ -6321,6 +6378,14 @@ function epochsec_to_datestr(sec) {
   return (new Date(sec * 1000)).toUTCString();
 }
 
+function shouldExpireStr(expiry_ts, recvtime, toff) {
+  const calc_expiry = recvtime + toff + 1; /* include timer slop */
+  if (expiry_ts === calc_expiry)
+    return "expires as expected";
+
+  return `should expire at ${epochsec_to_datestr(calc_expiry)}`;
+}
+
 function oiiToString(exp_data, verbosity) {
   const oii = exp_data.next_object;
   const toff = parseInt(exp_data.off);
@@ -6329,27 +6394,29 @@ function oiiToString(exp_data, verbosity) {
 
   if (oii.namespace !== null) {
     str += `${oii.namespace} oid ${oii.object_id}`;
-    let expiry_ts = parseInt(oii.expiry);
-    if (expiry_ts && expiry_ts > 0) {
-      str += ` expires at ${epochsec_to_datestr(expiry_ts)}`;
-      if (!isNaN(recvtime) && verbosity >= 3) {
-        str += ` (should expire at ${epochsec_to_datestr(recvtime + toff)})`;
-      }
-    } else {
-      /* estimate expiry time if receive time available */
-      if (recvtime && toff) {
-        str += `, should expire at ${epochsec_to_datestr(recvtime + toff)}`;
+    if (verbosity >= 1) {
+      let expiry_ts = parseInt(oii.expiry);
+      if (expiry_ts && expiry_ts > 0) {
+        str += ` expires at ${epochsec_to_datestr(expiry_ts)}`;
+        if (!isNaN(recvtime) && verbosity >= 2) {
+          str += ` (${shouldExpireStr(expiry_ts, recvtime, toff)})`;
+        }
       } else {
-        if (!verbosity || verbosity <= 2)
-          return null;
-        str += ", idle, awaiting new objects";
+        /* estimate expiry time if receive time available */
+        if (recvtime && toff) {
+          str += `, ${shouldExpireStr(null, recvtime, toff)}`;
+        } else {
+          str += ", no expiry";
+        }
       }
     }
-  } else {
+  }
+
+  if (str.length === 0) {
     str = "idle, awaiting new objects";
   }
 
-  if (verbosity && verbosity >= 2 && oii.last_eval) {
+  if (verbosity >= 3 && oii.last_eval) {
     let leval = epochsec_to_datestr(parseInt(oii.last_eval));
     str += ` (last eval ${leval})`;
   }
@@ -6435,18 +6502,13 @@ function ruleTaskStatus(rule) {
   return "status[" + items.join(", ") + "]";
 }
 
-function ruleStatusVerbose(rule, argv, exp_off, spaces) {
-  const count = argv.verbose;
+function ruleStatusInstances(rule, argv, exp_off, spaces) {
   let num_shown = 0;
   let num_excluded = 0;
 
-  if (!count)
+  if (!argv.instances)
     return;
 
-  console.log(spaces + `${ruleTaskStatus(rule)}`);
-
-  if (!Number.isInteger(count) || count <= 1)
-    return;
   if (!rule.next_object || !rule.next_object.instances)
     return;
 
@@ -6498,7 +6560,7 @@ function ruleStatusVerbose(rule, argv, exp_off, spaces) {
 
   for (let i = 0; i < instances.length; i++) {
     const exp_data = { next_object: instances[i], off: exp_off };
-    let s = oiiToString(exp_data, count);
+    let s = oiiToString(exp_data, argv.verbose);
     if (s) {
       if (num_shown === 0)
         console.log(`${spaces}namespace instances:`);
@@ -6528,7 +6590,8 @@ function ruleStatus(rule, argv, spaces) {
   if (!exp_data.next_object)
     exp_data.next_object = rule.next_object;
 
-  console.log(spaces + `rule: next_object[${oiiToString(exp_data, 3)}]`);
+  const top_status = oiiToString(exp_data, argv.verbose || 0);
+  console.log(spaces + `rule: next_object[${top_status}]`);
 
   /* Indent rule metadata a bit. */
   spaces += "  ";
@@ -6553,7 +6616,9 @@ function ruleStatus(rule, argv, spaces) {
   s += "]";
 
   console.log(spaces + s);
-  ruleStatusVerbose(rule, argv, exp_data.off, spaces);
+  if (argv.verbose >= 3)
+    console.log(spaces + `${ruleTaskStatus(rule)}`);
+  ruleStatusInstances(rule, argv, exp_data.off, spaces);
 }
 
 function retentionStatusDump(argv, obj, name, level, indent) {
