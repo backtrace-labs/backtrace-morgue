@@ -740,13 +740,29 @@ function coronerLimit(argv, config) {
   var action = argv._[1];
 
   if (action == 'list') {
-    coroner.http_get('/api/limits', {token: coroner.config.token}, null, function(error, result) {
+    var bpg = coronerBpgSetup(coroner, argv);
+    var model = bpg.get();
+
+    /* Find the universe with the specified name. */
+    if (universe) {
+      for (var i = 0; i < model.universe.length; i++) {
+        if (model.universe[i].get('name') === universe) {
+          un = target = model.universe[i];
+          break;
+        }
+      }
+    }
+
+    coroner.http_get('/api/limits', {universe: universe, token: coroner.config.token}, null, function(error, result) {
       if (error)
         errx(error + '');
 
       var rp = JSON.parse(result.bodyData);
 
       for (var uni in rp) {
+        if (un && un.get('name') !== uni)
+          continue;
+
         var st = printf("%3d %16s limit=%d,counter=%d,rejected=%d",
             rp[uni].id, uni.bold,
             rp[uni].submissions.limit,
@@ -766,18 +782,40 @@ function coronerLimit(argv, config) {
     for (var i = 0; i < model.universe.length; i++) {
       if (model.universe[i].get('name') === universe) {
         un = target = model.universe[i];
+	break;
       }
     }
 
     if (!un)
       errx('universe not found');
 
-    if (action === 'delete') {
-      var id = argv._[2];
+    if (action === 'reset') {
       var limit;
 
-      if (!id)
-        errx('Usage: morgue limit delete <id>');
+      console.log('Resetting limits for [' + un.get('id') + '/' + un.get('name') + ']...');
+
+      for (var i = 0; i < model.limits.length; i++) {
+        if (model.limits[i].get('universe') === un.get('id')) {
+          limit = model.limits[i];
+          break;
+        }
+      }
+
+      if (!limit)
+        errx('Specified universe has no limits.');
+
+      bpg.delete(limit);
+      bpg.commit();
+      bpg.create(limit);
+      bpg.commit();
+      return;
+    }
+
+    if (action === 'delete') {
+      var limit;
+
+      if (!un)
+        errx('Usage: morgue limit delete --universe=<universe>');
 
       for (var i = 0; i < model.limits.length; i++) {
         if (model.limits[i].get('universe') === un.get('id')) {
