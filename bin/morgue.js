@@ -4772,7 +4772,6 @@ function coronerClean(argv, config) {
     delete(query.fold);
     delete(query.order);
 
-    query.limit = 10000;
     query.order = [{"name":"timestamp","ordering":"descending"}];
 
     query.select = ["fingerprint", "_deleted", "timestamp", "object.size"];
