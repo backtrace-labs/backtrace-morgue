@@ -25,6 +25,7 @@ const table     = require('table').table;
 const bt        = require('backtrace-node');
 const spawn     = require('child_process').spawn;
 const url       = require('url');
+const util      = require('util');
 const packageJson = require(path.join(__dirname, "..", "package.json"));
 const sprintf   = require('extsprintf').sprintf;
 const chrono = require('chrono-node');
@@ -660,7 +661,7 @@ function coronerUser(argv, config) {
 
 function dump_obj(o)
 {
-  console.log(require('util').inspect(o, {showHidden: false, depth: null}));
+  console.log(util.inspect(o, {showHidden: false, depth: null}));
 }
 
 function _coronerMerge(argv, config, action) {
@@ -4721,18 +4722,125 @@ function coronerSet(argv, config) {
   return;
 }
 
-/**
- * @brief: Implements the clean command.
- */
-function coronerClean(argv, config) {
+async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
+  query.limit = 10000;
+  query.order = [{ name: "_tx", ordering: "descending" }];
+  query.select = ["object.size"];
+
+  let saved = 0;
+  let selected = 0;
+  let total = 0;
+  let lowest_overall = 2**32;
+  let highest_overall = 0;
+
+  /*
+   * Perform independent queries for each fingerprint.  This allows
+   * argv.{keep,oldest} to reserve objects per fingerprint.  Objects
+   * shouldn't switch fingerprints between queries.
+   */
+  for (const fp of fingerprints) {
+    let oids = [];
+    let reserved = [];
+    let kept = 0;
+
+    query.filter[0].fingerprint = [["equal", fp]];
+    query.filter[0]._tx = [["greater-than", "0"]];
+    for (;;) {
+      let lowest_id = 2**32;
+      const result = await coroner.query(p.universe, p.project, query);
+      let rp = new crdb.Response(result.response);
+      rp = rp.unpack();
+
+      let objects = rp['*'];
+      if (objects.length === 0)
+        break;
+
+      /* Update id trackers now before any array manipulation occurs. */
+      if (objects[0].object > highest_overall)
+        highest_overall = objects[0].object;
+      lowest_id = objects[objects.length - 1].object;
+      if (lowest_id < lowest_overall)
+        lowest_overall = lowest_id;
+
+      /*
+       * If saving oldest N objects:
+       * - prepend (unshift) the contents of the reserved array into objects,
+       *   to preserve position in the overall queue
+       * - splice the last N objects into the reserved array
+       *
+       * Then proceed as usual.  This will effectively reserve the oldest
+       * objects when they appear, and they will ultimately not be
+       * considered for deletion.
+       */
+      if (argv.oldest > 0) {
+        objects.unshift(...reserved);
+        const off = objects.length < argv.oldest ? 0 : (objects.length - argv.oldest);
+        reserved = objects.splice(off, argv.oldest);
+      }
+
+      for (let i = 0; i < objects.length; i++) {
+        if (kept < argv.keep) {
+          kept++;
+          continue;
+        }
+
+        selected++;
+        oids.push(objects[i].id);
+        saved += objects[i]["object.size"];
+      }
+      if (argv.output && oids.length > 0) {
+        process.stdout.write(oids.join(" "));
+        process.stdout.write('\n');
+        oids = [];
+      }
+
+      total += objects.length;
+      if (argv.verbose) {
+        process.stderr.write(`${objects.length} objects processed, ` +
+          `setting object <= ${lowest_id.toString(16)} ...\n`);
+      }
+
+      /* Paginate by updating the _tx filter. */
+      query.filter[0]._tx = [["less-than", `${lowest_id}`]];
+    }
+
+    /* Include reserved objects in total at this point. */
+    total += reserved.length;
+    if (argv.verbose) {
+      reserved = reserved.map((obj) => obj.id);
+      process.stderr.write(`reserved(${reserved.length}]: ${reserved.join(" ")}\n`);
+    }
+  }
+
+  const range = `${lowest_overall.toString(16)}..${highest_overall.toString(16)}`;
+  process.stderr.write(`${selected}/${total} objects (range ${range}) ` +
+    `across ${fingerprints.length} fingerprint(s), would save about ` +
+    `${Math.floor(saved / 1024 / 1024)}MB.\n`);
+}
+
+async function coronerCleanAsync(argv, config) {
   abortIfNotLoggedIn(config);
   var query;
   var p;
 
-  var coroner = coronerClientArgv(config, argv);
+  let coroner = coronerClientArgv(config, argv);
+  coroner.sync_query = coroner.query;
+  coroner.query = util.promisify(coroner.sync_query);
 
   if (argv._.length < 2) {
     return usage("Missing project, universe arguments");
+  }
+
+  /* Process --oldest, defaulting to 0. */
+  argv.oldest = argv.oldest ? parseInt(argv.oldest) : 0;
+
+  /* Process --keep, defaulting to 3 if no --oldest set. */
+  if (argv.keep) {
+    argv.keep = parseInt(argv.keep);
+    if (argv.keep === 0)
+      errx('--keep must be greater than 0');
+  } else if (!argv.oldest) {
+    argv.keep = 3;
   }
 
   p = coronerParams(argv, config);
@@ -4745,106 +4853,43 @@ function coronerClean(argv, config) {
   query = aq.query;
   var d_age = aq.age;
 
-  query.group = ["fingerprint"];
-  query.order = [{"name":";count","ordering":"descending"}];
+  /* Only consider non-deleted objects, period. */
+  if (!query.filter)
+    query.filter = [];
+  if (!query.filter[0])
+    query.filter[0] = {};
+  query.filter[0]["_deleted"] = [["equal", "0"]];
 
-  /* First, extract the top N fingerprint objects. */
-  coroner.query(p.universe, p.project, query, function (err, result) {
-    var fingerprint = [];
-    var keep = 3;
+  /* First, unless specified, extract the top N fingerprint objects. */
+  let fingerprints = [];
+  if (argv.fingerprint) {
+    fingerprints = Array.isArray(argv.fingerprint) ? argv.fingerprint :
+      [argv.fingerprint];
+  }
+  if (fingerprints.length === 0) {
+    query.group = ["fingerprint"];
+    query.order = [{"name":";count","ordering":"descending"}];
 
-    if (argv.keep)
-      keep = parseInt(argv.keep);
-
-    if (keep === 0)
-      errx('--keep must be greater than 0');
-
-    if (err) {
-      errx(err.message);
-    }
-
-    var rp = new crdb.Response(result.response);
+    let result = await coroner.query(p.universe, p.project, query);
+    const rp = new crdb.Response(result.response);
     for (var i = 0; i < rp.json.values.length; i++)
-      fingerprint.push(rp.json.values[i][0]);
+      fingerprints.push(rp.json.values[i][0]);
+  }
 
-    /* Now, we construct a selection query for all objects matching these. */
-    delete(query.group);
-    delete(query.fold);
-    delete(query.order);
+  /* Now, we construct selection queries for all objects matching these. */
+  delete(query.group);
+  delete(query.fold);
+  delete(query.order);
 
-    query.order = [{"name":"timestamp","ordering":"descending"}];
+  await coronerCleanFingerprints(argv, coroner, fingerprints, query, p);
+}
 
-    query.select = ["fingerprint", "_deleted", "timestamp", "object.size"];
-    if (!query.filter[0]["fingerprint"])
-      query.filter[0]["fingerprint"] = [];
-    query.filter[0]["fingerprint"].push(["regular-expression",
-      fingerprint.join("|")]);
-
-    coroner.query(p.universe, p.project, query, function (err, result) {
-      var groups = {};
-      var targets = [];
-      var saved = 0;
-      var deleted = 0;
-
-      if (err) {
-        errx(err.message);
-      }
-
-      var rp = new crdb.Response(result.response);
-      rp = rp.unpack();
-
-      /* At this point, we construct a map for every single fingerprint. */
-
-      var objects = rp['*'];
-      for (var i = 0; i < objects.length; i++) {
-        var fp = objects[i].fingerprint;
-        var deleted = objects[i]._deleted;
-        var total = 0;
-
-        if (deleted === 1) {
-          continue;
-        }
-
-        if (!groups[fp])
-          groups[fp] = [];
-
-        groups[fp].push([objects[i].id, objects[i]['object.size']]);
-      }
-
-      /* Now go through every and delete all but N. */
-      for (var j in groups) {
-        if (groups[j].length <= keep) {
-          continue;
-        }
-
-        total += groups[j].length;
-
-        var update = groups[j].slice(keep, groups[j].length);
-
-        /* Compute disk saving and flatten. */
-        for (var k = keep; k < groups[j].length; k++) {
-          deleted++;
-          saved += groups[j][k][1] / 1024;
-        }
-
-        groups[j] = update;
-
-        for (var k = 0; k < update.length; k++)
-          targets.push(update[k][0]);
-      }
-
-      process.stderr.write(deleted + ' / ' + total + ' objects deleted across ' +
-          Object.keys(groups).length + ' fingerprint(s) saving at least ' + Math.floor(saved / 1024) + 'MB.\n');
-
-      if (argv.output) {
-        for (var i = 0; i < targets.length; i++)
-          process.stdout.write(targets[i] + ' ');
-
-        process.stdout.write('\n');
-      }
-
-      return;
-    });
+/**
+ * @brief: Implements the clean command.
+ */
+function coronerClean(argv, config) {
+  coronerCleanAsync(argv, config).catch((err) => {
+    console.error(err);
   });
 }
 

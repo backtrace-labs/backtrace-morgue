@@ -44,21 +44,20 @@ At this point, you are able to issue queries.
 ### clean
 
 Retroactively apply sampling on a fingerprint. The default is to keep
-3 objects retained for every fingerprint. This is configurable.
+3 objects retained for every fingerprint. This is configurable. Also
+configurable is keeping the oldest N objects for every fingerprint.
 
 ```
-Usage: morgue clean <[<universe>/]project> [--keep=N] [<query filter>] [--output]
+Usage: morgue clean <[<universe>/]project> [--keep=N] [--oldest=N] [<query filter>] [--verbose] [--output]
 ```
 
-If output is provided, then all object identifiers are output to stdout. Statistics
+If --output is set, then all object identifiers are output to stdout. Statistics
 are output to stderr. It is then possible to chain this into morgue delete:
 
 ```
 $ morgue clean blackhole --output > file.txt
-$ morgue delete blackhole --physical-only `cat file.txt`
+$ cat file.txt | xargs -n 8192 morgue delete blackhole --physical-only
 ```
-
-Currently, there is an upper-bound of deleting 10000 objects.
 
 ### describe
 
