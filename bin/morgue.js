@@ -236,7 +236,6 @@ var commands = {
   put: coronerPut,
   login: coronerLogin,
   logout: coronerLogout,
-  modify: coronerModify,
   nuke: coronerNuke,
   delete: coronerDelete,
   repair: coronerRepair,
@@ -2406,125 +2405,6 @@ function coronerDescribe(argv, config) {
       console.log(('\nHiding ' + unused + ' unused attributes (-a to list all).').bold.grey);
     }
   });
-}
-
-function genModifyRequest(to_set, to_clear) {
-  var request = {};
-
-  if (to_set) {
-    request._set = {};
-    if (Array.isArray(to_set) == true) {
-      argv.set.forEach(function(o) {
-        /* Make sure to handle the case where multiple =s are in the value. */
-        var kvs = o.split('=');
-        var key = kvs.shift();
-        var val = kvs.join('=');
-        if (key && val) {
-          request._set[key] = val;
-        } else {
-          throw new Error("Invalid set '" + o + "', must be key=val form");
-        }
-      });
-    } else {
-      var [key, val] = to_set.split('=');
-      if (key && val) {
-        request._set[key] = val;
-      } else {
-        throw new Error("Invalid set '" + argv.set + "', must be key=val form");
-      }
-    }
-  }
-
-  if (to_clear) {
-    request._clear = [];
-    if (Array.isArray(to_clear) == false) {
-      request._clear.push(to_clear);
-    } else {
-      to_clear.forEach(function(o) {
-        request._clear.push(o);
-      });
-    }
-  }
-
-  return request;
-}
-
-function enqueueModify(submitter, argv, params, obj, req) {
-  var u = params.universe;
-  var p = params.project;
-
-  return submitter.promise('modify_object', u, p, obj, null, req).then(function(r) {
-    params.success++;
-    if (argv.verbose) {
-      console.log(sprintf("Queued modification for %s.", r.object).success);
-    }
-  }).catch(function(e) {
-    if (!argv.ignorefail) {
-      e.message = sprintf("%s: %s", obj, e.message);
-      return Promise.reject(e);
-    }
-    err(sprintf("%s: %s", obj, e.message));
-    return Promise.resolve();
-  });
-}
-
-function coronerModify(argv, config) {
-  abortIfNotLoggedIn(config);
-  var submitter = coronerClientArgvSubmit(config, argv);
-  var querier = coronerClientArgv(config, argv);
-  var p = coronerParams(argv, config);
-  var request = genModifyRequest(argv.set, argv.clear);
-  var n_objects;
-  var aq;
-  var objects = [];
-  var tasks = [];
-
-  if (argv._.length < 2) {
-    return usage("Missing universe, project arguments.");
-  }
-
-  if (Object.keys(request).length === 0) {
-    return usage("Empty request, specify at least one set or clear.");
-  }
-
-  argvPushObjectRanges(objects, argv);
-  for (var i = 2; i < argv._.length; i++)
-    objects.push(argv._[i]);
-
-  for (var i = 0; i < objects.length; i++) {
-    tasks.push(enqueueModify(submitter, argv, p, objects[i], request));
-  }
-  p.success = 0;
-  n_objects = tasks.length;
-
-  var success_cb = function() {
-    if (n_objects === 0) {
-      errx('No matching objects.');
-    }
-    console.log(('Modification successfully queued for ' +
-      p.success + ' of ' + n_objects + ' objects.').success);
-  }
-
-  if (n_objects === 0) {
-    /* Object must be returned for query to be chainable. */
-    if (!argv.select && !argv.template)
-      argv.template = 'select';
-    aq = argvQuery(argv);
-
-    querier.promise('query', p.universe, p.project, aq.query).then(function(r) {
-      var rp = new crdb.Response(r.response);
-
-      rp = rp.unpack();
-      rp['*'].forEach(function(o) {
-        tasks.push(enqueueModify(submitter, argv, p, oidToString(o.object), request));
-      });
-      n_objects = tasks.length;
-      return Promise.all(tasks);
-    }).then(() => success_cb()).catch(std_failure_cb);
-  } else {
-    Promise.all(tasks).
-      then(() => success_cb()).catch(std_failure_cb);
-  }
 }
 
 function attachmentUsage(error_str) {

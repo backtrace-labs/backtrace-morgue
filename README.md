@@ -106,35 +106,24 @@ Uploads object file to the Backtrace object store. User has the following option
 | `--kv=key1:value1,key2:value2,...`| upload key-values |
 | `--form_data`| upload file by multipart/form-data post request |
 
-### modify
+### set 
 
 ```
-Usage: morgue modify <[universe/]project> (<query>|<object> ...) [--set ...] [--clear ...]
+Usage: morgue set <[universe/]project> (<query>|<object> ...) <key>=<value>
 ```
 
 Modifies attributes of the given object in the manner specified.
 Both options below may be specified more than once.
-
-| Option        | Description |
-|---------------|-------------|
-| `--set`       | Set the given `attribute=value` pair |
-| `--clear`     | Clear the given `attribute` |
 
 You are also able to modify multiple objects by specifying filters. The
 `--filter`, `--age` and `--time` arguments are accepted to modify.
 
 #### Example
 
-Set hostname to `fqdn.example.com` for object identifier 0.
-
-```
-$ morgue modify --set hostname=fqdn.example.com myproject 0
-```
-
 Set custom attribute `reason` to `oom` for all crashes containing `memory_abort`.
 
 ```
-$ morgue modify --set reason=oom --filter=callstack,regular-expression,memory_abort
+$ morgue set reason=oom --filter=callstack,regular-expression,memory_abort
 ```
 
 ### attachment
