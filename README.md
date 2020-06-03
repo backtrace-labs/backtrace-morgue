@@ -109,14 +109,15 @@ Uploads object file to the Backtrace object store. User has the following option
 ### set 
 
 ```
-Usage: morgue set <[universe/]project> (<query>|<object> ...) <key>=<value>
+Usage: morgue set <[universe/]project> <query> <key>=<value>
 ```
 
 Modifies attributes of the given object in the manner specified.
 Both options below may be specified more than once.
 
 You are also able to modify multiple objects by specifying filters. The
-`--filter`, `--age` and `--time` arguments are accepted to modify.
+`--filter`, `--age` and `--time` arguments are accepted to modify. You
+must specify some filter criteria.
 
 #### Example
 
@@ -124,6 +125,12 @@ Set custom attribute `reason` to `oom` for all crashes containing `memory_abort`
 
 ```
 $ morgue set reason=oom --filter=callstack,regular-expression,memory_abort
+```
+
+Set `reason` to `boomboom` for object `cb`.
+
+```
+$ morgue set reason=boomboom --filter=_tx,equal,206
 ```
 
 ### attachment
