@@ -228,6 +228,7 @@ var commands = {
   invite: coronerInvite,
   ls: coronerList,
   describe: coronerDescribe,
+  cts: coronerCts,
   token: coronerToken,
   session: coronerSession,
   limit: coronerLimit,
@@ -704,6 +705,105 @@ function coronerMerge(argv, config) {
 
 function coronerUnmerge(argv, config) {
   return _coronerMerge(argv, config, 'unmerge');
+}
+
+/*
+ * Usage: cts <project> <attribute> <target>
+ */
+function coronerCts(argv, config) {
+  /* First extract a list of all fingerprint values for the given target. */
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  let universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  let project = argv._[1];
+  let attribute = argv._[2];
+  let value = argv._[3];
+
+  let query = argvQuery(argv);
+  let q_v = query.query;
+  q_v.filter[0][attribute] = [ [ "equal", value ] ];
+  q_v.group = ["fingerprint"];
+  q_v.fold = {};
+  q_v.fold[attribute] = [[ "count" ]];
+
+  if (argv.query) {
+    console.log(JSON.stringify(q_v, null, 2));
+    return;
+  }
+
+  let fingerprint = {};
+
+  coroner.query(universe, project, q_v, function(err, result) {
+    if (err) {
+      errx(err.message);
+    }
+
+    var rp = new crdb.Response(result.response);
+    rp = rp.unpack();
+
+    for (var k in rp) {
+      fingerprint[k] = true;
+    }
+
+    /* Now we have suspect fingerprints. Eliminate those not unique to the run. */
+    delete(q_v.filter[0][attribute]);
+    q_v.fold[attribute] = [ [ "distribution", 8192 ] ];
+    coroner.query(universe, project, q_v, function(err, result) {
+      if (err) {
+        errx(err.message);
+      }
+
+      var rp = new crdb.Response(result.response);
+      rp = rp.unpack();
+
+      for (var k in rp) {
+        if (!fingerprint[k])
+          continue;
+
+        var dt = rp[k]["distribution(" + attribute + ")"][0];
+        if (dt.keys > 1)
+          delete fingerprint[k];
+      }
+
+      /* Construct a query to set tags for each of these issues. */
+      delete(q_v.group);
+      delete(q_v.fold);
+
+      let n_issues = Object.keys(fingerprint).length;
+      if (n_issues === 0) {
+        console.log('No new issues introduced.');
+        return;
+      } else {
+        console.log('Setting tags on ' + n_issues + ' issues.');
+      }
+
+      let filter_string = '';
+      let first = true;
+
+      for (var k in fingerprint) {
+        if (first === false)
+          filter_string += '|';
+        filter_string += '^' + k + "$";
+        first = false;
+      }
+
+      q_v.filter[0].fingerprint = [ [ "regular-expression", filter_string ] ];
+      delete q_v.filter[0].timestamp;
+      q_v.set = {"tags" :  value};
+      q_v.table = "issues";
+      q_v.select = ["tags"];
+      coroner.query(universe, project, q_v, function(error, result) {
+        if (err) {
+          errx(err.message);
+        }
+      });
+      return;
+    });
+  });
 }
 
 /**
