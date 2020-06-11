@@ -816,9 +816,8 @@ function coronerCI(argv, config) {
 
       if (slack) {
         slack.webhook({
-          channel: '@sbahra',
+          channel: argv.target,
           username: 'Backtrace',
-          icon_emoji: ":ghost:",
           attachments: [
             {
               color : open_count > 0 ? "#FF0000" : "good",
@@ -861,6 +860,7 @@ function coronerCts(argv, config) {
   let query = argvQuery(argv);
   let q_v = query.query;
   q_v.filter[0][attribute] = [ [ "equal", value ] ];
+  q_v.filter[0]["fingerprint;issues;tags"] = [ [ "not-contains", value ] ];
   q_v.group = ["fingerprint"];
   q_v.fold = {};
   q_v.fold[attribute] = [[ "count" ]];
