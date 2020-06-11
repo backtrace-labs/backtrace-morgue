@@ -772,6 +772,8 @@ function coronerCI(argv, config) {
 
       let fields = [];
 
+      fields.push({title:"",short:false,value:""});
+
       let open_count = 0;
       if (rp && rp['*'] && rp['*'].count > 0) {
         open_count = rp['*'].count;
@@ -797,11 +799,29 @@ function coronerCI(argv, config) {
         });
       }
 
-      message += 'Found ' + total_c + ' defects across ' + total_f + ' open issues.\n';
+      message += 'Found ' + total_c + ' errors across ' + total_f + ' open issues.\n';
 
       function c_url(a, o, v) {
         return config.endpoint + "/p/" + project + "/triage?time=month&filters=((" +
           a + "%2C" + o + "%2C" + v + "))";
+      }
+
+      fields.push({title:"",short:false,value:""});
+
+      if (argv.author) {
+        fields.push({
+          title: "Author",
+          short: true,
+          value: argv.author
+        });
+      }
+
+      if (argv.build) {
+        fields.push({
+          title: "Build",
+          short: true,
+          value: argv.build + ""
+        });
       }
 
       if (total_f > 0 || open_count > 0) {
