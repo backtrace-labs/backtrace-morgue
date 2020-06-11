@@ -804,7 +804,7 @@ function coronerCI(argv, config) {
           a + "%2C" + o + "%2C" + v + "))";
       }
 
-      if (total_f > 0) {
+      if (total_f > 0 || open_count > 0) {
         fields.push({
           title: "Actions",
           short: false,
