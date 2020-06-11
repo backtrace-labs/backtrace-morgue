@@ -835,6 +835,25 @@ function coronerCI(argv, config) {
       }
 
       if (slack) {
+        if (argv.author) {
+          slack.webhook({
+            channel: '@' + argv.author,
+            username: 'Backtrace',
+            attachments: [
+              {
+                color : open_count > 0 ? "#FF0000" : "good",
+                footer: "Backtrace",
+                footer_icon: "https://backtrace.io/images/icon.png",
+                author_name: value,
+                ts: parseInt(Date.now() / 1000),
+                fields: fields,
+                text: message
+              }
+            ]
+          }, function (e, r) {
+          });
+        }
+
         slack.webhook({
           channel: argv.target,
           username: 'Backtrace',
@@ -850,9 +869,6 @@ function coronerCI(argv, config) {
             }
           ]
         }, function (e, r) {
-          if (open_count > 0)
-            process.exit(1);
-          process.exit(0);
         });
       }
     });
