@@ -37,6 +37,7 @@
     "printf": "^0.2.5",
     "prompt": "^1.0.0",
     "request": "^2.88.2",
+    "slack-node": "^0.1.8",
     "streamsink": "^1.2.0",
     "sync-request": "^5.0.0",
     "table": "^4.0.1",
