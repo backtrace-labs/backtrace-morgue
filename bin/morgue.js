@@ -32,6 +32,7 @@ const chrono = require('chrono-node');
 const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const Slack = require('slack-node');
 
 var levenshtein;
 
@@ -229,6 +230,7 @@ var commands = {
   ls: coronerList,
   describe: coronerDescribe,
   cts: coronerCts,
+  ci: coronerCI,
   token: coronerToken,
   session: coronerSession,
   limit: coronerLimit,
@@ -708,7 +710,140 @@ function coronerUnmerge(argv, config) {
 }
 
 /*
+ * Usage: ci <project> --run=<attribute> --tag=<branch> <value> --slack=<base> --target=<channel>
+ *
+ * coroner ci cts run sbahra-123 --slack=292191/12392139/119212912 --target=#build
+ */
+function coronerCI(argv, config) {
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+  let message = '';
+  let slack;
+
+  let universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  let project = argv._[1];
+  let value = argv._[2];
+  let attribute = argv.run;
+
+  /* Get a summary of issues found by tool for a given run. */
+  let query = argvQuery(argv);
+  let q_v = query.query;
+  q_v.filter[0][attribute] = [ [ "equal", value ] ];
+  q_v.filter[0]['fingerprint;issues;state'] = [ [ "regular-expression", "open|progress" ] ];
+  q_v.group = ["tool"];
+  q_v.fold = {};
+  q_v.fold.fingerprint = [[ "unique" ]];
+
+  if (argv.slack && argv.target) {
+    slack = new Slack();
+    slack.setWebhook('https://hooks.slack.com/services/' + argv.slack);
+  }
+
+  coroner.query(universe, project, q_v, function(err, result) {
+    if (err) {
+      errx(err.message);
+    }
+
+    var rp = new crdb.Response(result.response);
+    rp = rp.unpack();
+
+    let total_f = 0;
+    let total_c = 0;
+    for (let j in rp) {
+      total_f += rp[j]['unique(fingerprint)'][0];
+      total_c += rp[j].count;
+    }
+
+    delete q_v.filter[0][attribute];
+    q_v.filter[0]['fingerprint;issues;tags'] = [["contains", argv.tag]];
+    q_v.fold.classifiers = [[ "distribution" ]];
+    delete q_v.group;
+
+    coroner.query(universe, project, q_v, function(err, result) {
+      if (err) {
+        errx(err.message);
+      }
+
+      var rp = new crdb.Response(result.response);
+      rp = rp.unpack();
+
+      let fields = [];
+
+      let open_count = 0;
+      if (rp && rp['*'] && rp['*'].count > 0) {
+        open_count = rp['*'].count;
+
+        fields.push({
+          title: "Failure",
+          value: open_count + ' regressions introduced in `' +
+              argv.tag + '` in an open state.\n'
+        });
+
+        let d_v = rp['*']['distribution(classifiers)'][0].vals;
+
+        for (var i = 0; i < d_v.length; i++) {
+          if (d_v[i][0].length > 32)
+            d_v[i][0] = d_v[i][0].substring(0, 16) + '...';
+
+          fields.push({ title: "`" + d_v[i][0] + "`", value: d_v[i][1] + "", "short" : true });
+        }
+      } else {
+        fields.push({
+          title: "Success",
+          value: "No open regressions found."
+        });
+      }
+
+      message += 'Found ' + total_c + ' defects across ' + total_f + ' open issues.\n';
+
+      function c_url(a, o, v) {
+        return config.endpoint + "/p/" + project + "/triage?time=month&filters=((" +
+          a + "%2C" + o + "%2C" + v + "))";
+      }
+
+      if (total_f > 0) {
+        fields.push({
+          title: "Actions",
+          short: false,
+          value:
+            "<" + c_url("fingerprint%3Bissues%3Btags", "contains", argv.tag) + "|View regressions> | " +
+            "<" + c_url(argv.run, "equal", value) + "|View all defects>"
+        });
+      }
+
+      if (slack) {
+        slack.webhook({
+          channel: '@sbahra',
+          username: 'Backtrace',
+          icon_emoji: ":ghost:",
+          attachments: [
+            {
+              color : open_count > 0 ? "#FF0000" : "good",
+              footer: "Backtrace",
+              footer_icon: "https://backtrace.io/images/icon.png",
+              author_name: value,
+              ts: parseInt(Date.now() / 1000),
+              fields: fields,
+              text: message
+            }
+          ]
+        }, function (e, r) {
+          if (open_count > 0)
+            process.exit(1);
+          process.exit(0);
+        });
+      }
+    });
+  });
+}
+
+/*
  * Usage: cts <project> <attribute> <target>
+ *
+ * Sets marker for uniquely introduced issues.
  */
 function coronerCts(argv, config) {
   /* First extract a list of all fingerprint values for the given target. */
@@ -778,7 +913,7 @@ function coronerCts(argv, config) {
         console.log('No new issues introduced.');
         return;
       } else {
-        console.log('Setting tags on ' + n_issues + ' issues.');
+        console.log('Setting tag ' + value + ' on ' + n_issues + ' issues.');
       }
 
       let filter_string = '';
@@ -793,9 +928,10 @@ function coronerCts(argv, config) {
 
       q_v.filter[0].fingerprint = [ [ "regular-expression", filter_string ] ];
       delete q_v.filter[0].timestamp;
-      q_v.set = {"tags" :  value};
+      q_v.set = {"tags" :  value + ""};
       q_v.table = "issues";
       q_v.select = ["tags"];
+
       coroner.query(universe, project, q_v, function(error, result) {
         if (err) {
           errx(err.message);
