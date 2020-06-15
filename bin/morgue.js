@@ -803,7 +803,7 @@ function coronerCI(argv, config) {
 
       function c_url(a, o, v) {
         return config.endpoint + "/p/" + project + "/triage?time=month&filters=((" +
-          a + "%2C" + o + "%2C" + v + "))";
+          a + "%2C" + o + "%2C" + v + ")%2C(fingerprint%3Bissues%3Bstate%2Cregex%2Copen%7Cprogress))";
       }
 
       fields.push({title:"",short:false,value:""});
