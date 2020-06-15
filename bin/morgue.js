@@ -967,6 +967,8 @@ function coronerCts(argv, config) {
       q_v.set = {"tags" :  value + ""};
       q_v.table = "issues";
       q_v.select = ["tags"];
+      delete q_v.filter[0]["fingerprint;issues;tags"];
+      q_v.filter[0]["tags"] = [ [ "not-contains", value ] ];
 
       coroner.query(universe, project, q_v, function(error, result) {
         if (err) {
