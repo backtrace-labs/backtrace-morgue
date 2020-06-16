@@ -240,6 +240,33 @@ syntax is `[-](<column>|<fold_term>)`.
 Multiple sort terms can be provided to break ties in case the previous
 referenced sort term has ties.
 
+#### Computed Views
+
+Coronerd offers support for a limited set of computed columns which can be
+used in selection and aggregation stages of a query.
+
+##### `--quantize-uint`
+
+Forms:
+
+```
+--quantize-uint output_column,input_column,size
+--quantize-uint output_column,input_column,size,offset
+```
+
+Computes `( column + offset ) / size - offset` using integer math.  Used for
+data alignment and rounding.
+
+Size and offset may be integers or time units: `3600` and `1h` are both valid.
+
+Typically size is a bin size and offset is a timezone offset from UTC.
+
+For example, errors by day in EDT:
+
+```
+morgue list project --count fingerprint --factor timestamp.edt.day --head timestamp.edt.day --quantize-uint timestamp.edt.day,timestamp,1d,-4h
+```
+
 #### Example
 
 Request all faults from application deployments owned by jdoe.
