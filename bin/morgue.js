@@ -3998,6 +3998,54 @@ function secondsToTimespec(age_val) {
   }, "");
 }
 
+function parseTimeInt(x) {
+  let i = parseInt(x);
+  if (i === NaN || String(i) !== x) {
+    i = timespecToSeconds(x);
+  }
+  return i;
+}
+
+function argvQuantizeUint(argv) {
+  let q = argv["quantize-uint"];
+
+  if (!q)
+    return [];
+
+  if (!Array.isArray(q))
+    q = [ q ];
+
+  return q.map(a => {
+    let segs = a.split(",");
+
+    if (segs.length < 3) {
+      errx("Quantize column definition is of the form output_name,backing_column,size,[offset]");
+    }
+
+    let [name, backing, size, offset] = segs;
+    if (offset === undefined || offset === null) {
+      offset = "0";
+    }
+
+    size = parseTimeInt(size);
+    offset = parseTimeInt(offset);
+
+    return {
+      name: name,
+      type: "quantize_uint",
+      quantize_uint: {
+        backing_column: backing,
+        size: size,
+        offset: offset,
+      }
+    };
+  });
+}
+
+function argvVcols(args) {
+  return argvQuantizeUint(args);
+}
+
 /* Some subcommands don't make sense with folds etc. */
 function argvQueryFilterOnly(argv) {
   if (argv.select || argv.filter || argv.fingerprint || argv.age || argv.time) {
@@ -4137,6 +4185,8 @@ function argvQuery(argv) {
   if (argv.factor) {
     query.group = [ argv.factor ];
   }
+
+  query.virtual_columns = argvVcols(argv);
 
   if (argv.template === 'select') {
   } else if (argv.select) {
