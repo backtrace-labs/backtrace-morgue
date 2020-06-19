@@ -374,10 +374,8 @@ function coronerSetupNext(coroner, bpg) {
 
   /* Do this one first so superuser isn't set up before this is. */
   const cons_l = model.listener.find((l) => {
-    console.log(`l=${JSON.stringify(l, null, 4)}`);
     return l.get('type') === 'http/console';
   });
-  console.log(`cons_l=${cons_l.get('dns_name')}`);
   if (cons_l) {
     const dns_name = cons_l.get('dns_name');
     if (!dns_name || dns_name.length === 0)
