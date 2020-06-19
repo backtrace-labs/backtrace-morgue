@@ -372,6 +372,18 @@ function coronerSetupNext(coroner, bpg) {
 
   process.stderr.write('\n');
 
+  /* Do this one first so superuser isn't set up before this is. */
+  const cons_l = model.listener.find((l) => {
+    console.log(`l=${JSON.stringify(l, null, 4)}`);
+    return l.get('type') === 'http/console';
+  });
+  console.log(`cons_l=${cons_l.get('dns_name')}`);
+  if (cons_l) {
+    const dns_name = cons_l.get('dns_name');
+    if (!dns_name || dns_name.length === 0)
+      return coronerSetupDns(coroner, bpg, cons_l);
+  }
+
   if (!model.universe || model.universe.length === 0)
     return coronerSetupUniverse(coroner, bpg);
 
@@ -382,6 +394,34 @@ function coronerSetupNext(coroner, bpg) {
     'Please use a web browser to complete setup:\n');
   process.stderr.write((coroner.endpoint + '/config/' + model.universe[0].get('name') + '\n').cyan.bold);
   return;
+}
+
+function coronerSetupDns(coroner, bpg, cons_l) {
+  console.log('Specify DNS name users will use to reach the server'.bold);
+  console.log(
+    'We must specify this so that services accessing the server via SSL\n' +
+    'can reach it without skipping validation.\n');
+
+  promptLib.get([
+    {
+      name: 'dns_name',
+      description: 'DNS name',
+      pattern: /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/,
+      type: 'string',
+      required: true,
+    }
+  ], (error, result) => {
+    var model = bpg.get();
+
+    if (!result || !result.dns_name) {
+      errx('No DNS name provided.');
+    }
+
+    bpg.modify(cons_l, { dns_name: result.dns_name });
+    bpg.commit();
+
+    return coronerSetupNext(coroner, bpg);
+  });
 }
 
 function coronerSetupUser(coroner, bpg) {
@@ -449,7 +489,7 @@ function coronerSetupUser(coroner, bpg) {
 function coronerSetupUniverse(coroner, bpg) {
   console.log('Create an organization'.bold);
   console.log(
-    'We must first configure the organization that is using the object store.\n' +
+    'We must configure the organization that is using the object store.\n' +
     'Please provide a one word name for the organization using the object store.\n' +
     'For example, if your company name is "Appleseed Systems I/O", you could\n' +
     'use the name "appleseed". The name must be lowercase.\n');
