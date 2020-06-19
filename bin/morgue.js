@@ -233,6 +233,7 @@ var commands = {
   ci: coronerCI,
   token: coronerToken,
   session: coronerSession,
+  access: coronerAccessControl,
   limit: coronerLimit,
   set: coronerSet,
   get: coronerGet,
@@ -995,6 +996,326 @@ function coronerLogout(argv, config) {
       console.log('Logged out.'.blue);
   });
 }
+
+function coronerAccessControlUsage() {
+  console.error('Usage:');
+  console.error('morgue access <action> [params...]');
+  console.error('');
+  console.error('actions:');
+  console.error(' - team');
+  console.error(' - project');
+  console.error('');
+  console.error('action team:');
+  console.error('    morgue access team <create|remove|details> <team>');
+  console.error('    morgue access team add-user <team> <user>');
+  console.error('    morgue access team remove-user <team> <user>');
+  console.error('    morgue access team list');
+  console.error('');
+  console.error('action project:');
+  console.error('    morgue access project <project> add-team <team> <role>');
+  console.error('    morgue access project <project> remove-team <team>');
+  console.error('    morgue access project <project> add-user <user> <role>');
+  console.error('    morgue access project <project> remove-user <user>');
+  console.error('    morgue access project <project> details');
+}
+
+function coronerTeamCreate({bpg, argv, universeId, model}) {
+  const teamName = argv._[3];
+
+  let team = bpg.new('team');
+  team.set('name', teamName);
+  team.set('universe', universeId);
+  team.set('id', 0);
+  bpg.create(team);
+  bpg.commit();
+}
+
+function coronerTeamDelete({bpg, argv, model}) {
+  const teamName = argv._[3];
+
+  let team = model.team.find(function(t) {
+    return t.get('name') == teamName;
+  });
+  if (team === undefined) {
+    console.log("Team not found".red);
+    return;
+  }
+  bpg.delete(team);
+  bpg.commit();
+}
+
+function coronerTeamList({argv, universeId, model}) {
+  model.team.filter(t => t.get('universe') == universeId).forEach(t => {
+    console.log(t.get('name'));
+  });
+}
+
+function coronerTeamUserAdd({bpg, argv, universeId, model}) {
+  const teamName = argv._[3];
+  const userName = argv._[4];
+
+  const team = model.team.find(function(t) {
+    return t.get('name') == teamName;
+  });
+  if (team === undefined) {
+    console.log("Team not found".red);
+    return;
+  }
+
+  const user = model.users.find(function(u) {
+    return u.get('username') == userName;
+  });
+  if (user === undefined) {
+    console.log("User not found".red);
+    return;
+  }
+
+  let tm = bpg.new('team_member');
+  tm.set('team', team.get('id'));
+  tm.set('user', user.get('uid'));
+  bpg.create(tm);
+  bpg.commit();
+}
+
+function coronerTeamUserDelete({bpg, argv, universeId, model}) {
+  const teamName = argv._[3];
+  const userName = argv._[4];
+
+  let team = model.team.find(function(t) {
+    return t.get('name') == teamName;
+  });
+  if (team === undefined) {
+    console.log("Team not found".red);
+    return;
+  }
+
+  const user = model.users.find(function(u) {
+    return u.get('username') == userName;
+  });
+  if (user === undefined) {
+    console.log("User not found".red);
+    return;
+  }
+
+  const tm = model.team_member.find(function(tm) {
+    return tm.get('user') == user.get('uid') && tm.get('team') == team.get('tid');
+  });
+  if (tm === undefined) {
+    console.log(`User '${userName}' is not a member of team '${teamName}'`.red);
+    return;
+  }
+
+  bpg.delete(tm);
+  bpg.commit();
+}
+
+function coronerTeamDetails({argv, model}) {
+  const teamName = argv._[3];
+  let team = model.team.find(function(t) {
+    return t.get('name') == teamName;
+  });
+  if (team === undefined) {
+    console.log("Team not found".red);
+    return;
+  }
+  const teamId = team.get('id');
+
+  const idToUser = function() {
+    let ret = {}
+    const arr = model.users.map(u => [u.get('uid'), u.get('username')]);
+    arr.forEach((a) => ret[a[0]] = a[1])
+    return ret
+  }();
+
+  console.log("Team members:".blue)
+  model.team_member.filter(tm => tm.get('team') == teamId).forEach(function(tm) {
+    const name = idToUser[tm.get('user')] || '<unknown_name>';
+    console.log(` - ${name}`);
+  });
+
+  console.log("\nTeam is a member of projects:".blue);
+  model.project_member_team.filter(pm => pm.get('team') == teamId).forEach(pm => {
+    const projectBpg = model.project.find(p => p.get('pid') == pm.get('project'));
+    if (projectBpg === undefined)
+      errx(`Project with id ${pm.get('project')} not found`.red);
+    console.log(` - ${projectBpg.get('name')} - ${pm.get('role')}`);
+  });
+}
+
+function coronerProjectAddTeamUser({mode, bpg, argv, model, idSupply}) {
+  const projectName = argv._[2];
+  const suppliedName = argv._[4];
+  const role = argv._[5];
+
+  const project = model.project.find(p => p.get('name') == projectName);
+  if (project === undefined)
+    errx(`project not found: ${projectName}`.red);
+
+  const id = idSupply[mode](suppliedName);
+
+  if (role === undefined)
+    errx('need to supply role'.red);
+  if (role.match(/(guest|member|admin)/) == false)
+    errx('unknown role'.red);
+
+  let add = bpg.new(`project_member_${mode}`);
+  add.set('project', project.get('pid'));
+  add.set(mode, id);
+  add.set('role', role);
+  bpg.create(add);
+  bpg.commit();
+}
+
+function coronerProjectRemoveTeamUser({mode, bpg, argv, model, idSupply}) {
+  const projectName = argv._[2];
+  const suppliedName = argv._[4];
+
+  const id = idSupply[mode](suppliedName);
+
+  const project = model.project.find(p => p.get('name') == projectName);
+  if (project === undefined)
+    errx(`project not found: ${projectName}`.red);
+
+  let bpgObject = model[`project_member_${mode}`].find(pm => pm.get(mode) == id && pm.get('project') == project.get('pid'));
+  if (bpgObject === undefined)
+    errx(`${mode} not found for project ${projectName}`);
+
+  bpg.delete(bpgObject);
+  bpg.commit();
+}
+
+function coronerProjectAccessDetails({argv, model}) {
+  const projectName = argv._[2];
+  const project = model.project.find(p => p.get('name') == projectName);
+  if (project === undefined)
+    errx(`project not found: ${projectName}`.red);
+
+  const users = model.project_member_user.filter(pm => pm.get('project') == project.get('pid'));
+  const teams = model.project_member_team.filter(pm => pm.get('project') == project.get('pid'));
+
+  if (users.length == 0 && teams.length == 0) {
+    console.log(`Project ${projectName} has no access control`);
+    return;
+  }
+
+  console.log('Teams:')
+  teams.forEach(pm => {
+    const team = model.team.find(t => t.get('id') == pm.get('team'))
+    if (team === undefined)
+      errx(`Team ${pm.get('team')} not found`)
+    console.log(`${team.get('name')} - ${pm.get('role')}`);
+  })
+  console.log("--\n")
+  console.log('Users:')
+  users.forEach(pm => {
+    const user = model.users.find(u => u.get('uid') == pm.get('user'))
+    if (user === undefined)
+      errx(`User ${pm.get('user')} not found`)
+    console.log(`${user.get('username')} - ${pm.get('role')}`);
+  })
+  console.log("--\n")
+}
+
+/**
+ * @brief Implements the limit command.
+ */
+function coronerAccessControl(argv, config) {
+  var options = null;
+
+  abortIfNotLoggedIn(config);
+  var coroner = coronerClientArgv(config, argv);
+
+  let universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  let bpg = coronerBpgSetup(coroner, argv);
+  let model = bpg.get();
+
+  let universeId;
+  /* Find the universe with the specified name. */
+  for (let i = 0; i < model.universe.length; i++) {
+    if (model.universe[i].get('name') === universe) {
+      const un = model.universe[i];
+      universeId = un.get('id');
+    }
+  }
+  if (universeId === undefined) {
+    errx("Universe not found".red);
+  }
+
+  /* The sub-command. */
+  const submodule = argv._[1];
+
+  if (submodule == 'team') {
+    const actionHandlers = {
+      create: coronerTeamCreate,
+      remove: coronerTeamDelete,
+      list: coronerTeamList,
+      details: coronerTeamDetails,
+      'add-user': coronerTeamUserAdd,
+      'remove-user': coronerTeamUserDelete,
+    };
+    const params = {
+      bpg: bpg,
+      argv: argv,
+      universeId: universeId,
+      model: model,
+    };
+    const action = argv._[2];
+
+    const handler = actionHandlers[action];
+    if (handler !== undefined) {
+      handler(params);
+    } else {
+      coronerAccessControlUsage();
+    }
+  } else if (submodule == 'project') {
+    // access project <project> action [user|team] [role]
+
+    const idSupply = {
+      team: (suppliedName) => {
+        const t = model.team.find(t => t.get('name') == suppliedName);
+        if (t === undefined)
+          errx(`team not found: ${suppliedName}`.red);
+        return t.get('id');
+      },
+      user: (suppliedName) => {
+        const u = model.users.find(u => u.get('username') == suppliedName);
+        if (u === undefined)
+          errx(`user not found: ${suppliedName}`.red);
+        return u.get('uid');
+      }
+    };
+
+    const params = {
+      bpg: bpg,
+      argv: argv,
+      model: model,
+      idSupply: idSupply,
+    }
+
+    const actionHandlers = {
+      'add-team': (ps) => coronerProjectAddTeamUser(Object.assign({mode: 'team'}, ps)),
+      'remove-team': (ps) => coronerProjectRemoveTeamUser(Object.assign({mode: 'team'}, ps)),
+      'add-user': (ps) => coronerProjectAddTeamUser(Object.assign({mode: 'user'}, ps)),
+      'remove-user': (ps) => coronerProjectRemoveTeamUser(Object.assign({mode: 'user'}, ps)),
+      'details': coronerProjectAccessDetails,
+    }
+
+    const action = argv._[3];
+    const handler = actionHandlers[action];
+    if (handler !== undefined) {
+      handler(params);
+    } else {
+      coronerAccessControlUsage();
+    }
+  } else {
+    coronerAccessControlUsage();
+    return;
+  }
+}
+
 
 /**
  * @brief Implements the limit command.

@@ -1120,3 +1120,43 @@ $ morgue callstack evaluate project oid
 ```
 $ morgue callstack evaluate project file.json
 ```
+
+## Access control
+
+Allows controlling coroner's access control mechanisms
+```
+Usage:
+morgue access <action> [params...]
+
+actions:
+ - team
+ - project
+
+action team:
+    morgue access team <create|remove|details> <team>
+    morgue access team add-user <user>
+    morgue access team remove-user <user>
+    morgue access team list
+
+action project:
+    morgue access project <project> add-team <team> <role>
+    morgue access project <project> remove-team <team>
+    morgue access project <project> add-user <user> <role>
+    morgue access project <project> remove-user <user>
+    morgue access project <project> details
+```
+
+### action team
+Allows manipulation of teams - creation, removal, listing, displaying details and adding/removing users to teams.
+
+### action project
+Allows manipulation of projects in terms of access control - display details or add/remove user or team.
+
+Possible roles:
+- admin
+- member
+- guest
+
+If a user has access through multiple sources (e.g. they belong to
+two teams and also have direct project membership) they will have
+the highest privileges afforded by any of those access routes.
