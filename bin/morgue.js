@@ -6653,23 +6653,36 @@ function retentionUsage(str) {
   process.exit(1);
 }
 
-function bpgObjectFind(objects, type, val, field) {
+function bpgObjectFind(objects, type, vals, fields) {
   if (!objects[type])
     return null;
 
-  if (!field) {
-    if (type === "project")
-      field = "pid";
-    else
-      field = "id";
-  }
-
   /* Shortcut to simply return the first value. */
-  if (val === null)
+  if (vals === null)
     return objects[type][0];
 
+  /* If fields not specified, assume defaults. */
+  const id_attr = type === "project" ? "pid" : "id";
+  if (!fields) {
+    fields = [id_attr];
+  }
+
+  if (Array.isArray(fields)) {
+    if (Array.isArray(vals) === false)
+      throw new Error("Invalid bpgObjectFind usage");
+    if (fields.length !== vals.length)
+      throw new Error("Invalid bpgObjectFind usage");
+  } else {
+    fields = [fields];
+    vals = [vals];
+  }
+
   return objects[type].find(function(o) {
-    return o.get(field) === val;
+    for (let idx in vals) {
+      if (o.get(fields[idx]) !== vals[idx])
+        return false;
+    }
+    return true;
   });
 }
 
@@ -6684,7 +6697,26 @@ function retentionTypeFor(parent_type) {
 }
 
 function retentionParent(objects, parent_type, name) {
-  return bpgObjectFind(objects, parent_type, name, "name");
+  /* If an universe/project was passed in, look up the universe first. */
+  let fields = [];
+  let vals = [];
+
+  if (parent_type === "project") {
+    const [u, p] = name.split("/");
+    if (p) {
+      name = p;
+      const uobj = bpgObjectFind(objects, "universe", u, "name");
+      if (!uobj)
+        return null;
+
+      fields.push("universe");
+      vals.push(uobj.get("id"));
+    }
+  }
+
+  fields.push("name");
+  vals.push(name);
+  return bpgObjectFind(objects, parent_type, vals, fields);
 }
 
 function addCriterion(rule, type, params) {
@@ -6828,7 +6860,7 @@ function retentionSet(bpg, objects, argv, config) {
 
   /* Determine whether a create or update is needed. */
   if (rtn_pname) {
-    var id_attr = rtn_ptype === "project" ? "pid" : "id";
+    const id_attr = rtn_ptype === "project" ? "pid" : "id";
     rtn_parent = retentionParent(objects, rtn_ptype, rtn_pname);
     if (!rtn_parent) {
       return retentionUsage("Unknown " + rtn_ptype + " '" + rtn_pname + "'.");
