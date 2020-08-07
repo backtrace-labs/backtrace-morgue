@@ -7461,7 +7461,22 @@ function main() {
       errx("Unable to read configuration: " + err.message + ".");
     }
 
-    command(argv, config);
+    /*
+     * Wrap this in a promise, then rethrow the rejection. This lets us
+     * support commands that use async/await without hanging the process or
+     * dealing with Node changing the default behavior of unhandled rejections,
+     * i.e. see https://github.com/nodejs/node/pull/33021
+     * or just Promise.reject(5) in a Node shell.
+     */
+    Promise.resolve(command(argv, config)).catch(e => {
+      /*
+       * If we throw directly in this handler, we're just rejecting
+       * the promise again. Move the error out to the event loop, instead.
+       */
+      setTimeout(() => {
+        throw e;
+      }, 0);
+    });
   });
 }
 
