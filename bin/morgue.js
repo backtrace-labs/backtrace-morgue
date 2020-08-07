@@ -33,6 +33,7 @@ const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const Slack = require('slack-node');
+const metricsImporterCli = require('../lib/metricsImporter/cli.js');
 
 var levenshtein;
 
@@ -255,6 +256,7 @@ var commands = {
   user: coronerUser,
   merge: coronerMerge,
   unmerge: coronerUnmerge,
+  "metrics-importer": metricsImporterCmd,
 };
 
 process.stdout.on('error', function(){process.exit(0);});
@@ -7415,6 +7417,14 @@ function coronerRetention(argv, config) {
   }
 
   retentionUsage("Invalid retention subcommand '" + subcmd + "'.");
+}
+
+async function metricsImporterCmd(argv, config) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientArgv(config, argv);
+  const cli = await metricsImporterCli.metricsImporterCliFromCoroner(coroner);
+  argv._.shift();
+  await cli.routeMethod(argv);
 }
 
 function main() {
