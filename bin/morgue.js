@@ -2,6 +2,7 @@
 
 'use strict';
 
+const axios     = require('axios');
 const Callstack = require('../lib/callstack.js');
 const CoronerClient = require('../lib/coroner.js');
 const crdb      = require('../lib/crdb.js');
@@ -12,7 +13,6 @@ const ip        = require('ip');
 const bar       = require('./bar.js');
 const ta        = require('time-ago');
 const histogram = require('./histogram.js');
-const intersect = require('intersect');
 const printf    = require('printf');
 const moment    = require('moment');
 const moment_tz = require('moment-timezone');
@@ -33,14 +33,6 @@ const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const Slack = require('slack-node');
-
-var levenshtein;
-
-try {
-  levenshtein = require('levenshtein-sse');
-} catch (e) {
-  levenshtein = null;
-}
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -4889,180 +4881,175 @@ function printFrame(fr_a, fr_b) {
   return pcs;
 }
 
-function coronerSimilarity(argv, config) {
+const similarityParams = ['threshold', 'intersection', 'distance', 'truncate'];
+const similarityDefaultFilter = [{ timestamp: [['at-least', '1.']] }];
+async function coronerSimilarity(argv, config) {
   abortIfNotLoggedIn(config);
-  var query, p;
-  var fp_filter;
 
-  if (levenshtein === null)
-    errx('morgue similary is unavailable on your host');
+  const similarityService = config.config.services.find(service => {
+    return service.name === 'similarity';
+  });
 
-  var coroner = coronerClientArgv(config, argv);
+  if (!similarityService || !similarityService.endpoint) {
+    errx('morgue similarity is unavailable on your host');
+  }
+  
+  const coroner = coronerClientArgv(config, argv);
+  const similarityEndpoint = `${coroner.endpoint}${similarityService.endpoint}`;
 
   if (argv._.length < 2) {
     return usage("Missing project, universe arguments.");
   }
 
-  if (argv.share && !argv.fingerprint) {
-    return usage("--share flag requires --fingerprint");
-  }
-
+  let fingerprint;
   if (argv.fingerprint) {
-    fp_filter = argv.fingerprint;
+    fingerprint = argv.fingerprint;
     delete argv.fingerprint;
   }
-
-  p = coronerParams(argv, config);
-
-  var aq = argvQuery(argv);
-  query = aq.query;
-  var d_age = aq.age;
-  var data = '';
-  var le = {};
-  var limited;
-
-  query.group = [ 'fingerprint' ];
-  query.fold = {
-    'callstack' : [['head']]
+  const project = coronerParams(argv, config).project;
+  const xCoronerToken = config.config.token;
+  const xCoronerLocation = `${config.endpoint}/`;
+  
+  // Default options
+  const candidacyOptions = {
+    type: 'distance',
+    truncate: 100,
+    distance: 10,
+    intersection: 1,
+    threshold: 1
   };
+  const limit = argv.limit || 20;
+  const filter = argv.filter || similarityDefaultFilter;
 
-  coroner.query(p.universe, p.project, query, function (err, result) {
-    if (err) {
-      errx(err.message);
-    }
-
-    var rp = new crdb.Response(result.response);
-    rp = rp.unpack();
-
-    /*
-     * If a limit is provided, then this specifies that scoring should be
-     * constrained to the top N groups.
-     */
-    if (argv.limit) {
-      var sr = [];
-
-      /* Squash into an array. */
-      for (var fingerprint in rp) {
-        rp[fingerprint].fingerprint = fingerprint;
-        sr.push(rp[fingerprint]);
-      }
-
-      /* Sort the array. */
-      sr.sort(function(a, b) {
-        return (a.count < b.count) - (a.count > b.count);
-      });
-
-      /* Now, we create a map of fingerprints that belong here. */
-      limited = {};
-      for (var i = 0; i < argv.limit && i < sr.length; i++) {
-        limited[sr[i].fingerprint] = true;
-      }
-    }
-
-    /*
-     * The first step is to build a map of all fingerprints. Every fingerprint
-     * will consist of an array of strings.
-     */
-    for (var fingerprint in rp) {
-      var frj = rp[fingerprint]['head(callstack)'];
-
-      if (!frj || !frj[0])
-        continue;
-
-      var fr = JSON.parse(frj).frame;
-
-      /* If threshold is specified, callstack length must exceed. */
-      if (argv.threshold && fr.length < argv.threshold)
-        continue;
-
-      /*
-       * Last but not least, someone may wish to truncate the array.
-       */
-
-      le[fingerprint] = { callstack: fr };
-
-      if (argv.truncate) {
-        le[fingerprint].target = fr.slice(0, argv.truncate + 1);
-      } else {
-        le[fingerprint].target = fr;
-      }
-
-      le[fingerprint].scores = {};
-    }
-
-    /*
-     * Now, we have the centralized mapping. From here, we can validate
-     * similarity. For every group, for every group, compute the levenshtein
-     * distance.
-     */
-    for (var fj_a in le) {
-      /* If a limit exists, then only bother with the group if it's there. */
-      if (limited && !limited[fj_a])
-        continue;
-
-      /*
-       * If a fingerprint is specified, print the details for that
-       * fingerprint.
-       */
-      if (fp_filter && fj_a.indexOf(fp_filter) < 0)
-        continue;
-
-      for (var fj_b in le) {
-        if (fj_b === fj_a)
-          continue;
-
-        le[fj_a].scores[fj_b] = levenshtein(le[fj_a].target,
-            le[fj_b].target);
-      }
-    }
-
-    /*
-     * We have no computed the edit distance to every group. Let's sort
-     * and we're ready to print.
-     */
-    for (var fj in le) {
-      var source = le[fj];
-      var label = '';
-      var pr = false;
-      if (fp_filter && argv.share)
-        var triage_url = coroner.endpoint + '/p/' + p.project + '/triage?aperture=[["relative",' +
-          '["floating","all"]],[["fingerprint",["regular-expression","';
-
-      label +=  'Target: '.bold.yellow + fj + '\n' +
-        '      ' + JSON.stringify(source.callstack) + '\n' + 'Similar:'.bold;
-
-      for (fj_a in source.scores) {
-        /* Skip entry if edit distance is too large. */
-        if (argv.distance && source.scores[fj_a] > argv.distance)
-          continue;
-
-          /* If a union threshold is provided, compute and filter. */
-        if (argv.intersect && intersect(le[fj_a].callstack, source.callstack).length < argv.intersect)
-          continue;
-
-        if (pr === false) {
-          pr = true;
-          console.log(label);
-          if (fp_filter && argv.share)
-            triage_url += fj;
-        }
-
-        var s = printf("  %3d %s", source.scores[fj_a],
-          printFrame(le[fj_a].callstack, source.callstack));
-        if (fp_filter && argv.share)
-          triage_url += '|' + fj_a;
-        console.log(s);
-      }
-      if (pr === true) {
-        if (fp_filter && argv.share) {
-          triage_url += '"]]]]';
-          console.log("\nLink: ".bold.green + triage_url);
-        }
-        process.stdout.write('\n');
-
-      }
+  similarityParams.forEach(param => {
+    if (argv[param]) {
+      candidacyOptions[param] = argv[param];
     }
   });
+
+   let body;
+   let url;
+   
+   // If we have fingerprint, get candidates. Otherwise get project summary.
+   const requestType = fingerprint ? 'candidates' : 'summary';
+   if (requestType === 'candidates') {
+     body = {
+      project,
+      fingerprint,
+      candidacy: [ candidacyOptions ],
+      limit,
+    };
+    url = `${similarityEndpoint}/candidates`;
+   } else {
+     body = {
+      project,
+      candidacy: candidacyOptions,
+      filter,
+      limit,
+    }
+    url = `${similarityEndpoint}/summary`;
+   }
+
+   let results;
+   try {
+    results = await axios.post(url, body, { headers: {
+      'x-coroner-token': xCoronerToken,
+      'x-coroner-location': xCoronerLocation,  
+    }});
+   } catch(err) {
+     errx(err);
+   }
+
+   if (argv.json) {
+    console.log(JSON.stringify(results.data, null, 2));
+    return;
+   }
+   results = results.data;
+   if (results.error) {
+    return errx(results.error);
+   } else {
+     results = results.results;
+   }
+
+   // Render results 
+   switch(requestType) {
+     case 'candidates': {
+       const meta = results[0].meta; 
+       let disqualified = 0;
+       Object.keys(meta.disqualified).forEach(k => {
+         disqualified += meta.disqualified[k];
+        });
+       console.log('\n Disqualified: ', disqualified);
+       let disqual_table = [[
+         'by Threshold',
+         'by Intersection',
+         'by Distance'
+        ], [
+          meta.disqualified.byThreshold,
+          meta.disqualified.byIntersection,
+          meta.disqualified.byDistance
+        ]];
+      console.log(table(disqual_table));
+      console.log('\n Qualified: ', meta.qualified);
+      const candidates = results[0].candidates;
+      let canidate_data = [[
+        'Distance',
+        'Fingerprint',
+        'Dates',
+        'Count'
+      ]];
+      candidates.forEach(candidate => {
+      const dates = candidate.dates.map(date => {
+        return new Date(date * 1000).toDateString();
+      });
+      canidate_data = canidate_data.concat([[
+        candidate.distance, 
+        candidate.fingerprint.substring(0, 7),
+        dates.join(' - '),
+        candidate.count,
+      ]]);
+      });
+      console.log(table(canidate_data));
+      break;
+     }
+     case 'summary': {
+       const data = results;
+       let summary_data = [[
+         'Fingerprint',
+         'Dates',
+         'Count',
+         'Candidates',
+         'Instances',
+         '0',
+         '1',
+         '2',
+         '3',
+         '4+']];
+       data.forEach(d => {
+        const dates = d.dates.map(date => {
+          return new Date(date * 1000).toDateString();
+        });
+        summary_data = summary_data.concat([[
+          d.fingerprint.substring(0, 7),
+          dates.join(' - '),
+          d.count,
+          d.candidates,
+          d.candidateInstances,
+          d.groupedByDistance[0],
+          d.groupedByDistance[1],
+          d.groupedByDistance[2],
+          d.groupedByDistance[3],
+          d.groupedByDistance[4],
+        ]])
+      });
+      console.log('\n');
+      console.log(table(summary_data));
+      break; 
+    }
+    default: {
+      errx('unknown type of similarity request');
+    }
+   };
 }
 
 function coronerFlamegraph(argv, config) {

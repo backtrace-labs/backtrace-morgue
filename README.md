@@ -1017,11 +1017,14 @@ to their callstack attribute.
 Usage: morgue similarity <[universe]/project> [filter expression]
     [--threshold=N]     The minimum length of the callstack for groups to
                         consider for similarity analysis.
-    [--intersect=N]     The minimum number of common symbols between
+    [--truncate=N]      Shorten the callstack before comparing.   
+    [--intersection=N]  The minimum number of common symbols between
                         two groups.
     [--distance=N]      The maximum acceptable edit distance between
                         two groups.
-    [--fingerprint=N]   A fingerprint to compute similarity to.
+    [--fingerprint=N]   A fingerprint to compute similarity to. If omitted,
+                        a project summary will be computed instead. 
+    [--json]            Return the JSON result of the similarity request.                
 ```
 
 ### invite
