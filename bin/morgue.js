@@ -4908,7 +4908,7 @@ async function coronerSimilarity(argv, config) {
   }
   const project = coronerParams(argv, config).project;
   const xCoronerToken = config.config.token;
-  const xCoronerLocation = `${config.endpoint}/`;
+  const xCoronerLocation = config.endpoint;
   
   // Default options
   const candidacyOptions = {
