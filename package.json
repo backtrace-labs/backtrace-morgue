@@ -41,7 +41,8 @@
     "streamsink": "^1.2.0",
     "sync-request": "^5.0.0",
     "table": "^4.0.1",
-    "time-ago": "^0.2.1"
+    "time-ago": "^0.2.1",
+    "url-join": "^4.0.1"
   },
   "preferGlobal": true,
   "bin": {

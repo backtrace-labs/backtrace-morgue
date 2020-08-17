@@ -33,6 +33,7 @@ const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const Slack = require('slack-node');
+const metricsImporterCli = require('../lib/metricsImporter/cli.js');
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -247,6 +248,7 @@ var commands = {
   user: coronerUser,
   merge: coronerMerge,
   unmerge: coronerUnmerge,
+  "metrics-importer": metricsImporterCmd,
 };
 
 process.stdout.on('error', function(){process.exit(0);});
@@ -7404,6 +7406,14 @@ function coronerRetention(argv, config) {
   retentionUsage("Invalid retention subcommand '" + subcmd + "'.");
 }
 
+async function metricsImporterCmd(argv, config) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientArgv(config, argv);
+  const cli = await metricsImporterCli.metricsImporterCliFromCoroner(coroner);
+  argv._.shift();
+  await cli.routeMethod(argv);
+}
+
 function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
@@ -7448,7 +7458,22 @@ function main() {
       errx("Unable to read configuration: " + err.message + ".");
     }
 
-    command(argv, config);
+    /*
+     * Wrap this in a promise, then rethrow the rejection. This lets us
+     * support commands that use async/await without hanging the process or
+     * dealing with Node changing the default behavior of unhandled rejections,
+     * i.e. see https://github.com/nodejs/node/pull/33021
+     * or just Promise.reject(5) in a Node shell.
+     */
+    Promise.resolve(command(argv, config)).catch(e => {
+      /*
+       * If we throw directly in this handler, we're just rejecting
+       * the promise again. Move the error out to the event loop, instead.
+       */
+      setTimeout(() => {
+        throw e;
+      }, 0);
+    });
   });
 }
 

@@ -1163,3 +1163,64 @@ Possible roles:
 If a user has access through multiple sources (e.g. they belong to
 two teams and also have direct project membership) they will have
 the highest privileges afforded by any of those access routes.
+
+## Metrics Importing Functionality
+
+It is possible to use Morgue to configure importers for stability score.  THis
+requires Coronerd >= 1.48 and a deployed backtrace-metrics-importer.
+Usage:
+
+```
+morgue metrics-importer <command>...
+```
+
+### `source check-query`
+
+Determines if a query is valid by running it against a source as if it had been
+used with an importer and displays diagnostic information.  For example:
+
+```
+morgue metrics-importer source check-query --source my-source-uuid \
+--query 'select time, value from test where time >= $1 and time < $2'
+```
+
+### `importer create`
+
+Creates an importer.  Takes the following options:
+
+Option         | Description
+-------------- | --------------------------------------------------------------
+--source       | UUUID of the source to associate the importer with.
+--name         | The name of the importer to create.
+--start-at     |  The time to start scraping from in RFC3339 format.
+--metric       | The name of the metric to associate data with in Coronerd.
+--metric-group | The name of the metric group to associate data with in Coronerd.
+--delay        | The delay of the importer. Defaults to 60.
+
+For example:
+
+```
+morgue metrics-importer importer create \
+--source my-source-id \
+--name my-importer \
+--start-at 2020-08-05T00:00:00Z \
+--metric my-metric \
+--metric-group my-group \
+--quiery 'select time, value from test where time >= $ and time < $2' \
+--delay 120
+```
+
+Note that `--query` depends on the source type.  See the stability score
+documentation for details.
+
+### `logs`
+
+Displays logs.  Usage:
+
+```
+morgue metrics-importer logs --source-id my-source-id
+morgue metrics-importer logs --importer-id my-importer-id
+```
+
+You can pass `--limit` to limit the number of returned messages.
+By default `--limit` is 100.
