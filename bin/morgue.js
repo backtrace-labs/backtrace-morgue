@@ -4423,6 +4423,26 @@ function parseSortTerm(term) {
   return {name: name, ordering: ordering};
 }
 
+/*
+ * Assumes that we start at the 4th argument, and returns a filter object.
+ */
+function parseFilterFlags(filter) {
+  if (filter.length < 4) {
+    return {};
+  }
+
+  let flags = {};
+  const known_flags = new Set([ 'case_insensitive' ]);
+  for (const f of filter.slice(3)) {
+    const transformed = f.replace("-", "_");
+    if (!known_flags.has(transformed)) {
+      errx(`Unknown filter flag ${ f }`);
+    }
+    flags[transformed] = true;
+  }
+  return flags;
+}
+
 function argvQuery(argv) {
   var query = {};
   var d_age = null;
@@ -4467,6 +4487,9 @@ function argvQuery(argv) {
         expr = [r[1]];
       else if (r.length == 3)
         expr = [r[1], r[2]];
+      else if (r.length == 4)
+        expr = [r[1], r[2], parseFilterFlags(r)];
+
 
       query.filter[0][r[0]].push(expr);
     }

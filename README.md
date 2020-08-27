@@ -188,6 +188,10 @@ The currently supported operations are `equal`, `regular-expression`,
 `inverse-regular-expression`, `at-least`, `greater-than`, `at-most`,
 `less-than`, `contains`, `not-contains`, `is-set`, and `is-not-set`.
 
+When using Coronerd 1.49 or greater, `contains`, `not-contains`,
+`regular-expression`, and `inverse-regular-expression` accept an optional 4th
+argument `case-insensitive` to enable case-insensitive filtering.
+
 #### Pagination
 
 Pagination is handled with two flags
