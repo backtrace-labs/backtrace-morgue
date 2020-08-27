@@ -3632,6 +3632,191 @@ function samplingUsage(str) {
   process.exit(1);
 }
 
+function parseBool(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value != 0;
+  }
+  const recognized_bools = new Set(["yes", "true", "on", "1"]);
+  return recognized_bools.has(value);
+}
+
+function samplingConfigFromArgv(argv) {
+  /*
+   * For now all we support is backoff; don't expose as an arg.
+   */
+  const type = 'backoff';
+
+  let attributes = argv.attribute;
+  if (attributes === undefined) {
+    attributes = [];
+  }
+  if (!Array.isArray(attributes)) {
+    attributes = [ attributes ];
+  }
+
+  let backoffsUnparsed = argv.backoff;
+  if (backoffsUnparsed === undefined) {
+    errx("At least one --backoff is required");
+  }
+  if (!Array.isArray(backoffsUnparsed)) {
+    backoffsUnparsed = [ backoffsUnparsed ];
+  }
+
+  /*
+   * Each backoff is count,interval.
+   */
+  let backoffs = [];
+  for (let unparsed of backoffsUnparsed) {
+    let split = unparsed.split(",");
+    if (split.length !== 2) {
+      errx("Usage of --backoff is --backoff count,interval");
+    }
+    let [countStr, intervalStr] = split;
+    let interval = parseTimeInt(intervalStr);
+    let count = Number.parseInt(countStr);
+    if (Number.isNaN(count)) {
+      errx("Backoff counts must be valid integers");
+    }
+    backoffs.push({ count, interval });
+  }
+
+  /* Set the non-optional fields. */
+  let config = {
+    type,
+    backoffs,
+    object_attributes: attributes,
+  };
+
+  if (argv["reset-interval"] !== undefined) {
+    if (Array.isArray(argv["reset-interval"])) {
+      errx("Only one --reset-interval is allowed");
+    }
+    config.reset_interval = parseTimeInt(argv["reset-interval"]);
+  }
+
+  config.missing_symbols = {};
+  const keepWhitelisted = argv["process-whitelisted"];
+  if (keepWhitelisted !== undefined) {
+    config.missing_symbols.process_whitelisted = parseBool(keepWhitelisted);
+  }
+  const keepPrivate = argv["process-private"];
+  if (keepPrivate !== undefined) {
+    config.missing_symbols.process_private = parseBool(keepPrivate);
+  }
+
+  let bucketsUnparsed = argv.buckets;
+  if (bucketsUnparsed !== undefined) {
+    if (typeof bucketsUnparsed !== 'number') {
+      errx("--buckets must be integer");
+    }
+    config.buckets = bucketsUnparsed;
+  }
+
+  const resetIntervalUnparsed = argv["reset-interval"];
+  if (resetIntervalUnparsed !== undefined) {
+    config.reset_interval = parseTimeInt(resetIntervalUnparsed);
+  }
+  return config;
+}
+
+function samplingConfigure(coroner, argv, config) {
+  let universe = argv.universe;
+  if (!universe) {
+    universe = Object.keys(config.config.universes)[0];
+  }
+
+  let project = argv.project;
+
+  if (!universe) {
+    errx("--universe is required");
+  }
+
+  if (!project) {
+    errx("--project is required");
+  }
+
+  let bpg = coronerBpgSetup(coroner, argv);
+  let model = bpg.get();
+
+  /* Find universe. */
+  let uid = 0;
+  for (let u of model.universe) {
+    if (u.get("name") === universe) {
+      uid = u.get("id");
+    }
+  }
+
+  if (uid == 0) {
+    errx("Universe not found");
+  }
+
+  let pid = 0;
+  for (let p of model.project) {
+    if (p.get("universe") === uid && p.get("name") == project) {
+      pid = p.get("pid");
+    }
+  }
+
+  if (pid === 0) {
+    errx("Project not found");
+  }
+  
+  let disabled = argv.disable ? 1 : 0;
+
+  let projectSampling = null;
+  if (model.project_sampling) {
+    for (let cfg of model.project_sampling) {
+      if (cfg.get("project") === pid) {
+        projectSampling = cfg;
+      }
+    }
+  }
+
+  if (argv.clear) {
+    if (projectSampling) {
+      bpg.delete(projectSampling);
+      bpg.commit();
+    }
+    console.log(`Sampling configuration cleared. Project ${ project } will use coronerd.conf defaults.`);
+    return;
+  }
+
+  let configurationObj = {};
+  if (projectSampling) {
+    configurationObj = JSON.parse(projectSampling.get("configuration"));
+  }
+
+  /*
+   * Allow --disable by itself, by not trying to parse the config
+   */
+  if (disabled === 0) {
+    configurationObj = samplingConfigFromArgv(argv);
+  }
+
+  const configuration = JSON.stringify(configurationObj);
+  if (projectSampling) {
+    bpg.modify(projectSampling, { disabled, configuration });
+  } else {
+    const obj = bpg.new("project_sampling").withFields({
+      project: pid,
+      configuration,
+      disabled
+    });
+    bpg.create(obj);
+  }
+
+  bpg.commit();
+  console.log("Sampling configuration applied");
+  if (disabled == 1) {
+    console.log(`Project ${ project } now has sampling explicitly disabled.
+Changes in coronerd.conf will not enable sampling for this project.`);
+    console.log("To use coronerd.conf defaults, use --clear instead".yellow);
+  }
+}
+
 /**
  * @brief Implements the sampling command.
  */
@@ -3642,6 +3827,7 @@ function coronerSampling(argv, config) {
   var subcmd;
   var subcmd_map = {
     status: samplingStatus,
+    configure: samplingConfigure,
     reset: samplingReset,
   };
 

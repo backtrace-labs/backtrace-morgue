@@ -831,7 +831,7 @@ $
 ### sampling
 
 ```
-Usage: morgue sampling <status|reset> [options]
+Usage: morgue sampling <status|reset|configure> [options]
 
 Options for either status or reset:
   --fingerprint=group             Specify a fingerprint to apply to.
@@ -846,6 +846,50 @@ Options for status only:
 
 Retrieve the object sampling status, or reset it.
 Project is a required flag if fingerprint is specified.
+
+#### Configuring Sampling (Coronerd 1.50+)
+
+In Coronerd 1.50, it became possible to configure sampling on a per-project
+basis as well as using `coronerd.conf`.  This is done with the
+`morgue sampling configure` command. Configurations specified on projects
+override the `coronerd.conf` settings.  For example:
+
+```
+morgue sampling configure --project myproject \
+--attribute version \
+--backoff 1,0 \
+--backoff 5,5m \
+--backoff 100,1h
+```
+
+For information on how the Coronerd sampling algorithm works, see
+[the Backtrace sampling documentation](https://support.backtrace.io/hc/en-us/articles/360047271572-Storage-Sampling-).
+
+The available options are as follows:
+
+- `--project`, `--universe`: specify which project to affect. `--universe` is
+  optional.
+- `--disable`: Ignore all other options and explicitly disable sampling for
+  the specified project. This will apply even if there is configuration in
+  `coronerd.conf`.
+- `--clear`: Ignore all other options and clear any sampling config specific
+  to this project. Afterwords, the specified project will use the sampling
+  config from `coronerd.conf`.
+- `--attribute`: Specify the attribute(s) to sample by. This option can be
+  specified multiple times to sample by more than one attribute. Order is
+  respected.
+- `--backoff count,interval`: Specify a backoff entry. This option must be
+  specified at least once, multiple instances must be specified in
+  increasing order of interval, and the first backoff must always have a `0`
+  interval.  `interval` supports time units: `1d`, etc.
+- `--buckets`: The maximum number of sampling buckets to allow. Optional,
+  default 512.
+- `--process-whitelisted true|false`: whether to sample objects with
+  whitelisted symbols. Optional, default true.
+- `--process-private true|false`: whether to sample objects with private
+  symbols. Optional, default true.
+- `--reset-interval interval`: The reset interval. Supports time units.
+  Default 1 day.
 
 ### symbol
 
