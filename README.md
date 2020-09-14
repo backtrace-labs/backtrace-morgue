@@ -1168,9 +1168,62 @@ If a user has access through multiple sources (e.g. they belong to
 two teams and also have direct project membership) they will have
 the highest privileges afforded by any of those access routes.
 
-## Metrics Importing Functionality
+## Stability Score and Storing Metrics Data
 
-It is possible to use Morgue to configure importers for stability score.  THis
+Morgue offers the ability to configure metrics for importing metrics data with
+`metrics-importer` or custom API integrations.  This can be used from CI to
+provision new metrics against a metric group and begin shipping data.  At the
+moment, Morgue assumes setup and most common operations on entities for
+metrics importing are carried out through the frontend and only offers the
+subset of functionality necessary for automation from CI.
+
+Generally, the typical flow occurs in two stages.  First:
+
+```
+morgue stability create-metric --project myproj --metric-group stability \
+--name metric-v1.2 --attribute version,1.2
+```
+
+Which creates the metric in Coronerd against a pre-existing metric group, then:
+
+```
+morgue metrics-importer importer create \
+--source my-source-id \
+--name my-importer \
+--start-at 2020-08-05T00:00:00Z \
+--metric my-metric \
+--metric-group my-group \
+--quiery 'select time, value from test where time >= $ and time < $2' \
+--delay 120
+```
+
+Which will ship data from the associated `metrics-importer` instance.
+
+### Provisioning a coronerd-side metric
+
+Usage:
+
+```
+morgue stability create-metric --universe universe \
+-- project project \
+--metric-group my-group \
+--name my-metric \
+--attribute version,2.0 \
+--attribute country,US \
+...
+```
+
+This will provision a metric on the Coronerd side that can be fed via
+`metrics-importer` or via a custom API integration against Coronerd's
+timeseries submission endpoints.
+
+Attribute values are of the form `--attribute name,value`.
+An attribute value must be specified for every non-defaulted attribute 
+on the group.
+
+### Controlling `metrics-importer`
+
+It is possible to use Morgue to configure importers for stability score.  This
 requires Coronerd >= 1.48 and a deployed backtrace-metrics-importer.
 Usage:
 
@@ -1178,7 +1231,7 @@ Usage:
 morgue metrics-importer <command>...
 ```
 
-### `source check-query`
+#### `source check-query`
 
 Determines if a query is valid by running it against a source as if it had been
 used with an importer and displays diagnostic information.  For example:
@@ -1188,7 +1241,7 @@ morgue metrics-importer source check-query --source my-source-uuid \
 --query 'select time, value from test where time >= $1 and time < $2'
 ```
 
-### `importer create`
+#### `importer create`
 
 Creates an importer.  Takes the following options:
 
@@ -1217,7 +1270,7 @@ morgue metrics-importer importer create \
 Note that `--query` depends on the source type.  See the stability score
 documentation for details.
 
-### `logs`
+#### `logs`
 
 Displays logs.  Usage:
 

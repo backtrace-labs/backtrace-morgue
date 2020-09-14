@@ -249,6 +249,7 @@ var commands = {
   merge: coronerMerge,
   unmerge: coronerUnmerge,
   "metrics-importer": metricsImporterCmd,
+  stability: coronerStability,
 };
 
 process.stdout.on('error', function(){process.exit(0);});
@@ -7435,6 +7436,140 @@ async function metricsImporterCmd(argv, config) {
   const cli = await metricsImporterCli.metricsImporterCliFromCoroner(coroner);
   argv._.shift();
   await cli.routeMethod(argv);
+}
+
+function stabilityCreateMetric(coroner, argv, config) {
+  let universe = argv.universe;
+  if (!universe) {
+    universe = Object.keys(config.config.universes)[0];
+  }
+
+  if (!universe) {
+    errx("--universe is required");
+  }
+
+  const project = argv.project;
+  if (!project) {
+    errx("--project is required");
+  }
+
+  const metricGroupName = argv["metric-group"];
+  if (!metricGroupName) {
+    errx("--metric-group is required");
+  }
+  if (Array.isArray(metricGroupName)) {
+    errx("Specify only one --metric-group");
+  }
+
+  const name = argv.name;
+  if (!name) {
+    errx("--name is required");
+  }
+  if (Array.isArray(name)) {
+    errx("Only one --name allowed");
+  }
+
+
+  let attributes = argv.attribute;
+  if (!attributes) {
+    /*
+     * 0 attributes are possible, though rare save for people integrating with
+     * the submission API directly.
+     */
+    attributes = [];
+  } else if (!Array.isArray(attributes)) {
+    attributes = [ attributes ];
+  }
+
+  let bpg = coronerBpgSetup(coroner, argv);
+  const model = bpg.get();
+
+  if (!model.metric_group) {
+    errx("No metric groups exist yet.");
+  }
+
+  /* Find universe. */
+  let uid = 0;
+  for (let u of model.universe) {
+    if (u.get("name") === universe) {
+      uid = u.get("id");
+    }
+  }
+
+  if (uid == 0) {
+    errx("Universe not found");
+  }
+
+  let pid = 0;
+  for (let p of model.project) {
+    if (p.get("universe") === uid && p.get("name") == project) {
+      pid = p.get("pid");
+      break;
+    }
+  }
+
+  if (pid === 0) {
+    errx("Project not found");
+  }
+
+  let metricGroupId = 0;
+  for (let g of model.metric_group) {
+    if (g.get("name") === metricGroupName &&
+      g.get("project") === pid) {
+        metricGroupId = g.get("id");
+        break;
+    }
+  }
+
+  if (metricGroupId === 0) {
+    errx("Metric group not found");
+  }
+
+  let attributesObj = {};
+  for (let a of attributes) {
+    const parts = a.split(",");
+    if (parts.length != 2) {
+      errx("Usage of --attribute is name, value");
+    }
+    if (parts[1].length === 0) {
+      errx("Attributes may not have empty values");
+    }
+    /*
+     * This works because coronerd uses crdb_column_string_set, so no matter
+     * the column type, the attribute can be a string. Otherwise, we'd have
+     * to do a bunch of joins in order to do further validation.
+     */
+    attributesObj[parts[0]] = parts[1];
+  }
+
+  const obj = bpg.new("metric").withFields({
+    metric_group: metricGroupId,
+    name,
+    attribute_values: JSON.stringify(attributesObj),
+  });
+  bpg.create(obj);
+  bpg.commit();
+  console.log("Metric created");
+}
+
+function coronerStability(argv, config) {
+  const coroner = coronerClientArgv(config, argv);
+
+  argv._.shift();
+  if (argv._.length === 0) {
+    errx("Subcommand missing. Valid subcommands: create-metric");
+  }
+
+  const commands = {
+    "create-metric": stabilityCreateMetric,
+  };
+
+  const cmd = argv._.shift();
+  const fn = commands[cmd];
+  if (!fn) {
+    errx("Unrecognized subcommand");
+  }
+  return fn(coroner, argv, config);
 }
 
 function main() {
