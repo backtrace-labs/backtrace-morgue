@@ -2872,6 +2872,16 @@ function coronerGet(argv, config) {
       var fname = getFname(hr, out.path, argv.outdir, objects.length, oid, params.resource);
       success++;
       if (fname) {
+        if (hr.headers["content-encoding"] === "gzip" && (params.resource === "json.gz" || params.resource === "txt.gz")) {
+          let unzippedBodyData;
+          try {
+            unzippedBodyData = zlib.gunzipSync(hr.bodyData);
+          }
+          catch (error) {
+            console.log('Unable to decompress json data');
+          }
+          if (unzippedBodyData) hr.bodyData = unzippedBodyData;
+        }
         fs.writeFileSync(fname, hr.bodyData);
         console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
       } else {
