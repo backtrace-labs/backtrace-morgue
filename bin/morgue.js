@@ -2872,7 +2872,7 @@ function coronerGet(argv, config) {
       var fname = getFname(hr, out.path, argv.outdir, objects.length, oid, params.resource);
       success++;
       if (fname) {
-        if (hr.headers["content-encoding"] === "gzip" && params.resource === "json.gz") {
+        if (hr.headers["content-encoding"] === "gzip" && (params.resource === "json.gz" || params.resource === "txt.gz")) {
           let unzippedBodyData;
           try {
             unzippedBodyData = zlib.gunzipSync(hr.bodyData);
