@@ -34,6 +34,7 @@ const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const Slack = require('slack-node');
 const metricsImporterCli = require('../lib/metricsImporter/cli.js');
+const timeCli = require('../lib/cli/time');
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -3538,9 +3539,10 @@ function samplingStatusProject(argv, config, universe, project) {
   }
 
   buckets = sprintf("reset interval %s, buckets:",
-    secondsToTimespec(backoffs.reset_interval));
+    timeCli.secondsToTimespec(backoffs.reset_interval));
   backoffs.backoffs.forEach((bucket) => {
-    buckets += sprintf(" %d/%s", bucket.count, secondsToTimespec(bucket.interval));
+    buckets += sprintf(" %d/%s", bucket.count,
+      timeCli.secondsToTimespec(bucket.interval));
   });
   top_line = sprintf("%d groups tracking", backoffs.groups.length);
   if (backoffs.missing_symbols > 0) {
@@ -3584,7 +3586,7 @@ function samplingStatusProject(argv, config, universe, project) {
       if (next_time < now) {
         next = "at any time";
       } else {
-        next = sprintf("after %s", secondsToTimespec(next_time - now));
+        next = sprintf("after %s", timeCli.secondsToTimespec(next_time - now));
       }
     }
     console.log(sprintf("    \"%s\": %d objects, last accept %s, next %s",
@@ -3686,7 +3688,7 @@ function samplingConfigFromArgv(argv) {
       errx("Usage of --backoff is --backoff count,interval");
     }
     let [countStr, intervalStr] = split;
-    let interval = parseTimeInt(intervalStr);
+    let interval = timeCli.parseTimeInt(intervalStr);
     let count = Number.parseInt(countStr);
     if (Number.isNaN(count)) {
       errx("Backoff counts must be valid integers");
@@ -3705,7 +3707,7 @@ function samplingConfigFromArgv(argv) {
     if (Array.isArray(argv["reset-interval"])) {
       errx("Only one --reset-interval is allowed");
     }
-    config.reset_interval = parseTimeInt(argv["reset-interval"]);
+    config.reset_interval = timeCli.parseTimeInt(argv["reset-interval"]);
   }
 
   config.missing_symbols = {};
@@ -3728,7 +3730,7 @@ function samplingConfigFromArgv(argv) {
 
   const resetIntervalUnparsed = argv["reset-interval"];
   if (resetIntervalUnparsed !== undefined) {
-    config.reset_interval = parseTimeInt(resetIntervalUnparsed);
+    config.reset_interval = timeCli.parseTimeInt(resetIntervalUnparsed);
   }
   return config;
 }
@@ -4487,75 +4489,6 @@ function coronerScrubber(argv, config) {
   }
 }
 
-/*
- * Takes a time specifier and returns the number of seconds.
- */
-function timespecToSeconds(age_val) {
-  var unit = {
-    'y' : 3600 * 24 * 365,
-    'M' : 3600 * 24 * 30,
-    'w' : 3600 * 24 * 7,
-    'd' : 3600 * 24,
-    'h' : 3600,
-    'm' : 60,
-    's' : 1,
-  };
-  var age, pre, age_string, iu;
-
-  if (typeof age_val === 'number')
-    return age_val;
-
-  age = parseFloat(age_val);
-  pre = String(age);
-  age_string = String(age_val);
-  iu = age_string.substring(pre.length, age_string.length);
-  if (iu.length === 0)
-    iu = 's';
-  if (!unit[iu])
-    throw new Error("Unknown interval unit '" + iu + "'");
-  return parseInt(age * unit[iu]);
-}
-
-/*
- * Takes a value in seconds and returns a time specifier.
- */
-function secondsToTimespec(age_val) {
-  var age = parseInt(age_val);
-  var ts = {};
-
-  /* Handle special zero case. */
-  if (age === 0)
-    return "0s";
-
-  ts['y'] = Math.floor(age / (3600 * 24 * 365));
-  age -= (ts['y'] * 3600 * 24 * 365);
-  ts['M'] = Math.floor(age / (3600 * 24 * 30));
-  age -= (ts['M'] * 3600 * 24 * 30);
-  ts['w'] = Math.floor(age / (3600 * 24 * 7));
-  age -= (ts['w'] * 3600 * 24 * 7);
-  ts['d'] = Math.floor(age / (3600 * 24));
-  age -= (ts['d'] * 3600 * 24);
-  ts['h'] = Math.floor(age / 3600);
-  age -= ts['h'] * 3600;
-  ts['m'] = Math.floor(age / 60);
-  age -= ts['m'] * 60;
-  ts['s'] = age;
-
-  return Object.keys(ts).reduce(function(str, key) {
-    if (ts[key] !== 0)
-      str += ts[key] + key;
-    return str;
-  }, "");
-}
-
-function parseTimeInt(x) {
-  let i = parseInt(x);
-  if (i === NaN || String(i) !== x) {
-    i = timespecToSeconds(x);
-  }
-  return i;
-}
-
 function argvQuantizeUint(argv) {
   let q = argv["quantize-uint"];
 
@@ -4577,8 +4510,8 @@ function argvQuantizeUint(argv) {
       offset = "0";
     }
 
-    size = parseTimeInt(size);
-    offset = parseTimeInt(offset);
+    size = timeCli.parseTimeInt(size);
+    offset = timeCli.parseTimeInt(offset);
 
     return {
       name: name,
@@ -4815,7 +4748,7 @@ function argvQuery(argv) {
 
   if (d_age) {
     var now = Date.now();
-    var target = parseInt(now / 1000) - timespecToSeconds(d_age);
+    var target = parseInt(now / 1000) - timeCli.timespecToSeconds(d_age);
     var oldest = Math.floor(target);
 
     query.filter[0].timestamp = [
@@ -7027,9 +6960,9 @@ function retentionSet(bpg, objects, argv, config) {
   for (const a of argv.age) {
     const [ruleId, fields] = checkRuleId(argv.rules, "age", a);
     const [op, time, time_end] = fields;
-    let params = { op, time: timespecToSeconds(time).toString() };
+    let params = { op, time: timeCli.timespecToSeconds(time).toString() };
     if (time_end)
-      params.time_end = timespecToSeconds(time_end).toString();
+      params.time_end = timeCli.timespecToSeconds(time_end).toString();
     addCriterion(rules[ruleId], "object-age", params);
   }
   for (const d of argv.delete) {
@@ -7127,7 +7060,7 @@ function retentionNoString(reason, argv) {
 }
 
 function ageCritToString(crit) {
-  const max_age = secondsToTimespec(crit.value || crit.time);
+  const max_age = timeCli.secondsToTimespec(crit.value || crit.time);
   return `object-age ${crit.op} ${max_age}`;
 }
 
