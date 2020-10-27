@@ -34,7 +34,9 @@ const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const Slack = require('slack-node');
 const metricsImporterCli = require('../lib/metricsImporter/cli.js');
+
 const timeCli = require('../lib/cli/time');
+const { err, errx } = require('../lib/cli/errors');
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
@@ -84,29 +86,6 @@ function oidToString(oid) {
 
 function oidFromString(oid) {
   return parseInt(oid, 16);
-}
-
-function err(msg) {
-  if (msg) {
-    var m = msg.toString();
-    if (m.slice(0, 5) !== "Error")
-      m = "Error: " + m;
-    console.log(m.error);
-  } else {
-    console.log("Unknown error occured.".error);
-  }
-  return false;
-}
-
-function errx(errobj, opts) {
-  if (typeof errobj === 'object' && errobj.message) {
-    if (typeof opts === 'object' && opts.debug)
-      console.log("err = ", errobj);
-    err(errobj.message);
-  } else {
-    err(errobj);
-  }
-  process.exit(1);
 }
 
 /* Standardized success/failure callbacks. */
