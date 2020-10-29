@@ -1343,3 +1343,150 @@ morgue metrics-importer logs --project myproj --importer-id my-importer-id
 
 You can pass `--limit` to limit the number of returned messages.
 By default `--limit` is 100.
+
+
+# Alerts
+
+Morgue supports controlling Backtrace's alerting functionality, via a set of
+alerting subcommands:
+
+```
+morgue alerts target [create | list | get | update | delete] <args>
+morgue alerts alert [create | list | get | update | delete] <args>
+```
+
+Details follow.
+
+## An Example
+
+Let's say that you want to create an alert which will fire if there ware more
+than 5 errors in the last minute, and will mark groups as critical if more than
+10 errors occur.  To do so:
+
+
+Start by creating a target if you don't already have one:
+
+```
+morgue alerts target create --project cts \
+--name test \
+--workflow-name cts-alerts-test
+```
+
+Note that the web UI prepends project names to workflow names when creating new
+integrations.
+
+Then, to create the alert, run:
+
+```
+morgue  alerts alert create --name test \
+--query-period 1m \
+--unique fingerprint \
+--trigger fingerprint,0,ge,5,10 \
+--project cts \
+--target-name test \
+--min-notification-interval 1m \
+```
+
+## Identifying Objects
+
+All alerting subcommands which refer to an object support identifying objects
+through either their name or ID, and take two mutually exclusive parameters:
+`--name` or `--id`.  For instance:
+
+```
+morgue alerts alert get --name myalert
+```
+
+## Get And Delete
+
+```
+morgue alerts target get [--id id | --name name]
+morgue alerts target delete [--id id | --name name]
+morgue alerts alert get [--id id | --name name]
+morgue alerts alert delete [--id id | --name name]
+```
+
+All of these perform the expected action.
+
+## TargetCreation and Update
+
+```
+morgue alerts target create --name target-name --workflow-name my-workflow
+morgue alerts target update --name my-target [--rename new-name]
+  [--workflow-name new-workflow]
+```
+
+Create and manage targets.  Note that since Morgue allows identifying objects
+through `--name`, it is necessary to use `--rename` to change the name.
+
+## Alert Creation And Update
+
+```
+morgue alerts alert create <args>
+morgue alert alerts update <args>
+```
+
+Create and update alerts.  Create requires all of the following
+parameters which don't have defaults, while update patches the object with
+those specified and has no required parameters beyond identifying the alert to
+apply to.  Parameters are as follows (see below for query and trigger
+specification):
+
+-`--name`: For create, the name of the new alert. For update, identify the
+  alert to modify by name.
+- `--enabled true|false`: whether the alert is enabled. Defaults to `true` for
+  create.
+-- `--query-period = <timespec>`: the query period. Supports time specifications
+  in the same fashion as `morgue list --age`: `5m`, `1h`, etc.
+  Note that the service puts a lower bound of 1 minute on this value.
+- `--min-notification-interval`: the minimum notification interval, which
+  controls the maximum interval at which an alert can send notifications to an
+  integration.
+- `--mute-until`: Unix timestamp. The alert will be silenced until after this
+  timestamp.  The timestamp must currently be specified as integer seconds
+  since the Unix epoch.  For create, defaults to 0, which doesn't mute
+  the alert.
+- `--target-id`: Specified zero or more times to indicate the targets to which
+  to send the alert. Unioned with `--target-names`.
+- `--target-name`: The names of the targets to which to send the alert. Unioned
+  with `--target-ids`.
+- `--trigger`: Specify the triggers for the alert (see below).
+
+Update also supports the following arguments:
+
+- `--rename`: rename the alert.
+- `--replace-query`: Replace the query.
+- `--clear-targets`: Clear the targets.
+
+### Specifying The Query
+
+The create and update subcommands allow specifying the query using the same
+arguments as the `morgue list` command, save that `--age` is ignored,
+`--select` isn't allowed, and any implicit time filtering that Morgue would
+otherwise apply is disabled.  Since empty CLI arguments are a valid query,
+update additionally requires supplying `--replace-query` to indicate that the
+query is being replaced.
+
+The alerts service itself can only function properly with aggregation queries
+that use aggregates which support a single value. For example `count` is fine,
+but `range`, `bin`, and `histogram` aren't.
+
+### Specifying Triggers
+
+The `--trigger` option has the form:
+
+```
+--trigger column,index,comparison,warning,critical
+```
+
+Alerts identifies aggregates to trigger on by their column name, and the index
+in the same fashion as `--sort` on list, though `;count` is unsupported (for
+that, ad a `--count column` aggregate).  The components of a trigger are as
+follows:
+
+- `column`: The column the trigger is for, for example `fingerprint`.
+- `index`: The index of the aggregate for the specified column.
+- `comparison`: Either `ge` or `le`. Controls whether the thresholds are `>==>
+  or `<=` the query's returned values.  Most triggers will use `ge`.
+- `warning`: the warning threshold for the trigger.
+- `critical`: The critical threshold for the trigger.
