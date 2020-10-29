@@ -34,7 +34,7 @@ const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const Slack = require('slack-node');
 const metricsImporterCli = require('../lib/metricsImporter/cli.js');
-
+const alertsCli = require("../lib/alerts/cli");
 const timeCli = require('../lib/cli/time');
 const queryCli = require('../lib/cli/query');
 const { err, errx } = require('../lib/cli/errors');
@@ -232,6 +232,7 @@ var commands = {
   unmerge: coronerUnmerge,
   "metrics-importer": metricsImporterCmd,
   stability: coronerStability,
+  alerts: alertsCmd,
 };
 
 process.stdout.on('error', function(){process.exit(0);});
@@ -5314,63 +5315,10 @@ function coronerList(argv, config) {
     argv.table = 'objects';
   }
 
-  var aq = queryCli.argvQuery(argv);
+  var aq = queryCli.argvQuery(argv, /*implicitTimeOps=*/true,
+    /*doFolds=*/true);
   query = aq.query;
   var d_age = aq.age;
-
-  function fold(query, attribute, label) {
-    var argv, i;
-
-    if (!query.fold)
-      query.fold = {};
-
-    if (Array.isArray(attribute) === false) {
-      attribute = [ attribute ];
-    }
-
-    for (i = 0; i < attribute.length; i++) {
-      var modifiers, j;
-
-      modifiers = attribute[i].split(',');
-      argv = modifiers[0];
-      modifiers.shift();
-
-      for (j = 0; j < modifiers.length; j++) {
-        modifiers[j] = parseInt(modifiers[j]);
-        if (isNaN(modifiers[j]) === true) {
-          errx('Modifiers must be integers.');
-        }
-      }
-
-      if (!query.fold[argv])
-        query.fold[argv] = [];
-
-      query.fold[argv].push([label].concat(modifiers));
-    }
-  }
-
-  const folds = [
-    [argv.last, 'last'],
-    [argv.first, 'first'],
-    [argv.tail, 'tail'],
-    [argv.head, 'head'],
-    [argv.object, 'object'],
-    [argv.histogram, 'histogram'],
-    [argv.distribution, 'distribution'],
-    [argv.unique, 'unique'],
-    [argv.mean, 'mean'],
-    [argv.sum, 'sum'],
-    [argv.quantize, 'bin'],
-    [argv.bin, 'bin'],
-    [argv.range, 'range'],
-  ];
-
-  /* Apply requested folds to query */
-  folds.forEach(function(attr_op) {
-    const [attr, op] = attr_op;
-    if (attr)
-      fold(query, attr, op);
-  });
 
   if (argv.table != 'objects') {
     query.table = argv.table;
@@ -7398,6 +7346,14 @@ function coronerStability(argv, config) {
     errx("Unrecognized subcommand");
   }
   return fn(coroner, argv, config);
+}
+
+async function alertsCmd(argv, config) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientArgv(config, argv);
+  const cli = await alertsCli.alertsCliFromCoroner(coroner, argv, config);
+  argv._.shift();
+  await cli.routeMethod(argv);
 }
 
 function main() {
