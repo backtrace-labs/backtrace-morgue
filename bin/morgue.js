@@ -49,7 +49,8 @@ var endpoint;
 var endpointToken;
 var reverse = 1;
 var ARGV;
-const configDir = path.join(os.homedir(), ".morgue");
+const configDir = process.env.MORGUE_CONFIG_DIR ||
+  path.join(os.homedir(), ".morgue");
 const configFile = path.join(configDir, "current.json");
 
 bt.initialize({
@@ -5951,6 +5952,17 @@ function coronerLogin(argv, config, cb) {
     });
   }
 
+  const loginCb = (username, password) => {
+    coroner.login(username, password, function(err) {
+      loginComplete(coroner, argv, err, cb);
+    })
+  };
+
+  if (process.env.MORGUE_USERNAME && process.env.MORGUE_PASSWORD) {
+    loginCb(process.env.MORGUE_USERNAME, process.env.MORGUE_PASSWORD);
+    return;
+  }
+
   promptLib.get([{
       name: 'username',
       message: 'User',
@@ -5970,11 +5982,7 @@ function coronerLogin(argv, config, cb) {
       }
     }
 
-    coroner.login(result.username, result.password, function(err) {
-      return coroner.login(result.username, result.password, function(err) {
-        loginComplete(coroner, argv, err, cb);
-      });
-    });
+    loginCb(result.username, result.password);
   });
 }
 
