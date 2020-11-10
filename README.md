@@ -23,6 +23,15 @@ you to upload, download and issue queries on objects with-in the object store.
 
 ## Usage
 
+### Environment Variables
+
+Morgue respects the following environment variables:
+
+- `MORGUE_CONFIG_DIR`: the directory Morgue should write configuration files.
+  Defaults to `~/.morgue`.
+- `MORGUE_USERNAME`, `MORGUE_PASSWORD`: if both are set, suppress interactive
+  login prompts.
+
 ### login
 
 ```
@@ -40,6 +49,11 @@ Logged in.
 ```
 
 At this point, you are able to issue queries.
+
+If you need to log in from a CI context, it is possible to set the
+environment variables `MORGUE_USERNAME` and `MORGUE_PASSWORD`. If these
+variables are set, the interactive prompt will be suppressed, and the values
+in the aforementioned environment variables used instead.
 
 ### clean
 
