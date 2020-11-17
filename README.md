@@ -1246,6 +1246,7 @@ Which creates the metric in Coronerd against a pre-existing metric group, then:
 
 ```
 morgue metrics-importer importer create \
+--project myproj \
 --source my-source-id \
 --name my-importer \
 --start-at 2020-08-05T00:00:00Z \
@@ -1296,6 +1297,7 @@ used with an importer and displays diagnostic information.  For example:
 
 ```
 morgue metrics-importer source check-query --source my-source-uuid \
+--project myproj \
 --query 'select time, value from test where time >= $1 and time < $2'
 ```
 
@@ -1305,6 +1307,7 @@ Creates an importer.  Takes the following options:
 
 Option         | Description
 -------------- | --------------------------------------------------------------
+--project      | The project of the source.
 --source       | UUID of the source to associate the importer with.
 --name         | The name of the importer to create.
 --start-at     |  The time to start scraping from in RFC3339 format.
@@ -1316,6 +1319,7 @@ For example:
 
 ```
 morgue metrics-importer importer create \
+--project myproj \
 --source my-source-id \
 --name my-importer \
 --start-at 2020-08-05T00:00:00Z \
@@ -1333,8 +1337,8 @@ documentation for details.
 Displays logs.  Usage:
 
 ```
-morgue metrics-importer logs --source-id my-source-id
-morgue metrics-importer logs --importer-id my-importer-id
+morgue metrics-importer logs --project myproj --source-id my-source-id
+morgue metrics-importer logs --project myproj --importer-id my-importer-id
 ```
 
 You can pass `--limit` to limit the number of returned messages.
