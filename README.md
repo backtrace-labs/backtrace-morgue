@@ -1308,7 +1308,7 @@ Creates an importer.  Takes the following options:
 Option         | Description
 -------------- | --------------------------------------------------------------
 --project      | The project of the source.
---source       | UUUID of the source to associate the importer with.
+--source       | UUID of the source to associate the importer with.
 --name         | The name of the importer to create.
 --start-at     |  The time to start scraping from in RFC3339 format.
 --metric       | The name of the metric to associate data with in Coronerd.
@@ -1325,7 +1325,7 @@ morgue metrics-importer importer create \
 --start-at 2020-08-05T00:00:00Z \
 --metric my-metric \
 --metric-group my-group \
---quiery 'select time, value from test where time >= $ and time < $2' \
+--query 'select time, value from test where time >= $1 and time < $2' \
 --delay 120
 ```
 
