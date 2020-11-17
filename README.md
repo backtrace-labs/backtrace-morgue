@@ -1325,7 +1325,7 @@ morgue metrics-importer importer create \
 --start-at 2020-08-05T00:00:00Z \
 --metric my-metric \
 --metric-group my-group \
---query 'select time, value from test where time >= $ and time < $2' \
+--query 'select time, value from test where time >= $1 and time < $2' \
 --delay 120
 ```
 
