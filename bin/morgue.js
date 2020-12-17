@@ -288,13 +288,13 @@ function saveConfig(coroner, callback) {
       endpoint: coroner.endpoint,
     };
 
-    if (coroner.config.endpoints.post) {
+    if (Array.isArray(coroner.config.endpoints.post)) {
       var ep = coroner.config.endpoints.post;
       var fu = url.parse(coroner.endpoint);
-      var i = 0;
+      var i = Math.max(0, ep.findIndex(ep => ep.protocol === "https"));
 
-      config.submissionEndpoint = ep[0].protocol + '://' +
-        fu.hostname + ':' + ep[0].port + '/post';
+      config.submissionEndpoint = ep[i].protocol + '://' +
+        fu.hostname + ':' + ep[i].port + '/post';
     }
 
     var text = JSON.stringify(config, null, 2);
