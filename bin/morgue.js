@@ -7372,8 +7372,6 @@ function projectIdFromFlags(config, model, argv) {
     errx("--project is required");
   }
 
-
-
   /* Find universe. */
   let uid = 0;
   for (let u of model.universe) {
