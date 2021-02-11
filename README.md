@@ -1490,3 +1490,24 @@ follows:
   or `<=` the query's returned values.  Most triggers will use `ge`.
 - `warning`: the warning threshold for the trigger.
 - `critical`: The critical threshold for the trigger.
+
+
+## Actions
+
+Morgue can be used to manage actions configuration for projects.
+This requires at least coronerd 1.54.
+
+The provided commands are as follows:
+
+- `morgue actions get`: Display the actions configuration for a project.
+- `morgue actions disable`: disable the actions configuration for a project.
+- `morgue actions enable`: enable the actions configuration for a project.
+- `morgue actions upload <path>`: upload actions configuration for a project.
+
+All of the above take `--universe` and `--project`. `--project` is mandatory.
+
+For example:
+
+```
+morgue actions upload --project myproj myconfig.json
+```
