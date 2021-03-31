@@ -5306,6 +5306,11 @@ function coronerList(argv, config) {
     return usage("Missing project, universe arguments");
   }
 
+  let implicitTimeOps = true;
+  if (argv["implicit-filters"] === false) {
+    implicitTimeOps = false;
+  }
+
   let csv = argv.csv;
   if (csv && !argv.select)
       return usage("--csv requires select parameters")
@@ -5316,8 +5321,7 @@ function coronerList(argv, config) {
     argv.table = 'objects';
   }
 
-  var aq = queryCli.argvQuery(argv, /*implicitTimeOps=*/true,
-    /*doFolds=*/true);
+  var aq = queryCli.argvQuery(argv, implicitTimeOps, /*doFolds=*/true);
   query = aq.query;
   var d_age = aq.age;
 
