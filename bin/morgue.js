@@ -739,8 +739,9 @@ function coronerCI(argv, config) {
   let slack;
 
   let universe = argv.universe;
-  if (!universe)
+  if (!universe){
     universe = Object.keys(config.config.universes)[0];
+}
 
   let project = argv._[1];
   let value = argv._[2];
@@ -755,7 +756,7 @@ function coronerCI(argv, config) {
   q_v.fold = {};
   q_v.fold.fingerprint = [[ "unique" ]];
 
-  if (argv.slack && argv.target) {
+  if (!argv.terminal && argv.slack && argv.target) {
     slack = new Slack();
     slack.setWebhook('https://hooks.slack.com/services/' + argv.slack);
   }
@@ -852,10 +853,29 @@ function coronerCI(argv, config) {
         });
       }
 
-      if (slack) {
-        if (argv.author) {
+      if (! argv.terminal) {
+        if (slack) {
+          if (argv.author) {
+            slack.webhook({
+              channel: '@' + argv.author,
+              username: 'Backtrace',
+              attachments: [
+                {
+                  color : open_count > 0 ? "#FF0000" : "good",
+                  footer: "Backtrace",
+                  footer_icon: "https://backtrace.io/images/icon.png",
+                  author_name: value,
+                  ts: parseInt(Date.now() / 1000),
+                  fields: fields,
+                  text: message
+                }
+              ]
+            }, function (e, r) {
+            });
+          }
+
           slack.webhook({
-            channel: '@' + argv.author,
+            channel: argv.target,
             username: 'Backtrace',
             attachments: [
               {
@@ -871,23 +891,8 @@ function coronerCI(argv, config) {
           }, function (e, r) {
           });
         }
-
-        slack.webhook({
-          channel: argv.target,
-          username: 'Backtrace',
-          attachments: [
-            {
-              color : open_count > 0 ? "#FF0000" : "good",
-              footer: "Backtrace",
-              footer_icon: "https://backtrace.io/images/icon.png",
-              author_name: value,
-              ts: parseInt(Date.now() / 1000),
-              fields: fields,
-              text: message
-            }
-          ]
-        }, function (e, r) {
-        });
+      } else {
+        console.log(JSON.stringify({msg: message, fields: fields}));
       }
     });
   });
