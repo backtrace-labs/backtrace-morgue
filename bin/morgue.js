@@ -739,9 +739,9 @@ function coronerCI(argv, config) {
   let slack;
 
   let universe = argv.universe;
-  if (!universe){
+  if (!universe) {
     universe = Object.keys(config.config.universes)[0];
-}
+  }
 
   let project = argv._[1];
   let value = argv._[2];
