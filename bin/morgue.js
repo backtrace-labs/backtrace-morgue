@@ -5827,6 +5827,8 @@ async function coronerPrint(query, rp, raw, columns, runtime, csvPath) {
     tail: unaryPrint,
     unique: noFormatPrint,
     mean: noFormatPrint,
+    min: noFormatPrint,
+    max: noFormatPrint,
     object: noFormatPrint,
     sum: unaryPrint,
     histogram: histogramPrint,
