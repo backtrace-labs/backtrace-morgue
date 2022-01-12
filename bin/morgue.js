@@ -16,7 +16,6 @@ const histogram = require('./histogram.js');
 const printf    = require('printf');
 const moment    = require('moment');
 const moment_tz = require('moment-timezone');
-const colors    = require('colors');
 const fs        = require('fs');
 const mkdirp    = require('mkdirp');
 const promptLib = require('prompt');
@@ -37,12 +36,18 @@ const metricsImporterCli = require('../lib/metricsImporter/cli.js');
 const alertsCli = require("../lib/alerts/cli");
 const timeCli = require('../lib/cli/time');
 const queryCli = require('../lib/cli/query');
-const { err, errx } = require('../lib/cli/errors');
+const { chalk, err, error_color, errx, success_color, warn } = require('../lib/cli/errors');
+const bold = chalk.bold;
+const cyan = chalk.cyan;
+const grey = chalk.grey;
+const yellow = chalk.yellow;
+const blue = chalk.blue;
+const green = chalk.green;
+const label_color = yellow.bold;
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
 var callstackError = false;
-var error = colors.red;
 var range_start = null;
 var range_stop = null;
 var endpoint;
@@ -92,11 +97,11 @@ function oidFromString(oid) {
 
 /* Standardized success/failure callbacks. */
 function std_success_cb(r) {
-  console.log('Success'.blue);
+  console.log(success_color('Success'));
 }
 
 function std_json_cb(r) {
-  console.log('Success:'.blue);
+  console.log(success_color('Success:'));
   console.log(JSON.stringify(r, null, 4));
 }
 
@@ -156,9 +161,9 @@ function printSamples(requests, samples, start, stop, concurrency) {
 
   tps = Math.floor(requests / ((stop - start) / 1000000));
 
-  process.stdout.write(printf("# %12s %12s %12s %12s %12s %12s %12s\n",
+  process.stdout.write(grey(sprintf("# %12s %12s %12s %12s %12s %12s %12s\n",
     "Concurrency", "Requests", "Time", "Minimum", "Average",
-    "Maximum", "Throughput").grey);
+    "Maximum", "Throughput")));
   process.stdout.write(printf("  %12d %12ld %12f %12ld %12ld %12ld %12ld\n",
     concurrency, requests, (stop - start) / 1000000,
     minimum, sum, maximum, tps));
@@ -369,12 +374,12 @@ function coronerSetupNext(coroner, bpg) {
 
   process.stderr.write(
     'Please use a web browser to complete setup:\n');
-  process.stderr.write((coroner.endpoint + '/config/' + model.universe[0].get('name') + '\n').cyan.bold);
+  process.stderr.write(cyan.bold(coroner.endpoint + '/config/' + model.universe[0].get('name') + '\n'));
   return;
 }
 
 function coronerSetupDns(coroner, bpg, cons_l) {
-  console.log('Specify DNS name users will use to reach the server'.bold);
+  console.log(bold('Specify DNS name users will use to reach the server'));
   console.log(
     'We must specify this so that services accessing the server via SSL\n' +
     'can reach it without skipping validation.\n');
@@ -402,7 +407,7 @@ function coronerSetupDns(coroner, bpg, cons_l) {
 }
 
 function coronerSetupUser(coroner, bpg) {
-  console.log('Create an administrator'.bold);
+  console.log(bold('Create an administrator'));
   console.log(
     'We must create an administrator user. This user will be used to configure\n' +
     'the server as well as perform system-wide administrative tasks.\n');
@@ -464,7 +469,7 @@ function coronerSetupUser(coroner, bpg) {
 }
 
 function coronerSetupUniverse(coroner, bpg) {
-  console.log('Create an organization'.bold);
+  console.log(bold('Create an organization'));
   console.log(
     'We must configure the organization that is using the object store.\n' +
     'Please provide a one word name for the organization using the object store.\n' +
@@ -561,18 +566,18 @@ function coronerSetup(argv, config) {
 
   coroner = coronerClient(config, true, !!argv.debug, argv._[1], argv.timeout);
 
-  process.stderr.write('Determining system state...'.bold);
+  process.stderr.write(bold('Determining system state...'));
 
   coroner.get('/api/is_configured', '', function(error, response) {
     response = parseInt(response + '');
 
     if (response === 0) {
-      process.stderr.write('unconfigured\n'.red);
+      process.stderr.write(red('unconfigured\n'));
       return coronerSetupStart(coroner, argv);
     } else {
-      process.stderr.write('configured\n\n'.green);
+      process.stderr.write(green('configured\n\n'));
 
-      console.log('Please login to continue setup.'.bold);
+      console.log(bold('Please login to continue setup.'));
       return coronerLogin(argv, config, coronerSetupStart);
     }
   });
@@ -581,11 +586,11 @@ function coronerSetup(argv, config) {
 function userUsage(error_str) {
   if (typeof error_str === 'string')
     err(error_str + '\n');
-  console.log("Usage: morgue user reset [options]".error);
-  console.log("Valid options:.error");
-  console.log("  --password=P   Specify password to use for reset.".error);
-  console.log("  --universe=U   Specify universe scope.".error);
-  console.log("  --user=USER    Specify user to reset password for".error);
+  console.log("Usage: morgue user reset [options]");
+  console.log("Valid options:");
+  console.log("  --password=P   Specify password to use for reset.");
+  console.log("  --universe=U   Specify universe scope.");
+  console.log("  --user=USER    Specify user to reset password for");
   process.exit(1);
 }
 
@@ -653,14 +658,14 @@ function userReset(argv, config) {
     try {
       ctx.bpg.modify(ctx.user_obj, {password: BPG.blobText(ctx.password)});
       ctx.bpg.commit();
-      console.log("User successfully modified.".success);
+      console.log(success_color("User successfully modified."));
     } catch(e) {
       return Promise.reject(e);
     }
   });
 
   sequence(tasks).catch((e) => {
-    console.error(e.toString().error);
+    err(e.toString());
     process.exit(1);
   });
 }
@@ -715,7 +720,7 @@ function _coronerMerge(argv, config, action) {
     if (err) {
       errx(err.message);
     }
-    console.log('Success.'.success);
+    console.log(success_color('Success.'));
   });
 }
 
@@ -1015,7 +1020,7 @@ function coronerLogout(argv, config) {
       if (error)
         errx(error + '');
 
-      console.log('Logged out.'.blue);
+      console.log(success_color('Logged out.'));
   });
 }
 
@@ -1059,7 +1064,7 @@ function coronerTeamDelete({bpg, argv, model}) {
     return t.get('name') == teamName;
   });
   if (team === undefined) {
-    console.log("Team not found".red);
+    err("Team not found");
     return;
   }
   bpg.delete(team);
@@ -1080,7 +1085,7 @@ function coronerTeamUserAdd({bpg, argv, universeId, model}) {
     return t.get('name') == teamName;
   });
   if (team === undefined) {
-    console.log("Team not found".red);
+    err("Team not found");
     return;
   }
 
@@ -1088,7 +1093,7 @@ function coronerTeamUserAdd({bpg, argv, universeId, model}) {
     return u.get('username') == userName;
   });
   if (user === undefined) {
-    console.log("User not found".red);
+    err("User not found");
     return;
   }
 
@@ -1107,7 +1112,7 @@ function coronerTeamUserDelete({bpg, argv, universeId, model}) {
     return t.get('name') == teamName;
   });
   if (team === undefined) {
-    console.log("Team not found".red);
+    err("Team not found");
     return;
   }
 
@@ -1115,7 +1120,7 @@ function coronerTeamUserDelete({bpg, argv, universeId, model}) {
     return u.get('username') == userName;
   });
   if (user === undefined) {
-    console.log("User not found".red);
+    err("User not found");
     return;
   }
 
@@ -1123,7 +1128,7 @@ function coronerTeamUserDelete({bpg, argv, universeId, model}) {
     return tm.get('user') == user.get('uid') && tm.get('team') == team.get('tid');
   });
   if (tm === undefined) {
-    console.log(`User '${userName}' is not a member of team '${teamName}'`.red);
+    err(`User '${userName}' is not a member of team '${teamName}'`);
     return;
   }
 
@@ -1137,7 +1142,7 @@ function coronerTeamDetails({argv, model}) {
     return t.get('name') == teamName;
   });
   if (team === undefined) {
-    console.log("Team not found".red);
+    err("Team not found");
     return;
   }
   const teamId = team.get('id');
@@ -1149,17 +1154,17 @@ function coronerTeamDetails({argv, model}) {
     return ret
   }();
 
-  console.log("Team members:".blue)
+  console.log(blue("Team members:"))
   model.team_member.filter(tm => tm.get('team') == teamId).forEach(function(tm) {
     const name = idToUser[tm.get('user')] || '<unknown_name>';
     console.log(` - ${name}`);
   });
 
-  console.log("\nTeam is a member of projects:".blue);
+  console.log(blue("\nTeam is a member of projects:"));
   model.project_member_team.filter(pm => pm.get('team') == teamId).forEach(pm => {
     const projectBpg = model.project.find(p => p.get('pid') == pm.get('project'));
     if (projectBpg === undefined)
-      errx(`Project with id ${pm.get('project')} not found`.red);
+      errx(`Project with id ${pm.get('project')} not found`);
     console.log(` - ${projectBpg.get('name')} - ${pm.get('role')}`);
   });
 }
@@ -1381,7 +1386,7 @@ function coronerLimit(argv, config) {
           continue;
 
         var st = printf("%3d %16s limit=%d,counter=%d,rejected=%d",
-            rp[uni].id, uni.bold,
+            rp[uni].id, bold(uni),
             rp[uni].submissions.limit,
             rp[uni].submissions.counter,
             rp[uni].submissions.rejected);
@@ -1444,7 +1449,7 @@ function coronerLimit(argv, config) {
         errx('Limit not found.');
 
       console.log(('Deleting limit [' +
-          limit.get('universe') + ']...').yellow);
+          yellow(limit.get('universe') + ']...')));
       bpg.delete(limit);
       bpg.commit();
       return;
@@ -1481,7 +1486,7 @@ function coronerLimit(argv, config) {
         errx(e + '');
       }
 
-      console.log('Limit successfully created.'.blue);
+      console.log(success_color('Limit successfully created.'));
       return;
     }
 
@@ -1593,7 +1598,7 @@ function coronerInvite(argv, config) {
       errx(e + '');
     }
 
-    console.log('Invitation successfully deleted.'.blue);
+    console.log(success_color('Invitation successfully deleted.'));
     return;
   } else if (action === 'create') {
     var username = argv._[2];
@@ -1633,7 +1638,7 @@ function coronerInvite(argv, config) {
       errx(e + '');
     }
 
-    console.log(('Invitation successfully created for ' + email).blue);
+    console.log(success_color('Invitation successfully created for ' + email));
 
     process.stderr.write('Sending e-mail...');
     coroner.endpoint = tenantURL(config, un.get('name'));
@@ -1742,7 +1747,7 @@ function coronerSession(argv, config) {
       var universe_id, owner;
       var bpg = coronerBpgSetup(coroner, argv);
 
-      process.stderr.write('Persisting...'.blue);
+      process.stderr.write(blue('Persisting...'));
 
       universe_id = config.config.universe.id;
       owner = config.config.user.uid;
@@ -1794,7 +1799,7 @@ function coronerSession(argv, config) {
           errx(error + '');
         }
 
-        process.stderr.write('done\n'.blue);
+        process.stderr.write(success_color('done\n'));
       }
 
       return;
@@ -1811,7 +1816,7 @@ function coronerSession(argv, config) {
 
       if (r.status === 'ok') {
         console.log(JSON.stringify(r.form,null,2));
-        console.log('\nSuccess.'.blue);
+        console.log(success_color('\nSuccess.'));
       } else {
         errx(r);
       }
@@ -1832,7 +1837,7 @@ function coronerSession(argv, config) {
 
       if (r.status === 'ok') {
         console.log(JSON.stringify(r.form,null,2));
-        console.log('\nSuccess.'.blue);
+        console.log(success_color('\nSuccess.'));
       } else {
         errx(r);
       }
@@ -1902,7 +1907,7 @@ function coronerTenant(argv, config) {
           errx(e + '');
         }
 
-        console.log('Tenant successfully deleted.'.blue);
+        console.log(success_color('Tenant successfully deleted.'));
         return;
       }
     }
@@ -1928,9 +1933,9 @@ function coronerTenant(argv, config) {
       errx(e + '');
     }
 
-    console.log(('Tenant successfully created at ' +
-      tenantURL(config, name)).blue);
-    console.log('Wait a few minutes for propagation to complete.'.blue);
+    console.log('Tenant successfully created at ' +
+      success_color(tenantURL(config, name)));
+    console.log(blue('Wait a few minutes for propagation to complete.'));
     return;
   }
 
@@ -1976,7 +1981,7 @@ function coronerToken(argv, config) {
 
   if (action == 'list') {
     if (!model.api_token) {
-      console.log('No API tokens found.'.blue);
+      console.log(success_color('No API tokens found.'));
       return;
     }
 
@@ -1994,7 +1999,7 @@ function coronerToken(argv, config) {
       if (pid && token.get('project') != pid)
         continue;
 
-      console.log(token.get('id').bold);
+      console.log(bold(token.get('id')));
       console.log('  capabilities=' + token.get('capabilities') +
         ',project=' + pm[token.get('project')] + '(' +
         token.get('project') + '),owner=' + token.get('owner'));
@@ -2014,7 +2019,7 @@ function coronerToken(argv, config) {
       if (pid && token.get('project') != pid)
         continue;
 
-      console.log(token.get('id').bold);
+      console.log(bold(token.get('id')));
       console.log('  capabilities=error:post' +
         ',project=' + pm[token.get('project')] + '(' +
         token.get('project') + '),owner=' + token.get('owner'));
@@ -2043,7 +2048,7 @@ function coronerToken(argv, config) {
       errx('Token not found.');
 
     console.log(('Deleting token [' +
-        token.get('id') + ']...').yellow);
+        yellow(token.get('id') + ']...')));
     bpg.delete(token);
     bpg.commit();
     return;
@@ -2089,7 +2094,7 @@ function coronerToken(argv, config) {
       errx(e + '');
     }
 
-    console.log('API token successfully created.'.blue);
+    console.log(success_color('API token successfully created.'));
   }
 }
 
@@ -2146,9 +2151,9 @@ function coronerAudit(argv, config) {
 
             r = m[i].result;
             if (r === 0) {
-              r = 'success'.green;
+              r = success_color('success');
             } else {
-              r = 'FAILURE'.red.bold;
+              r = error_color('FAILURE');
             }
 
             m[i].message = m[i].message.replace(/[\x00-\x1F\x7F-\x9F]/g, "…").substring(0, 100);
@@ -2211,7 +2216,7 @@ function coronerLog(argv, config) {
         if (error)
           errx(error);
 
-        console.log((argv._[2] + ' is deactivated.').success);
+        console.log(success_color((argv._[2] + ' is deactivated.')));
     });
   } else if (action === 'activate') {
     coroner.control2(universe, 'shml',
@@ -2225,7 +2230,7 @@ function coronerLog(argv, config) {
         if (error)
           errx(error);
 
-        console.log((argv._[2] + ' is activated.').success);
+        console.log(success_color((argv._[2] + ' is activated.')));
     });
   } else if (action === 'extract') {
     var q = {
@@ -2276,9 +2281,9 @@ function coronerLog(argv, config) {
 
               r = m[i].result;
               if (r === 'success') {
-                r = r.green;
+                r = green(r);
               } else if (r == 'failure') {
-                r = r.red;
+                r = red(r);
               }
 
               m[i].message = m[i].message.replace(/[\x00-\x1F\x7F-\x9F]/g, "…").substring(0, 100);
@@ -2287,7 +2292,7 @@ function coronerLog(argv, config) {
                 r, m[i].message]);
             }
 
-            console.log(log.bold);
+            console.log(bold(log));
             console.log(table(data, tableFormat));
           }
         } else {
@@ -2340,7 +2345,7 @@ function coronerLatency(argv, config) {
               hs[i].name;
 
           if (hs[i].active === true) {
-            l = l.bold + " [" + hs[i].buffer[0] + ", " + hs[i].buffer[1] + "]";
+            l = bold(l) + " [" + hs[i].buffer[0] + ", " + hs[i].buffer[1] + "]";
           }
 
           console.log(l);
@@ -2370,16 +2375,16 @@ function coronerLatency(argv, config) {
         var hs = rp.response.histograms;
         for (var hi in hs) {
           if (hs[hi].status === 'error') {
-            console.log(printf("%3d %s has not been activated (%s)",
-                ++ji, hi, hs[hi].message).error);
+            err(sprintf("%3d %s has not been activated (%s)",
+                ++ji, hi, hs[hi].message));
           } else {
             console.log(printf("%3d %s has been activated.",
-                ++ji, hi.success));
+                ++ji, success_color(hi)));
           }
         }
 
         if (ji === 0) {
-          console.error('No histograms activated.'.error);
+          err('No histograms activated.');
           process.exit(1);
         }
 
@@ -2402,16 +2407,16 @@ function coronerLatency(argv, config) {
         var hs = rp.response.histograms;
         for (var hi in hs) {
           if (hs[hi].status === 'error') {
-            console.log(printf("%3d %s has not been activated (%s)",
-                ++ji, hi, hs[hi].message).error);
+            err(sprintf("%3d %s has not been activated (%s)",
+                ++ji, hi, hs[hi].message));
           } else {
             console.log(printf("%3d %s has been deactivated.",
-                ++ji, hi.success));
+                ++ji, success_color(hi)));
           }
         }
 
         if (ji === 0) {
-          console.error('No histograms deactivated.'.error);
+          err('No histograms deactivated.');
           process.exit(1);
         }
 
@@ -2483,7 +2488,7 @@ function coronerReport(argv, config) {
   if (action == 'list') {
     /* Print all report objects. */
     if (!model.report) {
-      console.log('No scheduled reports found.'.blue);
+      console.log(success_color('No scheduled reports found.'));
       return;
     }
 
@@ -2508,7 +2513,7 @@ function coronerReport(argv, config) {
       }
 
       console.log(('[' + printf("%2d", report.get('id')) + '] ' +
-          report.get('title')).bold);
+          bold(report.get('title'))));
 
       console.log('Recipients: ' + report.get('rcpt'));
       console.log('Period: ' + report.get('period'));
@@ -2534,7 +2539,7 @@ function coronerReport(argv, config) {
     for (var i = 0; i < model.report.length; i++) {
       if (model.report[i].get('id') == id) {
         console.log(('Deleting report [' +
-            model.report[i].get('title') + ']...').yellow);
+            yellow(model.report[i].get('title') + ']...')));
         bpg.delete(model.report[i]);
         bpg.commit();
         return;
@@ -2563,7 +2568,7 @@ function coronerReport(argv, config) {
         if (error)
           errx(error);
 
-        console.log('Report scheduled for immediate sending.'.blue);
+        console.log(success_color('Report scheduled for immediate sending.'));
         return;
     });
   }
@@ -2622,17 +2627,17 @@ function coronerReport(argv, config) {
       errx('must provide a report title with --title');
 
     if (!period) {
-      console.log('Warning: no period specified, defaulting to weekly'.yellow);
+      warn('no period specified, defaulting to weekly');
       period = 'week';
     }
 
     if (!timezone) {
       timezone = moment_tz.tz.guess();
-      console.log(('Warning: no timezone specified, defaulting to ' + timezone).yellow);
+      warn('no timezone specified, defaulting to ' + timezone);
     }
 
     if (!hour) {
-      console.log('Warning: no hour specified, defaulting to 9AM'.yellow);
+      warn('no hour specified, defaulting to 9AM');
       hour = 9;
     }
 
@@ -2640,7 +2645,7 @@ function coronerReport(argv, config) {
       day = 1;
 
       if (period !== 'day')
-        console.log('Warning: no day specified, defaulting to Monday'.yellow);
+        warn('no day specified, defaulting to Monday');
     }
 
     if (argv['include-users'])
@@ -2665,7 +2670,7 @@ function coronerReport(argv, config) {
     bpg.create(report);
     bpg.commit();
 
-    console.log('Report successfully created.'.blue);
+    console.log(success_color('Report successfully created.'));
   }
 }
 
@@ -2684,7 +2689,7 @@ function coronerControl(argv, config) {
         errx(message);
       }
 
-      console.log('Success'.blue);
+      console.log(success_color('Success'));
     });
   }
 }
@@ -2872,7 +2877,7 @@ function coronerGet(argv, config) {
           if (unzippedBodyData) hr.bodyData = unzippedBodyData;
         }
         fs.writeFileSync(fname, hr.bodyData);
-        console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
+        console.log(success_color(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname)));
       } else {
         process.stdout.write(hr.bodyData);
       }
@@ -2890,7 +2895,7 @@ function coronerGet(argv, config) {
 
   Promise.all(tasks).then(function() {
     if (out.has)
-      console.log(sprintf('Fetched %d of %d objects.', success, objects.length).success);
+      console.log(success_color(sprintf('Fetched %d of %d objects.', success, objects.length)));
   }).catch(function(e) {
     if (argv.debug)
       console.log("e = ", e);
@@ -2990,37 +2995,37 @@ function coronerDescribe(argv, config) {
       if (!it.state || (it.state && it.state === 'enabled')) {
         if (it.custom === true) {
           if (it.statistics && it.statistics.used === false) {
-            process.stdout.write((name + ': [unused] ' + it.description).grey);
+            process.stdout.write(grey((name + ': [unused] ' + it.description)));
           } else {
-            process.stdout.write(name.blue + ': ' + it.description);
+            process.stdout.write(blue(name) + ': ' + it.description);
           }
         } else {
           if (it.statistics && it.statistics.used === false) {
-            process.stdout.write((name + ': [unused] ' + it.description).grey);
+            process.stdout.write(grey(name + ': [unused] ' + it.description));
           } else {
-            process.stdout.write(name.yellow + ': ' + it.description);
+            process.stdout.write(yellow(name) + ': ' + it.description);
           }
         }
 
         if (it.format)
-          process.stdout.write(' ['.grey + it.format.grey + ']'.grey);
+          process.stdout.write(grey(` [${it.format}]`));
 
       } else if (it.state === 'disabled') {
-        process.stdout.write((name + ': [disabled] (Seen at ' + new Date(it.seen * 1000) + " with a value of \"" + it.value + "\")").grey);
+        process.stdout.write(grey(name + ': [disabled] (Seen at ' + new Date(it.seen * 1000) + " with a value of \"" + it.value + "\")"));
       }
 
       if (argv.l && it.filter) {
         var sp = Array(ml).join(" ");
         process.stdout.write('\n');
 
-        process.stdout.write(printf("%*s: ", "Group", ml).grey + it.group + '\n');
+        process.stdout.write(grey(sprintf("%*s: ", "Group", ml)) + it.group + '\n');
 
-        process.stdout.write(printf("%*s:\n", "Filter", ml).grey);
+        process.stdout.write(grey(sprintf("%*s:\n", "Filter", ml)));
         for (var j = 0; j < it.filter.length; j++) {
           process.stdout.write(sp + it.filter[j] + '\n');
         }
 
-        process.stdout.write(printf("%*s:\n", "Aggregate", ml).grey);
+        process.stdout.write(grey(sprintf("%*s:\n", "Aggregate", ml)));
         for (var j = 0; j < it.filter.length; j++) {
           process.stdout.write(sp + it.filter[j] + '\n');
         }
@@ -3029,7 +3034,7 @@ function coronerDescribe(argv, config) {
     }
 
     if (unused > 0) {
-      console.log(('\nHiding ' + unused + ' unused attributes (-a to list all).').bold.grey);
+      console.log(grey.bold('\nHiding ' + unused + ' unused attributes (-a to list all).'));
     }
   });
 }
@@ -3037,25 +3042,25 @@ function coronerDescribe(argv, config) {
 function attachmentUsage(error_str) {
   if (typeof error_str === 'string')
     err(error_str + '\n');
-  console.log("Usage: morgue attachment <add|get|list|delete> ...".error);
+  console.log("Usage: morgue attachment <add|get|list|delete> ...");
   console.log("");
-  console.log("  morgue attachment add [options] <[universe/]project> <oid> <filename>".blue);
+  console.log("  morgue attachment add [options] <[universe/]project> <oid> <filename>");
   console.log("");
   console.log("    --content-type=CT    Specify Content-Type for attachment.");
   console.log("                         The server may auto-detect this.");
   console.log("    --attachment-name=N  Use this name for the attachment name.");
   console.log("                         Default is the same as the filename.");
   console.log("");
-  console.log("  morgue attachment get [options] <[universe/]project> <oid>".blue);
+  console.log("  morgue attachment get [options] <[universe/]project> <oid>");
   console.log("");
   console.log("    Must specify one of:");
   console.log("    --attachment-id=ID   Attachment ID to delete.");
   console.log("    --attachment-name=N  Attachment name to delete.");
   console.log("    --attachment-inline  Attachment is inline.");
   console.log("");
-  console.log("  morgue attachment list [options] <[universe/]project> <oid>".blue);
+  console.log("  morgue attachment list [options] <[universe/]project> <oid>");
   console.log("");
-  console.log("  morgue attachment delete [options] <[universe/]project <oid>".blue);
+  console.log("  morgue attachment delete [options] <[universe/]project <oid>");
   console.log("");
   console.log("    Must specify one of:");
   console.log("    --attachment-id=ID   Attachment ID to delete.");
@@ -3097,8 +3102,8 @@ function attachmentAdd(argv, config, params) {
   u = params.universe;
   p = params.project;
   coroner.promise('attach', u, p, object, name, null, opts, body).then((r) => {
-    console.log(sprintf("Attached '%s' to object %s as id %s.",
-      r.attachment_name, r.object, r.attachment_id).success);
+    console.log(success_color(sprintf("Attached '%s' to object %s as id %s.",
+      r.attachment_name, r.object, r.attachment_id)));
   }).catch(std_failure_cb);
 }
 
@@ -3130,7 +3135,7 @@ function attachmentGet(argv, config, params) {
     var fname = getFname(hr, out.path, argv.outdir, 1, oid, resource);
     if (fname) {
       fs.writeFileSync(fname, hr.bodyData);
-      console.log(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname).success);
+      console.log(success_color(sprintf('Wrote %ld bytes to %s', hr.bodyData.length, fname)));
     } else {
       process.stdout.write(hr.bodyData);
     }
@@ -3231,7 +3236,7 @@ function put_benchmark(coroner, argv, files, p) {
   var submitted = 0;
   var success = 0;
 
-  process.stderr.write('Warming up...'.blue + '\n');
+  process.stderr.write(blue('Warming up...') + '\n');
 
   if (argv.samples)
     n_samples = parseInt(argv.samples);
@@ -3239,7 +3244,7 @@ function put_benchmark(coroner, argv, files, p) {
   if (argv.concurrency)
     concurrency = parseInt(argv.concurrency);
 
-  process.stderr.write('Injecting: '.yellow);
+  process.stderr.write(yellow('Injecting: '));
   var start = process.hrtime();
 
   var submit_cb = function(i) {
@@ -3260,7 +3265,7 @@ function put_benchmark(coroner, argv, files, p) {
   }
   var success_cb = function(r, i, st) {
     samples.push(nsToUs(process.hrtime()) - st);
-    process.stderr.write('.'.blue);
+    process.stderr.write(blue('.'));
     success++;
     if (argv.printids)
       objects.push(r.object);
@@ -3286,7 +3291,7 @@ function put_benchmark(coroner, argv, files, p) {
     console.log('\n');
     printSamples(submitted, samples, start, process.hrtime(), concurrency);
     if (argv.printids)
-      console.log(sprintf('Object IDs: %s', JSON.stringify(objects)).blue);
+      console.log(blue(sprintf('Object IDs: %s', JSON.stringify(objects))));
     if (failed === 0)
       return;
     errx(sprintf("%d of %d submissions failed.", failed, n_samples));
@@ -3388,10 +3393,10 @@ console.log(p)
 
   var success_cb = function(r, path) {
     if (r.fingerprint) {
-      console.log(sprintf("%s: Success: %s, fingerprint: %s.", path,
-        r.unique ? "Unique" : "Not unique", r.fingerprint).success);
+      console.log(success_color(sprintf("%s: Success: %s, fingerprint: %s.", path,
+        r.unique ? "Unique" : "Not unique", r.fingerprint)));
     } else {
-      console.log(sprintf("%s: Success.", path).success);
+      console.log(success_color(sprintf("%s: Success.", path)));
     }
     success++;
   }
@@ -3421,7 +3426,7 @@ console.log(p)
   Promise.all(tasks).then((r) => {
     var failed = tasks.length - success;
     if (failed === 0) {
-      console.log('Success.'.success);
+      console.log(success_color('Success.'));
       return;
     }
     errx(sprintf("%d of %d submissions failed.", failed, tasks.length));
@@ -3814,7 +3819,7 @@ function samplingConfigure(coroner, argv, config) {
   if (disabled == 1) {
     console.log(`Project ${ project } now has sampling explicitly disabled.
 Changes in coronerd.conf will not enable sampling for this project.`);
-    console.log("To use coronerd.conf defaults, use --clear instead".yellow);
+    console.log(yellow("To use coronerd.conf defaults, use --clear instead"));
   }
 }
 
@@ -4028,7 +4033,7 @@ function coronerSymbol(argv, config) {
           response.archives.count
         ];
 
-        console.log('Archives'.bold);
+        console.log(bold('Archives'));
         console.log(table(data, tableFormat));
       }
 
@@ -4039,7 +4044,7 @@ function coronerSymbol(argv, config) {
           response.symbols.count
         ];
 
-        console.log('Symbols'.bold);
+        console.log(bold('Symbols'));
         console.log(table(data, tableFormat));
       }
 
@@ -4050,7 +4055,7 @@ function coronerSymbol(argv, config) {
           response.missing_symbols.count
         ];
 
-        console.log('Missing Symbols'.bold);
+        console.log(bold('Missing Symbols'));
         console.log(table(data, tableFormat));
       }
 
@@ -4131,7 +4136,7 @@ function coronerSymbol(argv, config) {
 
         data.push(title);
         if (data.length > 2) {
-          console.log('Tag: '.yellow + response[i].tag);
+          console.log(yellow('Tag: ') + response[i].tag);
           console.log(table(data, tableFormat));
         }
       }
@@ -4249,7 +4254,7 @@ function coronerSymbol(argv, config) {
         data.push(title);
 
         if (data.length > 2) {
-          console.log('Tag: '.yellow + tags[i].tag);
+          console.log(yellow('Tag: ') + tags[i].tag);
           console.log(table(data, tableFormat));
         }
       }
@@ -4300,7 +4305,7 @@ function coronerScrubber(argv, config) {
     /* Print all scrubbers. */
 
     if (!model.scrubber) {
-      console.log('No scrubber found.'.blue);
+      console.log(success_color('No scrubber found.'));
       return;
     }
 
@@ -4311,8 +4316,8 @@ function coronerScrubber(argv, config) {
       if (scrubber.get('project') != pid)
         continue;
 
-      console.log(('[' + scrubber.get('id') + '] ' +
-          scrubber.get('name')).bold);
+      console.log(bold('[' + scrubber.get('id') + '] ' +
+          scrubber.get('name')));
 
       console.log('        regexp: ' + scrubber.get('regexp'));
       console.log('       builtin: ' + scrubber.get('builtin'));
@@ -4333,7 +4338,7 @@ function coronerScrubber(argv, config) {
     for (var i = 0; i < model.scrubber.length; i++) {
       if (model.scrubber[i].get('id') == id) {
         console.log(('Deleting scrubber [' +
-            model.scrubber[i].get('name') + ']...').yellow);
+            yellow(model.scrubber[i].get('name') + ']...')));
         bpg.delete(model.scrubber[i]);
         try {
           bpg.commit();
@@ -4426,7 +4431,7 @@ function coronerScrubber(argv, config) {
       }
     }
 
-    console.log('Scrubber successfully created.'.blue);
+    console.log(success_color('Scrubber successfully created.'));
   }
 
   if (action === 'modify') {
@@ -4473,7 +4478,7 @@ function coronerScrubber(argv, config) {
       errx(em);
     }
 
-    console.log('Scrubber successfully modified.'.blue);
+    console.log(success_color('Scrubber successfully modified.'));
   }
 }
 
@@ -4623,7 +4628,7 @@ function attributeSetupFn(config, argv, opts, subcmd) {
 function bpgCbFn(name, type) {
   return (e, r) => {
     if (e) {
-      console.error(`${name} ${type} failed: ${e}`);
+      err(`${name} ${type} failed: ${e}`);
       return;
     }
     console.log(`${name} ${type} succeeded!`);
@@ -4720,15 +4725,15 @@ function printFrame(fr_a, fr_b) {
     if (j < fr_b.length) {
       if (fr_a[j] !== fr_b[j]) {
         if (fr_b.indexOf(fr_a[j]) <= 0) {
-          pcs += fr_a[j].red.bold;
+          pcs += red.bold(fr_a[j]);
         } else {
-          pcs += fr_a[j].yellow;
+          pcs += yellow(fr_a[j]);
         }
       } else {
         pcs += fr_a[j];
       }
     } else {
-      pcs += fr_a[j].red.bold;
+      pcs += red.bold(fr_a[j]);
     }
   }
 
@@ -5066,7 +5071,7 @@ function coronerNuke(argv, config) {
     errx(em);
   }
 
-  console.log('Success'.blue);
+  console.log(success_color('Success'));
   return;
 }
 
@@ -5119,7 +5124,7 @@ function coronerSet(argv, config) {
       errx(err.message);
     }
 
-    console.log('Success.'.success);
+    console.log(success_color('Success.'));
     return;
   });
 
@@ -5424,7 +5429,7 @@ function coronerList(argv, config) {
        */
       if (query.set) {
         if (result.response.result === 'success')
-          console.log('Success'.blue);
+          console.log(success_color('Success'));
         else
           console.log('result:\n' + JSON.stringify(result.response));
       } else {
@@ -5455,7 +5460,7 @@ function coronerList(argv, config) {
       }
 
       if (argv.verbose) {
-        console.log('Timing:'.yellow);
+        console.log(yellow('Timing:'));
 
         var o = '';
         var aggs = result._.runtime.aggregate;
@@ -5464,26 +5469,26 @@ function coronerList(argv, config) {
         else if ('pre_sort' in aggs)
           aggs = aggs.pre_sort + aggs.post_sort;
 
-        o += '     Rows: '.yellow + result._.runtime.filter.rows + '\n';
-        o += '   Filter: '.yellow + result._.runtime.filter.time + 'us (' +
+        o += yellow('     Rows: ') + result._.runtime.filter.rows + '\n';
+        o += yellow('   Filter: ') + result._.runtime.filter.time + 'us (' +
           Math.ceil(result._.runtime.filter.time /
             result._.runtime.filter.rows * 1000) + 'ns / row)\n';
-        o += '    Group: '.yellow + result._.runtime.group_by.time + 'us (' +
+        o += yellow('    Group: ') + result._.runtime.group_by.time + 'us (' +
           Math.ceil(result._.runtime.group_by.time /
             result._.runtime.group_by.groups) + 'us / group)\n';
-        o += 'Aggregate: '.yellow + aggs + 'us\n';
-        o += '     Sort: '.yellow + result._.runtime.sort.time + 'us\n';
+        o += yellow('Aggregate: ') + aggs + 'us\n';
+        o += yellow('     Sort: ') + result._.runtime.sort.time + 'us\n';
         if (result._.runtime.set) {
-          o += '      Set: '.yellow + result._.runtime.set.time + 'us\n';
+          o += yellow('      Set: ') + result._.runtime.set.time + 'us\n';
         }
-        o += '    Total: '.yellow + result._.runtime.total_time + 'us';
+        o += yellow('    Total: ') + result._.runtime.total_time + 'us';
         console.log(o + '\n');
       }
 
       var footer = result._.user + ': ' +
           result._.universe + '/' + result._.project + ' ' + date_label +
             ' [' + result._.latency + ']';
-      console.log(footer.blue);
+      console.log(blue(footer));
     });  
   }
 }
@@ -5699,7 +5704,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
     string = printf("%-31s", string);
   }
 
-  process.stdout.write(string.factor + ' ');
+  process.stdout.write(bold(string) + ' ');
 
   /* This means that no aggregation has occurred. */
   if (object.length) {
@@ -5712,11 +5717,11 @@ function objectPrint(g, object, renderer, fields, runtime) {
       var ob = object[i];
       let label = printf("#%-7x ", ob.object);
 
-      process.stdout.write(label.green.bold);
+      process.stdout.write(green.bold(label));
 
       if (ob.timestamp) {
         process.stdout.write(new Date(ob.timestamp * 1000) + '     ' +
-            ta.ago(ob.timestamp * 1000).bold + '\n');
+            bold(ta.ago(ob.timestamp * 1000)) + '\n');
       } else {
         process.stdout.write('\n');
       }
@@ -5731,14 +5736,14 @@ function objectPrint(g, object, renderer, fields, runtime) {
         if (a === 'callstack')
           continue;
         
-          console.log('  ' + a.yellow.bold + ': ' + fieldFormat(ob[a], fields[a]));
+          console.log('  ' + label_color(a) + ': ' + fieldFormat(ob[a], fields[a]));
       }
 
       /*
        * If a callstack is present then render it in a pretty fashion.
        */
       if (ob.callstack) {
-        process.stdout.write(('  ' + fields[a] + ':').yellow.bold);
+        process.stdout.write(label_color(`  ${fields[a]}:`));
         callstackPrint(ob.callstack);
       }
     }
@@ -5758,13 +5763,13 @@ function objectPrint(g, object, renderer, fields, runtime) {
     stop = new Date(timestamp_range[1] * 1000);
     sa = ta.ago(stop) + '\n';
 
-    process.stdout.write(sa.success);
+    process.stdout.write(success_color(sa));
   }
 
   if (timestamp_range) {
-    console.log('First Occurrence: '.label + start);
+    console.log(label_color('First Occurrence: ') + start);
     if (timestamp_range[0] !== timestamp_range[1])
-      console.log(' Last Occurrence: '.label + stop);
+      console.log(label_color(' Last Occurrence: ') + stop);
   }
 
   if (object.count) {
@@ -5775,7 +5780,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
             (object.count / runtime.filter.rows) * 100);
       }
 
-      console.log('     Occurrences: '.yellow.bold + label);
+      console.log(label_color('     Occurrences: ') + label);
   }
 
   for (field in object) {
@@ -5798,20 +5803,19 @@ function objectPrint(g, object, renderer, fields, runtime) {
       continue;
     }
 
+    process.stdout.write(label_color(`${field}: `));
+
     if (fields[field] === 'callstack') {
-      process.stdout.write(field.label.yellow.bold + ':');
       callstackPrint(object[field]);
       continue;
     }
-
-    process.stdout.write(field.label + ': '.yellow.bold);
 
     if (!renderer[match]) {
       console.log(object[field]);
       continue;
     }
 
-    if (renderer[match](object[field], field.label, fields[field]) === false)
+    if (renderer[match](object[field], label_color(field), fields[field]) === false)
       console.log(object[field]);
   }
 }
@@ -5877,8 +5881,8 @@ function loginComplete(coroner, argv, err, cb) {
       errx("Unable to save config: " + err.message + ".");
     }
 
-    console.log('Logged in'.success + ' ' +
-      ('[' + coroner.config.token + ']').grey);
+    console.log(success_color('Logged in') + ' ' +
+      grey('[' + coroner.config.token + ']'));
 
     if (cb) {
       cb(coroner, argv);
@@ -6099,7 +6103,7 @@ function coronerDeduplicationAdd(argv, coroner, p, bpg, rules) {
     rules.set('priority', priority);
     bpg.create(rules);
     bpg.commit();
-    console.log(`Rule ${argv.name} created`.blue);
+    console.log(success_color(`Rule ${argv.name} created`));
   } else {
     return deduplicationUsage(`Unknown file ${argv.rules}`);
   }
@@ -6108,7 +6112,7 @@ function coronerDeduplicationAdd(argv, coroner, p, bpg, rules) {
 function coronerDeduplicationDelete(argv, coroner, p, bpg, rules) {
   bpg.delete(rules);
   bpg.commit();
-  console.log(`Rule ${argv.name} deleted`.blue);
+  console.log(success_color(`Rule ${argv.name} deleted`));
 }
 
 function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
@@ -6123,7 +6127,7 @@ function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
   }
   bpg.modify(rules, delta);
   bpg.commit();
-  console.log(`Rule ${argv.name} modified`.blue);
+  console.log(success_color(`Rule ${argv.name} modified`));
 }
 
 function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
@@ -6328,8 +6332,8 @@ function coronerDelete(argv, config) {
       tasks.push(coroner.promise('delete_objects', p.universe, p.project,
         objs, params));
     }
-    process.stderr.write(sprintf('Deleting %d objects in %d requests...',
-      n_objects, tasks.length).blue + '\n');
+    process.stderr.write(success_color(sprintf('Deleting %d objects in %d requests...',
+      n_objects, tasks.length)) + '\n');
 
     return Promise.all(tasks);
   }
@@ -6360,7 +6364,7 @@ function coronerRepair(argv, config) {
 
   coroner.promise('control', params)
     .then((result) =>
-      console.log(('Reprocessing request #' + result.id + ' queued.').success))
+      console.log(success_color('Reprocessing request #' + result.id + ' queued.')))
     .catch(std_failure_cb);
 }
 
@@ -6395,7 +6399,7 @@ function coronerReprocess(argv, config) {
   }
 
   var success_cb = function(result) {
-    console.log(('Reprocessing request #' + result.id + ' queued.').success);
+    console.log(success_color('Reprocessing request #' + result.id + ' queued.'));
   }
 
   if (aq && aq.query) {
@@ -6701,7 +6705,7 @@ function retentionSet(bpg, objects, argv, config) {
       err(e);
       return;
     }
-    console.log((r.results[0].text || r.results[0].string).success);
+    console.log(success_color(r.results[0].text || r.results[0].string));
   });
 }
 
@@ -7543,14 +7547,6 @@ function main() {
   promptLib.delimiter = ':';
   promptLib.colors = false;
   promptLib.start();
-
-  colors.setTheme({
-    error: [ 'red', 'bold' ],
-    success: [ 'blue', 'bold' ],
-    factor: [ 'bold' ],
-    label : [ 'bold', 'yellow' ],
-    dim: [ '' ]
-  });
 
   loadConfig(function(err, config) {
     if (err && err.code !== 'ENOENT') {
