@@ -413,11 +413,14 @@ sum(process.age): 29630010305216 sec
 Allows deleting objects.
 
 ```
-Usage: morgue delete <[universe/]project> <oid1> [... oidN]
+Usage: morgue delete <[universe/]project> [... object_ids]
+Usage: morgue delete <[universe/]project> --filter=<filter expression>
 ```
 
 Object IDs must be specified; they can be found in `morgue list` output.
 The object ID printed in the example above is `9d33`.
+
+If a `--filter` expression is passed, that is used instead to select the items to be deleted. You can pass multiple `--filter` expressions to narrow the search. Object IDs are ignored in this format.
 
 By default, this command (as of 2019-02-26) requests physical-only deletion,
 which retains only indexing.  The previous `--physical-only` argument is a
