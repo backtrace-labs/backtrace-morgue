@@ -22,7 +22,7 @@
   "dependencies": {
     "axios": "^0.21.2",
     "babel-core": "^6.26.0",
-    "backtrace-node": "^1.0.6",
+    "backtrace-node": "^1.2.0",
     "btoa": "^1.1.2",
     "chalk": "^4.1.2",
     "chrono-node": "^2.2.4",
