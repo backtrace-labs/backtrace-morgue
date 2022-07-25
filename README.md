@@ -512,6 +512,7 @@ Usage: morgue symbold symbolserver add <[universe]/project> [symbolserverurl]
   <--retrylimit=...>
   <--timeout=...>
   <--whitelist=...>
+  <--retain=...>
   <--servercredentials.username=...>
   <--servercredentials.password=...>
   <--aws.accesskey=...>
@@ -530,6 +531,7 @@ Add new symbol server to symbold service. Available options:
 * `concurrentdownload` - maximum number of concurrent download that symbolmd will do at the same time,
 * `timeout` - download timeout
 * `whitelist` - determine if symbol server should use whitelist or not,
+* `retain` - determine if symbold should retain original symbols
 * `servercredentials` - symbol server auth options
 * `servercredentials.username` - symbol server auth user name,
 * `servercredentials.password` - symbol server auth password,
@@ -559,6 +561,7 @@ Usage: morgue symbold symbolserver update [symbolserverid]
   <--retrylimit=...>
   <--timeout=...>
   <--whitelist=...>
+  <--retain=...>
   <--servercredentials.username=...>
   <--servercredentials.password=...>
   <--aws.accesskey=...>
