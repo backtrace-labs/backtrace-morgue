@@ -4755,7 +4755,7 @@ async function coronerSimilarity(argv, config) {
   }
   
   const coroner = coronerClientArgv(config, argv);
-  const similarityEndpoint = `${coroner.endpoint}${similarityService.endpoint}`;
+  const similarityEndpoint = similarityService.endpoint;
 
   if (argv._.length < 2) {
     return usage("Missing project, universe arguments.");
