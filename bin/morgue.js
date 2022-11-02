@@ -4755,7 +4755,10 @@ async function coronerSimilarity(argv, config) {
   }
   
   const coroner = coronerClientArgv(config, argv);
-  const similarityEndpoint = similarityService.endpoint;
+  const isAbsoluteEndpoint = similarityService.endpoint.startsWith('https://')
+  const similarityEndpoint = isAbsoluteEndpoint ?
+      similarityService.endpoint :
+      `${coroner.endpoint}${similarityService.endpoint}`;
 
   if (argv._.length < 2) {
     return usage("Missing project, universe arguments.");
