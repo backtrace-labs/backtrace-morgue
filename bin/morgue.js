@@ -4755,8 +4755,7 @@ async function coronerSimilarity(argv, config) {
   }
   
   const coroner = coronerClientArgv(config, argv);
-  const isAbsoluteEndpoint = similarityService.endpoint.startsWith('http');
-  const similarityEndpoint = isAbsoluteEndpoint ?
+  const similarityEndpoint = similarityService.endpoint.startsWith('http') ?
       similarityService.endpoint :
       `${coroner.endpoint}${similarityService.endpoint}`;
 
