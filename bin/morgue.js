@@ -43,6 +43,7 @@ const grey = chalk.grey;
 const yellow = chalk.yellow;
 const blue = chalk.blue;
 const green = chalk.green;
+const red = chalk.red;
 const label_color = yellow.bold;
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
