@@ -6473,7 +6473,11 @@ function bpgObjectFind(objects, type, vals, fields) {
   /* If fields not specified, assume defaults. */
   const id_attr = type === "project" ? "pid" : "id";
   if (!fields) {
-    fields = [id_attr];
+    if(Array.isArray(vals)) {
+      fields = [id_attr];
+    } else {
+      fields = id_attr;
+    }
   }
 
   if (Array.isArray(fields)) {
