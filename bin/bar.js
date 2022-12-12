@@ -1,4 +1,8 @@
-var colors = require('colors');
+const chalk = require('chalk');
+const grey = chalk.grey;
+const blue = chalk.blue;
+const yellow = chalk.yellow;
+const red = chalk.red;
 
 /*
  * Shift data range to a new range according to middle points
@@ -34,9 +38,9 @@ function remap(data, start, stop) {
 
 function bar(data, start, stop) {
   var i;
-  var glyph = ['\u2581'.grey, '\u2581'.blue, '\u2582'.blue, '\u2583'.blue,
-    '\u2584'.yellow, '\u2585'.yellow, '\u2586'.yellow,
-    '\u2587'.red, '\u2588'.red ];
+  var glyph = [grey('\u2581'), blue('\u2581'), blue('\u2582'), blue('\u2583'),
+    yellow('\u2584'), yellow('\u2585'), yellow('\u2586'),
+    red('\u2587'), red('\u2588') ];
   var ceiling = 0;
   var output = '';
   var step;
