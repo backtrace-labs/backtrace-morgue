@@ -6342,11 +6342,24 @@ function coronerDelete(argv, config) {
     return Promise.all(tasks);
   }
 
+  if (aq.query && argv.query) {
+    console.log(JSON.stringify(aq.query, null, 2));
+    return;
+  }
+
   if (aq && aq.query) {
-    coroner.promise('query', p.universe, p.project, aq.query).then(function(r) {
-      unpackQueryObjects(o, r);
-      return delete_fn();
-    }).then(std_success_cb).catch(std_failure_cb);
+    if (params.sync) {
+        coroner.promise('query', p.universe, p.project, aq.query).then(function(r) {
+          unpackQueryObjects(o, r);
+          return delete_fn();
+        }).then(std_success_cb).catch(std_failure_cb);
+    } else {
+      coroner.promise('delete_query', p.universe, p.project, aq.query,
+        params).then(std_success_cb).catch(std_failure_cb).then(() => {;
+          process.stderr.write(success_color(
+            sprintf('Query submitted. Objects will be deleted asynchronously.')) + '\n');
+        });
+    }
   } else {
     delete_fn().then(std_success_cb).catch(std_failure_cb);
   }
