@@ -5067,6 +5067,14 @@ function coronerNuke(argv, config) {
     errx('No such object.');
   }
 
+  if (!argv.includes("-f")) {
+    name = target.get('name');
+    const confirmation = readLine("You are about to nuke " + name + ". Please type '" + name +"' to confirm:");
+    if (confirmation != name) {
+      errx('Confirmation invalid: ' + confirmation);
+    }
+  }
+
   bpg.delete(target, { cascade: true });
 
   try {
