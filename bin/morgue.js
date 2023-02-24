@@ -196,6 +196,7 @@ var commands = {
   attachment: coronerAttachment,
   attribute: coronerAttribute,
   audit: coronerAudit,
+  create: coronerCreate,
   log: coronerLog,
   bpg: coronerBpg,
   error: coronerError,
@@ -253,6 +254,42 @@ function coronerError(argv, config) {
   }
 
   throw Error(argv._[1]);
+}
+
+function coronerCreate(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  let project = argv.project;
+  if (!project) {
+    errx("--project is required");
+  }
+
+  if(typeof project !== "string") {
+    errx("Missing project name")
+  }
+  
+  let validationRe = /^[a-zA-Z0-9-]+$/;
+  let validProjName = validationRe.test(project);
+  if(!validProjName) {
+    errx("Illegal name only use a-z, A-Z, 0-9, or \"-\"");
+  }
+
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner, argv);
+
+  const request = bpgSingleRequest({
+    action: "create",
+    type: "configuration/project",
+    object: {
+      pid: 0,
+      deleted: 0,
+      name: project,
+      owner: config.config.user.uid,
+      universe: config.config.universe.id
+    },
+  });
+
+  bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
 /**
