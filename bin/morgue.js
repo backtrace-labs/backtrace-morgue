@@ -267,7 +267,7 @@ function coronerCreate(argv, config) {
   if(typeof project !== "string") {
     errx("Missing project name")
   }
-  
+
   let validationRe = /^[a-zA-Z0-9-]+$/;
   let validProjName = validationRe.test(project);
   if(!validProjName) {
@@ -277,6 +277,20 @@ function coronerCreate(argv, config) {
   var coroner = coronerClientArgv(config, argv);
   var bpg = coronerBpgSetup(coroner, argv);
 
+  if(!config || !config.config) {
+    errx("Invalid config");
+  }
+
+  if(!config.config.user || !config.config.user.uid) {
+    errx("Invalid user");
+  }
+  let user = config.config.user.uid;
+
+  if(!config.config.universe || !config.config.universe.id) {
+    errx("Invalid universe")
+  }
+  let universe = config.config.universe.id;
+
   const request = bpgSingleRequest({
     action: "create",
     type: "configuration/project",
@@ -284,8 +298,8 @@ function coronerCreate(argv, config) {
       pid: 0,
       deleted: 0,
       name: project,
-      owner: config.config.user.uid,
-      universe: config.config.universe.id
+      owner: user,
+      universe: universe,
     },
   });
 
