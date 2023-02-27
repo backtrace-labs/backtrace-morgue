@@ -425,12 +425,12 @@ no-op.  The following options affect this behavior:
 `--all`: Delete all related data, including indexing.
 `--crdb-only`: Only delete the indexed data; requires physically deleted objects.
 
-### create
+### project
 
 Allows for the creation of projects.
 
 ```
-Usage: morgue create --project <projectName>
+Usage: morgue project create <projectName>
 ```
 
 Project names must be in the format of a-z, A-Z, 0-9, or "-".
