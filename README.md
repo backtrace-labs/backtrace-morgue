@@ -433,7 +433,7 @@ Allows for the creation of projects.
 Usage: morgue project create <projectName>
 ```
 
-Project names must be in the format of a-z, A-Z, 0-9, or "-".
+Project name accepted characters include a-z, A-Z, 0-9, or "-".
 
 ### flamegraph
 
