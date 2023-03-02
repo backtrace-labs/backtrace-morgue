@@ -196,6 +196,7 @@ var commands = {
   attachment: coronerAttachment,
   attribute: coronerAttribute,
   audit: coronerAudit,
+  project: coronerProject,
   log: coronerLog,
   bpg: coronerBpg,
   error: coronerError,
@@ -253,6 +254,62 @@ function coronerError(argv, config) {
   }
 
   throw Error(argv._[1]);
+}
+
+function coronerProject(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  let subcommand = argv._[1];
+
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner, argv);
+
+  if(!subcommand) {
+    errx("Invalid project command. Try 'morgue project create <your-project-name>'")
+  }
+
+  if(subcommand !== 'create') {
+    errx("Invalid project command. Try 'morgue project create <your-project-name>'")
+  }
+
+  let project = argv._[2];
+  if (!project) {
+    errx("Missing project name");
+  }
+
+  if(!config || !config.config) {
+    errx("Invalid config");
+  }
+
+  let validationRe = /^[a-zA-Z0-9-]+$/;
+  let validProjName = validationRe.test(project);
+  if(!validProjName) {
+    errx("Illegal name only use a-z, A-Z, 0-9, or \"-\"");
+  }
+
+  if(!config.config.user || !config.config.user.uid) {
+    errx("Invalid user");
+  }
+  let user = config.config.user.uid;
+
+  if(!config.config.universe || !config.config.universe.id) {
+    errx("Invalid universe")
+  }
+  let universe = config.config.universe.id;
+
+  const request = bpgSingleRequest({
+    action: "create",
+    type: "configuration/project",
+    object: {
+      pid: 0,
+      deleted: 0,
+      name: project,
+      owner: user,
+      universe: universe,
+    },
+  });
+
+  bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
 /**
