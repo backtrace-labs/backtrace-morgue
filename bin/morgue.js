@@ -1184,7 +1184,7 @@ function coronerTeamUserDelete({bpg, argv, universeId, model}) {
   }
 
   const tm = model.team_member.find(function(tm) {
-    return tm.get('user') == user.get('uid') && tm.get('team') == team.get('tid');
+    return tm.get('user') == user.get('uid') && tm.get('team') == team.get('id');
   });
   if (tm === undefined) {
     err(`User '${userName}' is not a member of team '${teamName}'`);
