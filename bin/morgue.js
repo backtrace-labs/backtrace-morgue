@@ -4808,7 +4808,7 @@ function attributeSet(argv, config, opts) {
     },
   });
 
-  bpgPost(state.bpg, request, bpgCbFn('View', 'update'));
+  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'update'));
 }
 
 function viewCreate(argv, config, opts) {
