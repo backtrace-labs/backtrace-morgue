@@ -1524,3 +1524,45 @@ For example:
 ```
 morgue actions upload --project myproj myconfig.json
 ```
+
+
+## Attributes
+
+Morgue can be used to create or delete project index attributes.
+
+The provided commands are as follows:
+- `morgue attribute create <project> <name> --description --type --format ` : Create a project index attribute
+- `morgue attribute delete <project> <name> ` : Delete a project index attribute
+
+Formats
+- `bitmap`, `uint8`, `uint16`, `uint32`, `uint64`, `uint128`, `uuid`, `dictionary`
+
+Types
+- `none`, `commit`, `semver`, `callstack`, `hostname`, `bytes`, `kilobytes`, `gigabytes`, `nanoseconds`, `milliseconds`, `seconds`, `unix_timestamp`, `js_timestamp`, `gps_timestamp`, `memory_address`, `labels`, `sha256`, `uuid`, `ipv4`, `ipv6`
+
+For example:
+
+```
+morgue attribute create myProject myAttribute --description='My Description' --type='uint64' --format='bytes'
+```
+```
+morgue attribute delete myProject myAttribute
+```
+
+## Views
+
+Morgue can be used to create or delete project query views.
+
+The provided commands are as follows:
+
+- `morgue view create <project> <name> <queries> <payload>` : Create a query view.
+- `morgue view delete <project> <name>` : Delete query view.
+
+For example:
+
+```
+morgue view create myProject myQueryViewName --queries=queries.json --payload=payload.json
+```
+```
+morgue view delete myProject myQueryViewName
+```
