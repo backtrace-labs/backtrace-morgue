@@ -197,6 +197,7 @@ var commands = {
   attribute: coronerAttribute,
   view: coronerView,
   audit: coronerAudit,
+  project: coronerProject,
   log: coronerLog,
   bpg: coronerBpg,
   error: coronerError,
@@ -254,6 +255,62 @@ function coronerError(argv, config) {
   }
 
   throw Error(argv._[1]);
+}
+
+function coronerProject(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  let subcommand = argv._[1];
+
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner, argv);
+
+  if(!subcommand) {
+    errx("Invalid project command. Try 'morgue project create <your-project-name>'")
+  }
+
+  if(subcommand !== 'create') {
+    errx("Invalid project command. Try 'morgue project create <your-project-name>'")
+  }
+
+  let project = argv._[2];
+  if (!project) {
+    errx("Missing project name");
+  }
+
+  if(!config || !config.config) {
+    errx("Invalid config");
+  }
+
+  let validationRe = /^[a-zA-Z0-9-]+$/;
+  let validProjName = validationRe.test(project);
+  if(!validProjName) {
+    errx("Illegal name only use a-z, A-Z, 0-9, or \"-\"");
+  }
+
+  if(!config.config.user || !config.config.user.uid) {
+    errx("Invalid user");
+  }
+  let user = config.config.user.uid;
+
+  if(!config.config.universe || !config.config.universe.id) {
+    errx("Invalid universe")
+  }
+  let universe = config.config.universe.id;
+
+  const request = bpgSingleRequest({
+    action: "create",
+    type: "configuration/project",
+    object: {
+      pid: 0,
+      deleted: 0,
+      name: project,
+      owner: user,
+      universe: universe,
+    },
+  });
+
+  bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
 /**
@@ -1983,49 +2040,55 @@ function coronerToken(argv, config) {
   }
 
   if (action == 'list') {
-    if (!model.api_token) {
+    let apiTokens = model.api_token ? model.api_token.length : 0;
+    let tokens = model.token ? model.token.length : 0;
+    let totalTokens = apiTokens + tokens;
+
+    if(totalTokens <= 0) {
       console.log(success_color('No API tokens found.'));
       return;
     }
 
-    model.api_token.sort(function(a, b) {
-      var a_d = a.get('id');
-      var b_d = b.get('id');
-
-      return (a_d > b_d) - (a_d < b_d);
-    });
-
-    for (var i = 0; i < model.api_token.length; i++) {
-      var token = model.api_token[i];
-      var widgets;
-
-      if (pid && token.get('project') != pid)
-        continue;
-
-      console.log(bold(token.get('id')));
-      console.log('  capabilities=' + token.get('capabilities') +
-        ',project=' + pm[token.get('project')] + '(' +
-        token.get('project') + '),owner=' + token.get('owner'));
-
-      var metadata = token.get('metadata');
-      if (metadata) {
-        console.log('  metadata:');
-        var jm = JSON.stringify(JSON.parse(metadata), null, 2);
-        console.log(jm);
+    if (model.api_token) {
+      model.api_token.sort(function(a, b) {
+        var a_d = a.get('id');
+        var b_d = b.get('id');
+  
+        return (a_d > b_d) - (a_d < b_d);
+      });
+  
+      for (var i = 0; i < model.api_token.length; i++) {
+        var token = model.api_token[i];
+  
+        if (pid && token.get('project') != pid)
+          continue;
+  
+        console.log(bold(token.get('id')));
+        console.log('  capabilities=' + token.get('capabilities') +
+          ',project=' + pm[token.get('project')] + '(' +
+          token.get('project') + '),owner=' + token.get('owner'));
+  
+        var metadata = token.get('metadata');
+        if (metadata) {
+          console.log('  metadata:');
+          var jm = JSON.stringify(JSON.parse(metadata), null, 2);
+          console.log(jm);
+        }
       }
     }
-
-    for (var i = 0; i < model.token.length; i++) {
-      var token = model.token[i];
-      var widgets;
-
-      if (pid && token.get('project') != pid)
-        continue;
-
-      console.log(bold(token.get('id')));
-      console.log('  capabilities=error:post' +
-        ',project=' + pm[token.get('project')] + '(' +
-        token.get('project') + '),owner=' + token.get('owner'));
+    
+    if(model.token) {
+      for (var i = 0; i < model.token.length; i++) {
+        var token = model.token[i];
+  
+        if (pid && token.get('project') != pid)
+          continue;
+  
+        console.log(bold(token.get('id')));
+        console.log('  capabilities=error:post' +
+          ',project=' + pm[token.get('project')] + '(' +
+          token.get('project') + '),owner=' + token.get('owner'));
+      }
     }
 
     return;
