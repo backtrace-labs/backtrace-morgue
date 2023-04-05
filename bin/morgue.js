@@ -4816,7 +4816,7 @@ function viewCreate(argv, config, opts) {
 
   if (!argv.queries) return viewUsageFn("Must specify queries.");
   if (!argv.payload) return viewUsageFn("Must specify payload.");
-  if(!state.project.fields.pid) return viewUsageFn("Invalid Project.");
+  if(!state.project.fields && !state.project.fields.pid) return viewUsageFn("Invalid Project.");
   if(!config.config.uid) return viewUsageFn("Invalid user.");
 
   // json parse or keep input as json
