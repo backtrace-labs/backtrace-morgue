@@ -195,6 +195,7 @@ var commands = {
   actions: coronerActions,
   attachment: coronerAttachment,
   attribute: coronerAttribute,
+  view: coronerView,
   audit: coronerAudit,
   log: coronerLog,
   bpg: coronerBpg,
@@ -4573,15 +4574,103 @@ function subcmdProcess(argv, config, opts) {
   opts.usageFn("Invalid subcommand '" + subcmd + "'.");
 }
 
+function viewUsageFn(str){
+  if (str) {
+    err(str + "\n");
+  }
+  console.error("Usage: morgue view <create|delete> <project> <name> <queries> <payload>");
+  process.exit(1);
+}
+
+function viewSetupFn(config, argv, opts, subcmd) {
+  if (argv.length < 4) {
+    return attributeUsageFn("Incomplete command.");
+  }
+
+  opts.params = {
+    attrname: argv._[2],
+  };
+  if (!opts.params.attrname)
+    return viewUsageFn("Missing attribute name.");
+
+  opts.state.bpg = coronerBpgSetup(opts.state.coroner, argv);
+  opts.state.model = opts.state.bpg.get();
+  opts.state.context = coronerParams(argv, config);
+
+  const ctx = opts.state.context;
+  opts.state.universe = opts.state.model.universe.find((univ) => {
+    return univ.fields.name === ctx.universe;
+  });
+  if (!opts.state.universe)
+    return viewUsageFn(`Universe ${ctx.universe} not found.`);
+    opts.state.project = opts.state.model.project.find((proj) =>
+      proj.fields.universe === opts.state.universe.fields.id &&
+      proj.fields.name === ctx.project
+    );
+  if (!opts.state.project) {
+    return viewUsageFn( `Project ${ctx.universe}/${ctx.project} not found.`);
+  }
+
+  if (subcmd !== 'create') {
+    opts.state.query = opts.state.model.query.find((query) => 
+      query.fields.name === opts.params.attrname
+    );
+    if (!opts.state.query)
+      return viewUsageFn("View not found.");
+    opts.state.attr_key = {
+      project: opts.state.query.fields.project,
+      name: opts.state.query.fields.name,
+    };
+  }
+}
+
 function attributeUsageFn(str) {
+  const formats = [
+    'none',
+    'commit',
+    'semver',
+    'callstack',
+    'hostname',
+    'bytes',
+    'kilobytes',
+    'gigabytes',
+    'nanoseconds',
+    'milliseconds',
+    'seconds',
+    'unix_timestamp',
+    'js_timestamp',
+    'gps_timestamp',
+    'memory_address',
+    'labels',
+    'sha256',
+    'uuid',
+    'ipv4',
+    'ipv6',
+  ]
+
+  const types = [
+    'bitmap',
+    'uint8',
+    'uint16',
+    'uint32',
+    'uint64',
+    'uint128',
+    'uuid',
+    'dictionary',
+  ]
+
   if (str)
     err(str + "\n");
   console.error("Usage: morgue attribute <create|delete> <project> <name> [options]");
   console.error("");
-  console.error("Options for create (all but format are required):");
-  console.error("  --type=T         Specify type.");
+  console.error("Options for create (all but format are required): ");
   console.error("  --description=D  Specify description.");
-  console.error("  --format=F       Specify formatting hint.");
+  console.error("  --type=T         Specify type. Can be of the following: ");
+  console.error("                     " + types.join(', '))
+  console.error("  --format=F       Specify formatting hint. Can be of the following: ");
+  console.error("                     " + formats.slice(0, 10).join(', ') + ', ')
+  console.error("                     " + formats.slice(10).join(', '))
+
   process.exit(1);
 }
 
@@ -4606,10 +4695,10 @@ function attributeSetupFn(config, argv, opts, subcmd) {
   });
   if (!opts.state.universe)
     return attributeUsageFn(`Universe ${ctx.universe} not found.`);
-  opts.state.project = opts.state.model.project.find((proj) => {
-    return proj.fields.universe === opts.state.universe.fields.id &&
-      proj.fields.name === ctx.project;
-  });
+    opts.state.project = opts.state.model.project.find((proj) => {
+      return proj.fields.universe === opts.state.universe.fields.id &&
+        proj.fields.name === ctx.project;
+    });
   if (!opts.state.project) {
     return attributeUsageFn( `Project ${ctx.universe}/${ctx.project} not found.`);
   }
@@ -4656,7 +4745,44 @@ function attributeSet(argv, config, opts) {
     },
   });
 
-  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'update'));
+  bpgPost(state.bpg, request, bpgCbFn('View', 'update'));
+}
+
+function viewCreate(argv, config, opts) {
+  const state = opts.state;
+
+  if (!argv.queries) return viewUsageFn("Must specify queries.");
+  if (!argv.payload) return viewUsageFn("Must specify payload.");
+
+  // json parse or keep input as json
+  const queries = typeof argv.queries === 'string' ? JSON.parse(argv.queries) : argv.queries
+  const payload = typeof argv.payload === 'string' ? JSON.parse(argv.payload) : argv.payload
+  // update name
+  payload.name = opts.params.attrname
+
+  const request = bpgSingleRequest({
+    action: "create",
+    type: "configuration/query",
+    object: {
+      name: opts.params.attrname,
+      project: state.project.fields.pid,
+      owner: config.config.uid,
+      queries: JSON.stringify(queries),
+      payload: JSON.stringify(payload),
+    },
+  });
+
+  bpgPost(state.bpg, request, bpgCbFn('View', 'create'));
+}
+
+function viewDelete(argv, config, opts) {
+  const state = opts.state;
+  const request = bpgSingleRequest({
+    action: "delete",
+    type: "configuration/query",
+    key: state.attr_key,
+  });
+  bpgPost(state.bpg, request, bpgCbFn('View', 'delete'));
 }
 
 function attributeDelete(argv, config, opts) {
@@ -4698,6 +4824,17 @@ function coronerAttribute(argv, config) {
       //set: attributeSet, - not supported
       create: attributeCreate,
       delete: attributeDelete,
+    },
+  });
+}
+
+function coronerView(argv, config) {
+  subcmdProcess(argv, config, {
+    usageFn: viewUsageFn,
+    setupFn: viewSetupFn,
+    subcmds: {
+      create: viewCreate,
+      delete: viewDelete,
     },
   });
 }
