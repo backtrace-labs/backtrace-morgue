@@ -4758,10 +4758,10 @@ function attributeSetupFn(config, argv, opts, subcmd) {
   });
   if (!opts.state.universe)
     return attributeUsageFn(`Universe ${ctx.universe} not found.`);
-    opts.state.project = opts.state.model.project.find((proj) => {
-      return proj.fields.universe === opts.state.universe.fields.id &&
-        proj.fields.name === ctx.project;
-    });
+  opts.state.project = opts.state.model.project.find((proj) => {
+    return proj.fields.universe === opts.state.universe.fields.id &&
+      proj.fields.name === ctx.project;
+  });
   if (!opts.state.project) {
     return attributeUsageFn( `Project ${ctx.universe}/${ctx.project} not found.`);
   }
@@ -4816,6 +4816,8 @@ function viewCreate(argv, config, opts) {
 
   if (!argv.queries) return viewUsageFn("Must specify queries.");
   if (!argv.payload) return viewUsageFn("Must specify payload.");
+  if(!state.project.fields.pid) return viewUsageFn("Invalid Project.");
+  if(!config.config.uid) return viewUsageFn("Invalid user.");
 
   // json parse or keep input as json
   const queries = typeof argv.queries === 'string' ? JSON.parse(argv.queries) : argv.queries
