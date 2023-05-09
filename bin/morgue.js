@@ -2159,14 +2159,10 @@ function coronerToken(argv, config) {
 
     try {
       const response = bpg.commitWithResponse();
+
       // find the index of actions where action == create and type == 'configuration/api_token' so we can access the correct result
-      let index = -1;
-      for(let i = 0; i < response.actions.length; i++) {
-        if(response.actions[i].action == 'create' && response.actions[i].type == 'configuration/api_token') {
-          index = i;
-          break;
-        }
-      }
+      const index = response.actions.findIndex(action => action.action === 'create' && action.type === 'configuration/api_token');
+      
       if(index < 0) errx('Cannot find token.');
 
       const token = response.results[index].result;
