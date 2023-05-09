@@ -2126,6 +2126,9 @@ function coronerToken(argv, config) {
     if (!universe || !project)
       errx('Must specify a project or infer a universe');
 
+    if(!pid)
+      errx('Invalid project')
+
     if (!argv.capability) {
       errx('Must specify a capability:\n' +
         '    error:post symbol:post query:post');
@@ -2155,12 +2158,25 @@ function coronerToken(argv, config) {
     bpg.create(api_token);
 
     try {
-      bpg.commit();
+      const response = bpg.commitWithResponse();
+      // find the index of actions where action == create and type == 'configuration/api_token' so we can access the correct result
+      let index = -1;
+      for(let i = 0; i < response.actions.length; i++) {
+        if(response.actions[i].action == 'create' && response.actions[i].type == 'configuration/api_token') {
+          index = i;
+          break;
+        }
+      }
+      if(index < 0) errx('Cannot find token.');
+
+      const token = response.results[index].result;
+      console.log(success_color('API token successfully created:'));
+      console.log(bold(token.id));
+      console.log('  capabilities=' + token.capabilities +
+        ',project=' + pm[token.project] + ',owner=' + token.owner);
     } catch (e) {
       errx(e + '');
     }
-
-    console.log(success_color('API token successfully created.'));
   }
 }
 
