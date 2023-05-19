@@ -634,12 +634,23 @@ function coronerSetup(argv, config) {
     if (response === 0) {
       process.stderr.write(red('unconfigured\n'));
       return coronerSetupStart(coroner, argv);
-    } else {
+    } else if (response === 1) {
       process.stderr.write(green('configured\n\n'));
 
       console.log(bold('Please login to continue setup.'));
       return coronerLogin(argv, config, coronerSetupStart);
-    }
+    } else {
+		process.stderr.write(red('\n\nUnexpected response when checking the server\'s status.\n\n'));
+		process.stderr.write(red('This could be caused by one of the following:\n'));
+		process.stderr.write(red('  * Either the coronerd or backtrace-nginx services are not running on the server, or are in a failed state.\n'));
+		process.stderr.write(red('  * A proxy or forwarder is handling the request and is returning a response that the morgue client cannot understand.\n'));
+		process.stderr.write(red('  * Certificate validation is failing when trying to communicate with the server (try using -k if using self-signed certificates).\n'));
+		process.stderr.write(red('  * The destination URL is incorrect.\n'));
+		process.stderr.write(red('\n'));
+		process.stderr.write(red('To view the response from the server, try running the following command:\n'));
+		process.stderr.write(red('  curl ' + argv._[1] + '/api/is_configured\n'));
+		process.exit(1);
+	}
   });
 }
 
