@@ -435,6 +435,14 @@ Usage: morgue project create <projectName>
 
 Project name accepted characters include a-z, A-Z, 0-9, or "-".
 
+### projects
+
+List projects
+
+```
+Usage: morgue projects list
+```
+
 ### flamegraph
 
 ```
@@ -1011,14 +1019,24 @@ Delete the specified token by substring or exact match.
 
 ### user
 
-```
-Usage: morgue user reset [--universe=...] [--user=...] [--password=...]
-```
-
 Modify users.
 
-Currently, can only be used to reset user passwords.  Prompts for user and
-password if either is not specified.
+```
+Usage: morgue user reset [--universe=...] [--user=...] [--password=...] [--role=...]
+```
+
+### users
+
+Add signup domain whitelist.
+```
+Usage: morgue users add-signup-whitelist [--domain=...] [--role=...] [--method=...] 
+```
+
+List users that are not associated with a team.
+```
+Usage: morgue users list-teamless-users
+```
+
 
 ### tenant
 
