@@ -58,6 +58,7 @@ var ARGV;
 const configDir = process.env.MORGUE_CONFIG_DIR ||
   path.join(os.homedir(), ".morgue");
 const configFile = path.join(configDir, "current.json");
+const BACKTRACE_ROLES = ['admin', 'member', 'guest']
 
 bt.initialize({
   timeout: 5000,
@@ -198,6 +199,7 @@ var commands = {
   view: coronerView,
   audit: coronerAudit,
   project: coronerProject,
+  projects: coronerProjects,
   log: coronerLog,
   bpg: coronerBpg,
   error: coronerError,
@@ -238,6 +240,7 @@ var commands = {
   setup: coronerSetup,
   status: coronerStatus,
   user: coronerUser,
+  users: coronerUsers,
   merge: coronerMerge,
   unmerge: coronerUnmerge,
   "metrics-importer": metricsImporterCmd,
@@ -311,6 +314,42 @@ function coronerProject(argv, config) {
   });
 
   bpgPost(bpg, request, bpgCbFn('Project', 'create'));
+}
+
+async function coronerProjects(argv, config) {
+  abortIfNotLoggedIn(config);
+
+  let subcommand = argv._[1];
+
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner, argv);
+
+  if(subcommand !== 'list') {
+    errx("Invalid projects command. Try 'morgue project list'")
+  }
+
+  if(!config || !config.config) {
+    errx("Invalid config");
+  }
+
+  if(!config.config.universe || !config.config.universe.id) {
+    errx("Invalid universe")
+  }
+
+  const projects = await bpgPostAsync(bpg, bpgSingleRequest({
+    action: "get",
+    type: "configuration/project",
+  }));
+  const users = await bpgPostAsync(bpg, bpgSingleRequest({
+    action: "get",
+    type: "configuration/users",
+  }));
+
+  const userIdMap = {}
+  users.forEach((u) => userIdMap[u.uid] = u )
+
+  console.log('Projects:')
+  console.log(projects.map((p, i) => `${i+1}: name=${p.name}, owner=${userIdMap[p.owner]?.username}`).join('\n'))
 }
 
 /**
@@ -612,7 +651,7 @@ function coronerSetupStart(coroner, argv) {
 function coronerSetup(argv, config) {
   var coroner, pu;
 
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!!!argv.k) ? "1" : "0";
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!argv.k) ? "1" : "0";
   try {
     pu = url.parse(argv._[1]);
   } catch (error) {
@@ -669,8 +708,10 @@ function userReset(argv, config) {
   var ctx = {
     user: argv.user,
     password: argv.password,
+    role: argv.role,
     coroner: coronerClientArgv(config, argv),
   };
+
   var prompts = [];
   var tasks = [];
 
@@ -699,10 +740,12 @@ function userReset(argv, config) {
   if (!ctx.user) {
     prompts.push({name: "username", message: "User", required: true});
   }
-  if (!ctx.password) {
-    prompts.push({name: "password", message: "Password", replace: "*",
-      hidden: true, required: true});
+
+  if (ctx.role && !BACKTRACE_ROLES.includes(ctx.role)) {
+    console.error(`Role must be one of: ${BACKTRACE_ROLES.join(', ')}.`);
+    return
   }
+
   if (prompts.length > 0) {
     tasks.push(prompt_for(prompts));
     tasks.push((result) => {
@@ -726,8 +769,20 @@ function userReset(argv, config) {
       return Promise.reject("Must specify valid user.");
     }
 
+    let modifyFields = {}
+    if (!ctx.role && !ctx.password){
+      return Promise.reject("Must specify a field to modify.");
+    }
+
+    if (ctx.password) {
+      modifyFields.password = BPG.blobText(ctx.password)
+    }
+    if (ctx.role) {
+      modifyFields.role = ctx.role
+    }
+
     try {
-      ctx.bpg.modify(ctx.user_obj, {password: BPG.blobText(ctx.password)});
+      ctx.bpg.modify(ctx.user_obj, modifyFields);
       ctx.bpg.commit();
       console.log(success_color("User successfully modified."));
     } catch(e) {
@@ -739,6 +794,85 @@ function userReset(argv, config) {
     err(e.toString());
     process.exit(1);
   });
+}
+
+function addDomainWhitelist(argv, config) {
+  const domain = argv.domain
+  const role = argv.role
+  const method = argv.method
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner, argv);
+
+  var universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
+  let model = bpg.get();
+
+  let universeId;
+  /* Find the universe with the specified name. */
+  for (let i = 0; i < model.universe.length; i++) {
+    if (model.universe[i].get('name') === universe) {
+      const un = model.universe[i];
+      universeId = un.get('id');
+    }
+  }
+  if (!universeId){
+    return Promise.reject(`Missing config universe.`);
+  }
+
+  if (!domain || !role || !method) {
+    return Promise.reject(`Missing arguments: domain, role, or method.`);
+  }
+  if (!BACKTRACE_ROLES.includes(role)) {
+    return Promise.reject(`Role must be one of: ${BACKTRACE_ROLES.join(', ')}.`);
+  }
+
+
+  var signup = bpg.new('signup_whitelist');
+  signup.set('universe', universeId);
+  signup.set('domain', domain);
+  signup.set('role', role);
+  signup.set('method', method);
+  bpg.create(signup);
+  bpg.commit();
+  console.log(`Created domain whitelist for domain ${domain}.`)
+}
+
+async function listTeamlessUsers(argv, config) {
+  var coroner = coronerClientArgv(config, argv);
+  var bpg = coronerBpgSetup(coroner, argv);
+
+  // Get all users and team_members
+  const allUsers = await bpgPostAsync(bpg, bpgSingleRequest({
+    action: "get",
+    type: "configuration/users",
+  }));
+  const users = allUsers.filter((u) => !isBacktraceUser(u))
+  const teamMembers = await bpgPostAsync(bpg, bpgSingleRequest({
+    action: "get",
+    type: "configuration/team_member",
+  }));
+
+  // get set of all user ids
+  const allTeamMemberIds = teamMembers.map((teamMember) => teamMember.user)
+  const teamMemberIds = [...new Set(allTeamMemberIds)]
+
+  // filter all users by ones that are not included in the teamMembers set
+  const noTeamUsers = users.filter((user) => !teamMemberIds.includes(user.uid) )
+
+  if(!noTeamUsers.length){
+    console.log('No teamless users.')
+    return
+  }
+  // log results
+  console.log('Users with no teams:')
+  console.log(noTeamUsers.map((u, i) => `${i+1}. username=${u.username}, email=${u.email}, role=${u.role}`).join('\n'))
+}
+
+function isBacktraceUser(user) {
+  if(!user) return false
+  return user.username === 'Backtrace' || user.email.includes('@backtrace.io')
 }
 
 function coronerUser(argv, config) {
@@ -753,6 +887,20 @@ function coronerUser(argv, config) {
 
   argv._.shift();
   userReset(argv, config);
+}
+
+function coronerUsers(argv, config) {
+  argv._.shift();
+  const action = argv._[0]
+
+  switch (action) {
+    case 'add-domain-whitelist':
+      addDomainWhitelist(argv, config);
+      break
+    case 'list-teamless-users':
+      listTeamlessUsers(argv, config)
+      break
+  }
 }
 
 function dump_obj(o)
@@ -4587,6 +4735,26 @@ function bpgPost(bpg, request, callback) {
   }
 }
 
+function bpgPostAsync(bpg, request) {
+  return new Promise((resolve, reject) => {
+    var json, msg, response;
+
+    if (typeof request === 'string')
+      request = JSON.parse(request);
+  
+    response = bpg.post(request);
+    json = JSON.parse(response.body);
+    const results = json.results[0].result
+    msg = json.results[0].string || json.results[0].text;
+    if (msg !== 'success') {
+      reject(msg);
+    } else {
+      resolve(results);
+    }
+  } )
+
+}
+
 /*
  * This is meant primarily for debugging & testing; it could be extended to
  * offer a CLI-structured way to represent BPG commands.
@@ -5137,7 +5305,7 @@ async function coronerSimilarity(argv, config) {
     default: {
       errx('unknown type of similarity request');
     }
-   };
+   }
 }
 
 function coronerFlamegraph(argv, config) {
