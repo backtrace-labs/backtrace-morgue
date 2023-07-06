@@ -803,7 +803,10 @@ function addDomainWhitelist(argv, config) {
   var coroner = coronerClientArgv(config, argv);
   var bpg = coronerBpgSetup(coroner, argv);
 
-  const universe = Object.keys(config.config.universes)[0];
+  var universe = argv.universe;
+  if (!universe)
+    universe = Object.keys(config.config.universes)[0];
+
   let model = bpg.get();
 
   let universeId;

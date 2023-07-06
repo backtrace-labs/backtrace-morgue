@@ -1029,7 +1029,7 @@ Usage: morgue user reset [--universe=...] [--user=...] [--password=...] [--role=
 
 Add signup domain whitelist.
 ```
-Usage: morgue users add-signup-whitelist [--domain=...] [--role=...] [--method=...] 
+Usage: morgue users add-signup-whitelist [--universe=...] [--domain=...] [--role=...] [--method=...]
 ```
 
 List users that are not associated with a team.
