@@ -5719,8 +5719,8 @@ function coronerList(argv, config) {
   }
 
   let csv = argv.csv;
-  if (csv && !argv.select)
-      return usage("--csv requires select parameters")
+  if (csv && !argv.select && !argv['select-wildcard'])
+      return usage("--csv requires select or select-wildcard parameters")
 
   p = coronerParams(argv, config);
 
