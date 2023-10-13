@@ -191,7 +191,7 @@ data.
 
 The `--csv=<output file>` option may be passed in with a specified output
 file to output results to a CSV file instead. This may only be used with
-`--select` queries.
+`--select` and/or `--select-wildcard` queries.
 
 #### Filters
 
@@ -213,6 +213,19 @@ Pagination is handled with two flags
 `--limit=<n>` controls the number of returned rows. `--offset=<n>` controls the
 offset at which rows are returned, another way to put it is that it skips the
 first `<n>` rows.
+
+#### Selection
+
+Selection can be done with two options, `--select=<attribute>` and 
+`--select-wildcard=<physical|derived|virtual>`. 
+
+`--select` allows to select particular attributes, while `--select-wildcard` selects
+all attributes that match the option.
+
+Wildcards can be one of:
+* `physical` - selects all attributes that are physically stored in objects,
+* `derived` - selects all derived attributes, such as `first_seen` or `original`,
+* `virtual` - selects all virtual (join) attributes.
 
 #### Aggregations
 
@@ -247,7 +260,7 @@ syntax is `[-](<column>|<fold_term>)`.
 - The optional `-` reverse the sort term order to descending, otherwise it
   defaults to ascending.
 - The `<column>` term refers to a valid column in the table. This is only
-  effective for selection type query, i.e. when using the `--select` option.
+  effective for selection type query, i.e. when using the `--select` and/or `--select-wildcard` option.
 - The `<fold_term>` is an expression pointing to a fold operation. The
   expression language for fold operation is one of the following literal:
     - `;group`: sort by the group key itself.
@@ -1493,10 +1506,10 @@ Update also supports the following arguments:
 
 The create and update subcommands allow specifying the query using the same
 arguments as the `morgue list` command, save that `--age` is ignored,
-`--select` isn't allowed, and any implicit time filtering that Morgue would
-otherwise apply is disabled.  Since empty CLI arguments are a valid query,
-update additionally requires supplying `--replace-query` to indicate that the
-query is being replaced.
+`--select` or `--select-wildcard` isn't allowed, and any implicit time filtering
+that Morgue would otherwise apply is disabled.  Since empty CLI arguments are 
+a valid query, update additionally requires supplying `--replace-query` to indicate 
+that the query is being replaced.
 
 The alerts service itself can only function properly with aggregation queries
 that use aggregates which support a single value. For example `count` is fine,
