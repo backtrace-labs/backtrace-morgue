@@ -1627,8 +1627,9 @@ function coronerInvite(argv, config) {
       var role = model.signup_pending[i].get('role');
       var sp_universe = model.signup_pending[i].get('universe');
 
+      let tokenStr = typeof token === 'string' ? token.substring(0, 12) + '...' : "";
       console.log(printf("%6d %20s %8s %8s %30s %s",
-        sp_universe, username, method, role, email, token.substr(0, 12) + '...'));
+        sp_universe, username, method, role, email, tokenStr));
     }
 
     return;
