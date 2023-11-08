@@ -1616,20 +1616,18 @@ function coronerInvite(argv, config) {
     errx(usageText);
 
   if (action === 'list') {
-    console.log(printf("%6s %20s %8s %8s %30s %s",
-      "Tenant", "Username", "Method", "Role", "Email", "Token"));
+    console.log(printf("%6s %20s %8s %8s %30s",
+      "Tenant", "Username", "Method", "Role", "Email"));
 
     for (var i = 0; i < model.signup_pending.length; i++) {
-      var token = model.signup_pending[i].get('token');
       var username = model.signup_pending[i].get('username');
       var email = model.signup_pending[i].get('email');
       var method = model.signup_pending[i].get('method');
       var role = model.signup_pending[i].get('role');
       var sp_universe = model.signup_pending[i].get('universe');
 
-      let tokenStr = typeof token === 'string' ? token.substring(0, 12) + '...' : "";
-      console.log(printf("%6d %20s %8s %8s %30s %s",
-        sp_universe, username, method, role, email, tokenStr));
+      console.log(printf("%6d %20s %8s %8s %30s",
+        sp_universe, username, method, role, email));
     }
 
     return;
