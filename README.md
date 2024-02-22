@@ -1779,11 +1779,12 @@ Example:
 morgue workflows integration create \
   --project myProject \
   --name myIntegration \
-  --plugin jira \
-  --options.projectId 10017 \
-  --options.displaySettings.attributeList attr1 \
-  --options.displaySettings.attributeList attr2 \
-  --connection 10
+  --plugin s3export \
+  --options.bucketPath s3://my-bucket \
+  --options.credentials.awsAccessKeyId key \
+  --options.credentials.awsSecretAccessKey secret \
+  --options.attributeList attr1 \
+  --options.attributeList attr2
 ```
 
 #### Update a integration
@@ -1810,7 +1811,8 @@ Example:
 ```
 morgue workflows integration update \
   --project myProject \
-  --options.projectId 10020 \
+  --options.bucketPath s3://new-bucket-path \
+  --options.attributeList attr1 \
   20
 ```
 
