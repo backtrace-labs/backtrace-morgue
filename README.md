@@ -9,6 +9,7 @@ npm install backtrace-morgue -g
 ```
 
 If you working from the repository, then instead use the following command.
+
 ```
 npm install -g
 ```
@@ -102,9 +103,9 @@ to standard output. Optionally, output the file to disk.
 
 The following options are available:
 
-| Option        | Description |
-|---------------|-------------|
-| `--resource=name`| Fetch the specified resource rather than the object. |
+| Option            | Description                                          |
+| ----------------- | ---------------------------------------------------- |
+| `--resource=name` | Fetch the specified resource rather than the object. |
 
 ### put
 
@@ -114,13 +115,13 @@ Usage: morgue put <[<universe>/]project> <file> <--format=btt|minidump|json|symb
 
 Uploads object file to the Backtrace object store. User has the following options
 
-| Option        | Description |
-|---------------|-------------|
-| `--compression=gzip|deflate`| uploaded file is compressed |
-| `--kv=key1:value1,key2:value2,...`| upload key-values |
-| `--form_data`| upload file by multipart/form-data post request |
+| Option                             | Description                                     |
+| ---------------------------------- | ----------------------------------------------- | --------------------------- |
+| `--compression=gzip                | deflate`                                        | uploaded file is compressed |
+| `--kv=key1:value1,key2:value2,...` | upload key-values                               |
+| `--form_data`                      | upload file by multipart/form-data post request |
 
-### set 
+### set
 
 ```
 Usage: morgue set <[universe/]project> <query> <key>=<value>
@@ -216,41 +217,42 @@ first `<n>` rows.
 
 #### Selection
 
-Selection can be done with two options, `--select=<attribute>` and 
-`--select-wildcard=<physical|derived|virtual>`. 
+Selection can be done with two options, `--select=<attribute>` and
+`--select-wildcard=<physical|derived|virtual>`.
 
 `--select` allows to select particular attributes, while `--select-wildcard` selects
 all attributes that match the option.
 
 Wildcards can be one of:
-* `physical` - selects all attributes that are physically stored in objects,
-* `derived` - selects all derived attributes, such as `first_seen` or `original`,
-* `virtual` - selects all virtual (join) attributes.
+
+- `physical` - selects all attributes that are physically stored in objects,
+- `derived` - selects all derived attributes, such as `first_seen` or `original`,
+- `virtual` - selects all virtual (join) attributes.
 
 #### Aggregations
 
 Aggregation is expressed through a myriad of command-line options that express
 different aggregation operations. Options are of form `--<option>=<attribute>`.
 
-The ``*`` factor is used when aggregations are performed when no factor is
+The `*` factor is used when aggregations are performed when no factor is
 specified or if an object does not have a valid value associated with the
 factor.
 
-| Option           | Description |
-|------------------|-------------|
-| `--age`          | Specify a relative timestamp to now. `1h` ago, or `1d` ago. |
+| Option           | Description                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| `--age`          | Specify a relative timestamp to now. `1h` ago, or `1d` ago.               |
 | `--time`         | Specify a range using [Chrono](https://github.com/wanasit/chrono#readme). |
-| `--unique`       | provide a count of distinct values |
-| `--histogram`    | provide all distinct values |
-| `--distribution` | provide a truncated histogram |
-| `--mean`    	   | calculate the mean of a column |
-| `--sum`          | sum all values |
-| `--range`        | provide the minimum and maximum values |
-| `--count`        | count all non-null values |
-| `--bin`          | provide a linear histogram of values |
-| `--head`         | provide the first value in a factor |
-| `--tail`         | provide the last value in a factor |
-| `--object`       | provide the maximum object identifier of a column |
+| `--unique`       | provide a count of distinct values                                        |
+| `--histogram`    | provide all distinct values                                               |
+| `--distribution` | provide a truncated histogram                                             |
+| `--mean`         | calculate the mean of a column                                            |
+| `--sum`          | sum all values                                                            |
+| `--range`        | provide the minimum and maximum values                                    |
+| `--count`        | count all non-null values                                                 |
+| `--bin`          | provide a linear histogram of values                                      |
+| `--head`         | provide the first value in a factor                                       |
+| `--tail`         | provide the last value in a factor                                        |
+| `--object`       | provide the maximum object identifier of a column                         |
 
 #### Sorting
 
@@ -263,10 +265,10 @@ syntax is `[-](<column>|<fold_term>)`.
   effective for selection type query, i.e. when using the `--select` and/or `--select-wildcard` option.
 - The `<fold_term>` is an expression pointing to a fold operation. The
   expression language for fold operation is one of the following literal:
-    - `;group`: sort by the group key itself.
-    - `;count`: sort by the group count (number of crashes).
-    - `column;idx`: where `column` is a string referencing a column in the fold
-      dictionary and `idx` is an indice in the array. See examples .
+  - `;group`: sort by the group key itself.
+  - `;count`: sort by the group count (number of crashes).
+  - `column;idx`: where `column` is a string referencing a column in the fold
+    dictionary and `idx` is an indice in the array. See examples .
 
 Multiple sort terms can be provided to break ties in case the previous
 referenced sort term has ties.
@@ -285,7 +287,7 @@ Forms:
 --quantize-uint output_column,input_column,size,offset
 ```
 
-Computes `( column + offset ) / size - offset` using integer math.  Used for
+Computes `( column + offset ) / size - offset` using integer math. Used for
 data alignment and rounding.
 
 Size and offset may be integers or time units: `3600` and `1h` are both valid.
@@ -433,8 +435,8 @@ Object IDs must be specified; they can be found in `morgue list` output.
 The object ID printed in the example above is `9d33`.
 
 By default, this command (as of 2019-02-26) requests physical-only deletion,
-which retains only indexing.  The previous `--physical-only` argument is a
-no-op.  The following options affect this behavior:
+which retains only indexing. The previous `--physical-only` argument is a
+no-op. The following options affect this behavior:
 `--all`: Delete all related data, including indexing.
 `--crdb-only`: Only delete the indexed data; requires physically deleted objects.
 
@@ -471,8 +473,6 @@ http://www.brendangregg.com/flamegraphs.html.
 Use `--unique` to only sample unique crashes. Use `--reverse` to begin sampling
 from leaf functions.
 
-
-
 ### symbold
 
 Manage Backtrace symbold service
@@ -481,63 +481,82 @@ Manage Backtrace symbold service
 Usage: morgue symbold <symbolserver | whitelist | blacklist | skiplist | status> <action>
 ```
 
-
 #### status
+
 Return Symbold service status for <[universe]/project>
+
 ```
 Usage: morgue symbold status <[universe]/project>
 ```
 
 #### symbolserver
+
 Symbol server allows you to manage symbol servers used by symbold
 
 #### list
+
 List Symbold symbol server assigned to <[universe]/project>
+
 ```
 Usage: morgue symbold symbolserver list <[universe]/project>
 ```
+
 Example:
+
 ```
 $ morgue symbold symbolserver list backtrace
 ```
 
 #### details
+
 Retruns detailed information about symbol server
+
 ```
 Usage: morgue symbold symbolserver details [symbolserverid]
 ```
 
 Example:
+
 ```
 $ morgue symbold symbolserver details 1
-``` 
+```
+
 Command line above will return detailed information for symbol server with id 1
 
 #### logs
+
 Returns symbol server logs. You can use page and take arguments to get more/less logs.
+
 ```
 Usage: morgue symbold symbolserver logs [symbolserverid]
 ```
 
 Example:
+
 ```
 $ morgue symbold symbolserver logs 1 --take=100 --page=0
 ```
+
 Command above will return first 100 logs from page 0
 
 #### filter logs
+
 Returns filtered symbol server logs. By using this command you can filter all logs that match your criteria.
+
 ```
 Usage morgue symbold symbolserver logs [symbolserverid] filter [filter]
 ```
 
 Example:
+
 ```
 morgue.js symbold symbolserver logs 5 filter a --take=100 --page=1
 ```
+
 #### add
+
 ```
-Usage: morgue symbold symbolserver add <[universe]/project> [symbolserverurl] 
+Usage: morgue symbold symbolserver add <[universe]/project> [symbolserverurl]
   <--name=...>
   <--concurrentdownload=...>
   <--retrylimit=...>
@@ -557,35 +576,38 @@ Usage: morgue symbold symbolserver add <[universe]/project> [symbolserverurl]
   <--proxy.username=...>
   <--proxy.password=...>
 ```
-Add new symbol server to symbold service. Available options:
-* `name` - symbol server name,
-* `concurrentdownload` - maximum number of concurrent download that symbolmd will do at the same time,
-* `timeout` - download timeout
-* `whitelist` - determine if symbol server should use whitelist or not,
-* `retain` - determine if symbold should retain original symbols
-* `servercredentials` - symbol server auth options
-* `servercredentials.username` - symbol server auth user name,
-* `servercredentials.password` - symbol server auth password,
-* `aws.accesskey` - AWS S3 access key
-* `aws.secret` - AWS S3 secret
-* `aws.bucketname` - AWS S3 bucket name
-* `aws.lowerfile` - determine if symbold should use lower case symbol name
-* `aws.lowerid` - - determine if symbold should use lower case debug id
-* `aws.usepdb` - determine a way to generate url to S3 symbols
-* `proxy.host` - proxy host
-* `proxy.port` - proxy port
-* `proxy.username` - proxy username
-* `proxy.password` - proxy password
 
+Add new symbol server to symbold service. Available options:
+
+- `name` - symbol server name,
+- `concurrentdownload` - maximum number of concurrent download that symbolmd will do at the same time,
+- `timeout` - download timeout
+- `whitelist` - determine if symbol server should use whitelist or not,
+- `retain` - determine if symbold should retain original symbols
+- `servercredentials` - symbol server auth options
+- `servercredentials.username` - symbol server auth user name,
+- `servercredentials.password` - symbol server auth password,
+- `aws.accesskey` - AWS S3 access key
+- `aws.secret` - AWS S3 secret
+- `aws.bucketname` - AWS S3 bucket name
+- `aws.lowerfile` - determine if symbold should use lower case symbol name
+- `aws.lowerid` - - determine if symbold should use lower case debug id
+- `aws.usepdb` - determine a way to generate url to S3 symbols
+- `proxy.host` - proxy host
+- `proxy.port` - proxy port
+- `proxy.username` - proxy username
+- `proxy.password` - proxy password
 
 Example:
+
 ```
 $ morgue symbold symbolserver backtrace https://symbol.server.com --name=name --timeout=400
 ```
 
 #### update
+
 ```
-Usage: morgue symbold symbolserver update [symbolserverid] 
+Usage: morgue symbold symbolserver update [symbolserverid]
   <--url=...>
   <--name=...>
   <--concurrentdownload=...>
@@ -606,111 +628,142 @@ Usage: morgue symbold symbolserver update [symbolserverid]
   <--argv.proxy.username=...>
   <--argv.proxy.password=...>
 ```
-Update  symbol server with id [symbolServerId]. If aws, proxy and servercredentials data doesn't exists symbold will ignore update server credentials. If any of them exists, symbold will try to update all properties.
+
+Update symbol server with id [symbolServerId]. If aws, proxy and servercredentials data doesn't exists symbold will ignore update server credentials. If any of them exists, symbold will try to update all properties.
 Example:
+
 ```
 $ morgue symbold symbolserver update 1 --url="http://new.symbol.server.url"
 ```
 
 #### disable
-Disable symbol server. Symbold won't use disabled symbol server. 
-```
-Usage: morgue symbold symbolserver disable [symbolserverid] 
-```
+
 Disable symbol server. Symbold won't use disabled symbol server.
 
-#### enable 
-Enable symbol server. Symbold won't use disabled symbol server. 
+```
+Usage: morgue symbold symbolserver disable [symbolserverid]
+```
+
+Disable symbol server. Symbold won't use disabled symbol server.
+
+#### enable
+
+Enable symbol server. Symbold won't use disabled symbol server.
+
 ```
 Usage: morgue symbold symbolserver enable [symbolserverid]
 ```
+
 Enable symbol server.
 
 #### whitelist/blacklist/skiplist
 
-##### add 
+##### add
+
 Add new element to whitelist/blacklist
+
 ```
 Usage: morgue symbold [whitelist|blacklist] [--name=...]
 ```
+
 Add new element to blacklist/whitelist
 
+##### remove
 
-##### remove 
 Remove element from skiplist/blacklist/skiplist by using element id
+
 ```
 Usage : morgue symbold [whitelist|blacklist|skiplist] [--itemid=...]
 ```
 
-##### list 
+##### list
+
 List <--take> elements from [whitelist|blacklist|skiplist] from <--page> page
+
 ```
 Usage: morgue symbold [whitelist|blacklist|skiplist] <--page=...> <--take=...>
 ```
 
-
 #### skiplist [only]
 
-##### find 
+##### find
+
 Find elements in skiplist
+
 ```
 morgue symbold skiplist find [symbolServerId] [filter] <--page=...> <--take=...>
 ```
-Usage: 
+
+Usage:
+
 ```
-$ morgue symbold skiplist find 5 sample.dll 
+$ morgue symbold skiplist find 5 sample.dll
 ```
 
+##### remove all
 
-##### remove all 
 Remove all elements in skiplist
+
 ```
 morgue symbold skiplist remove all [symbolServerId]
 ```
-Usage: 
+
+Usage:
+
 ```
 $ morgue symbold skiplist remove all 5
 ```
 
 ##### remove by filter
-Remove all elements in skiplist that match filter criteria  
+
+Remove all elements in skiplist that match filter criteria
+
 ```
 morgue symbold skiplist remove all [symbolServerId]
 ```
-Usage: 
+
+Usage:
+
 ```
 $ morgue symbold skiplist remove all 5
 ```
 
-
 #### queue
+
 Symbold queue commands
 
-##### list 
+##### list
+
 returns all events in symbold queue
+
 ```
-Usage: morgue symbold queue list 
+Usage: morgue symbold queue list
 ```
 
 ##### Add
-Add event on the top of symbold queue 
+
+Add event on the top of symbold queue
+
 ```
-morgue symbold queue <add | create> <universe/project> <missingSymbol> <objectId> 
+morgue symbold queue <add | create> <universe/project> <missingSymbol> <objectId>
 ```
+
 Usage:
+
 ```
 $ morgue symbold queue add universe/project "a.pdb,123" 123
 ```
 
 ##### Size
+
 Returns queue size - how many reports symbold still have to reprocess
 
 ```
 Usage: morgue symbold queue size
 ```
 
-
 ##### Symbold
+
 List all missing symbols from symbold events
 
 ```
@@ -740,6 +793,7 @@ Usage: morgue report <project> create
 ```
 
 Example:
+
 ```
 $ morgue report MyProject create --rcpt=null@backtrace.io
     --rcpt=list@backtrace.io --filter=environment,equal,prod
@@ -797,11 +851,11 @@ Options for reprocess:
   --last=N         Specify the last object ID (default: most recent known)
 ```
 
-Reprocess the project's objects.  This command can be used to re-execute
+Reprocess the project's objects. This command can be used to re-execute
 indexing, fingerprinting, and symbolification (where needed).
 
 If a set of objects (or query) is specified, any values for `--first` and
-`--last` are replaced to match the object list.  If no query, object list,
+`--last` are replaced to match the object list. If no query, object list,
 or range is provided, all objects in the project are reprocessed.
 
 ### retention
@@ -872,6 +926,7 @@ $
 ```
 
 Set instance policy to compress after 7 days:
+
 ```
 $ morgue retention set --type=instance --max-age=7d --compress
 success
@@ -902,9 +957,9 @@ Project is a required flag if fingerprint is specified.
 #### Configuring Sampling (Coronerd 1.50+)
 
 In Coronerd 1.50, it became possible to configure sampling on a per-project
-basis as well as using `coronerd.conf`.  This is done with the
+basis as well as using `coronerd.conf`. This is done with the
 `morgue sampling configure` command. Configurations specified on projects
-override the `coronerd.conf` settings.  For example:
+override the `coronerd.conf` settings. For example:
 
 ```
 morgue sampling configure --project myproject \
@@ -933,7 +988,7 @@ The available options are as follows:
 - `--backoff count,interval`: Specify a backoff entry. This option must be
   specified at least once, multiple instances must be specified in
   increasing order of interval, and the first backoff must always have a `0`
-  interval.  `interval` supports time units: `1d`, etc.
+  interval. `interval` supports time units: `1d`, etc.
 - `--buckets`: The maximum number of sampling buckets to allow. Optional,
   default 512.
 - `--process-whitelisted true|false`: whether to sample objects with
@@ -1005,10 +1060,11 @@ Usage: morgue token create --project=<project> --capability=<capability>
 ```
 
 Capability can be any of:
- * symbol:post - Enable symbol uploads with the specified API token.
- * error:post  - Enable error and dump submission with the specified API token.
- * query:post  - Enable queries to be issued using the specified token.
- * sync:post   - Allow for slower but more verbose submission.
+
+- symbol:post - Enable symbol uploads with the specified API token.
+- error:post - Enable error and dump submission with the specified API token.
+- query:post - Enable queries to be issued using the specified token.
+- sync:post - Allow for slower but more verbose submission.
 
 Multiple capabilities can be specified by using `--capability` multiple times
 or using a comma-separated list.
@@ -1041,15 +1097,16 @@ Usage: morgue user reset [--universe=...] [--user=...] [--password=...] [--role=
 ### users
 
 Add signup domain whitelist.
+
 ```
 Usage: morgue users add-signup-whitelist [--universe=...] [--domain=...] [--role=...] [--method=...]
 ```
 
 List users that are not associated with a team.
+
 ```
 Usage: morgue users list-teamless-users
 ```
-
 
 ### tenant
 
@@ -1123,14 +1180,14 @@ to their callstack attribute.
 Usage: morgue similarity <[universe]/project> [filter expression]
     [--threshold=N]     The minimum length of the callstack for groups to
                         consider for similarity analysis.
-    [--truncate=N]      Shorten the callstack before comparing.   
+    [--truncate=N]      Shorten the callstack before comparing.
     [--intersection=N]  The minimum number of common symbols between
                         two groups.
     [--distance=N]      The maximum acceptable edit distance between
                         two groups.
     [--fingerprint=N]   A fingerprint to compute similarity to. If omitted,
-                        a project summary will be computed instead. 
-    [--json]            Return the JSON result of the similarity request.                
+                        a project summary will be computed instead.
+    [--json]            Return the JSON result of the similarity request.
 ```
 
 ### invite
@@ -1233,6 +1290,7 @@ $ morgue callstack evaluate project file.json
 ## Access control
 
 Allows controlling coroner's access control mechanisms
+
 ```
 Usage:
 morgue access <action> [params...]
@@ -1256,12 +1314,15 @@ action project:
 ```
 
 ### action team
+
 Allows manipulation of teams - creation, removal, listing, displaying details and adding/removing users to teams.
 
 ### action project
+
 Allows manipulation of projects in terms of access control - display details or add/remove user or team.
 
 Possible roles:
+
 - admin
 - member
 - guest
@@ -1273,13 +1334,13 @@ the highest privileges afforded by any of those access routes.
 ## Stability Score and Storing Metrics Data
 
 Morgue offers the ability to configure metrics for importing metrics data with
-`metrics-importer` or custom API integrations.  This can be used from CI to
-provision new metrics against a metric group and begin shipping data.  At the
+`metrics-importer` or custom API integrations. This can be used from CI to
+provision new metrics against a metric group and begin shipping data. At the
 moment, Morgue assumes setup and most common operations on entities for
 metrics importing are carried out through the frontend and only offers the
 subset of functionality necessary for automation from CI.
 
-Generally, the typical flow occurs in two stages.  First:
+Generally, the typical flow occurs in two stages. First:
 
 ```
 morgue stability create-metric --project myproj --metric-group stability \
@@ -1321,12 +1382,12 @@ This will provision a metric on the Coronerd side that can be fed via
 timeseries submission endpoints.
 
 Attribute values are of the form `--attribute name,value`.
-An attribute value must be specified for every non-defaulted attribute 
+An attribute value must be specified for every non-defaulted attribute
 on the group.
 
 ### Controlling `metrics-importer`
 
-It is possible to use Morgue to configure importers for stability score.  This
+It is possible to use Morgue to configure importers for stability score. This
 requires Coronerd >= 1.48 and a deployed backtrace-metrics-importer.
 Usage:
 
@@ -1337,7 +1398,7 @@ morgue metrics-importer <command>...
 #### `source check-query`
 
 Determines if a query is valid by running it against a source as if it had been
-used with an importer and displays diagnostic information.  For example:
+used with an importer and displays diagnostic information. For example:
 
 ```
 morgue metrics-importer source check-query --source my-source-uuid \
@@ -1347,17 +1408,17 @@ morgue metrics-importer source check-query --source my-source-uuid \
 
 #### `importer create`
 
-Creates an importer.  Takes the following options:
+Creates an importer. Takes the following options:
 
-Option         | Description
--------------- | --------------------------------------------------------------
---project      | The project of the source.
---source       | UUID of the source to associate the importer with.
---name         | The name of the importer to create.
---start-at     |  The time to start scraping from in RFC3339 format.
---metric       | The name of the metric to associate data with in Coronerd.
---metric-group | The name of the metric group to associate data with in Coronerd.
---delay        | The delay of the importer. Defaults to 60.
+| Option         | Description                                                      |
+| -------------- | ---------------------------------------------------------------- |
+| --project      | The project of the source.                                       |
+| --source       | UUID of the source to associate the importer with.               |
+| --name         | The name of the importer to create.                              |
+| --start-at     | The time to start scraping from in RFC3339 format.               |
+| --metric       | The name of the metric to associate data with in Coronerd.       |
+| --metric-group | The name of the metric group to associate data with in Coronerd. |
+| --delay        | The delay of the importer. Defaults to 60.                       |
 
 For example:
 
@@ -1373,12 +1434,12 @@ morgue metrics-importer importer create \
 --delay 120
 ```
 
-Note that `--query` depends on the source type.  See the stability score
+Note that `--query` depends on the source type. See the stability score
 documentation for details.
 
 #### `logs`
 
-Displays logs.  Usage:
+Displays logs. Usage:
 
 ```
 morgue metrics-importer logs --project myproj --source-id my-source-id
@@ -1387,7 +1448,6 @@ morgue metrics-importer logs --project myproj --importer-id my-importer-id
 
 You can pass `--limit` to limit the number of returned messages.
 By default `--limit` is 100.
-
 
 # Alerts
 
@@ -1405,8 +1465,7 @@ Details follow.
 
 Let's say that you want to create an alert which will fire if there ware more
 than 5 errors in the last minute, and will mark groups as critical if more than
-10 errors occur.  To do so:
-
+10 errors occur. To do so:
 
 Start by creating a target if you don't already have one:
 
@@ -1435,7 +1494,7 @@ morgue  alerts alert create --name test \
 
 All alerting subcommands which refer to an object support identifying objects
 through either their name or ID, and take two mutually exclusive parameters:
-`--name` or `--id`.  For instance:
+`--name` or `--id`. For instance:
 
 ```
 morgue alerts alert get --name myalert
@@ -1460,7 +1519,7 @@ morgue alerts target update --name my-target [--rename new-name]
   [--workflow-name new-workflow]
 ```
 
-Create and manage targets.  Note that since Morgue allows identifying objects
+Create and manage targets. Note that since Morgue allows identifying objects
 through `--name`, it is necessary to use `--rename` to change the name.
 
 ## Alert Creation And Update
@@ -1470,25 +1529,26 @@ morgue alerts alert create <args>
 morgue alert alerts update <args>
 ```
 
-Create and update alerts.  Create requires all of the following
+Create and update alerts. Create requires all of the following
 parameters which don't have defaults, while update patches the object with
 those specified and has no required parameters beyond identifying the alert to
-apply to.  Parameters are as follows (see below for query and trigger
+apply to. Parameters are as follows (see below for query and trigger
 specification):
 
 -`--name`: For create, the name of the new alert. For update, identify the
-  alert to modify by name.
+alert to modify by name.
+
 - `--enabled true|false`: whether the alert is enabled. Defaults to `true` for
   create.
--- `--query-period = <timespec>`: the query period. Supports time specifications
+  -- `--query-period = <timespec>`: the query period. Supports time specifications
   in the same fashion as `morgue list --age`: `5m`, `1h`, etc.
   Note that the service puts a lower bound of 1 minute on this value.
 - `--min-notification-interval`: the minimum notification interval, which
   controls the maximum interval at which an alert can send notifications to an
   integration.
 - `--mute-until`: Unix timestamp. The alert will be silenced until after this
-  timestamp.  The timestamp must currently be specified as integer seconds
-  since the Unix epoch.  For create, defaults to 0, which doesn't mute
+  timestamp. The timestamp must currently be specified as integer seconds
+  since the Unix epoch. For create, defaults to 0, which doesn't mute
   the alert.
 - `--target-id`: Specified zero or more times to indicate the targets to which
   to send the alert. Unioned with `--target-names`.
@@ -1507,8 +1567,8 @@ Update also supports the following arguments:
 The create and update subcommands allow specifying the query using the same
 arguments as the `morgue list` command, save that `--age` is ignored,
 `--select` or `--select-wildcard` isn't allowed, and any implicit time filtering
-that Morgue would otherwise apply is disabled.  Since empty CLI arguments are 
-a valid query, update additionally requires supplying `--replace-query` to indicate 
+that Morgue would otherwise apply is disabled. Since empty CLI arguments are
+a valid query, update additionally requires supplying `--replace-query` to indicate
 that the query is being replaced.
 
 The alerts service itself can only function properly with aggregation queries
@@ -1525,16 +1585,387 @@ The `--trigger` option has the form:
 
 Alerts identifies aggregates to trigger on by their column name, and the index
 in the same fashion as `--sort` on list, though `;count` is unsupported (for
-that, ad a `--count column` aggregate).  The components of a trigger are as
+that, ad a `--count column` aggregate). The components of a trigger are as
 follows:
 
 - `column`: The column the trigger is for, for example `fingerprint`.
 - `index`: The index of the aggregate for the specified column.
 - `comparison`: Either `ge` or `le`. Controls whether the thresholds are `>==>
-  or `<=` the query's returned values.  Most triggers will use `ge`.
+or `<=`the query's returned values.  Most triggers will use`ge`.
 - `warning`: the warning threshold for the trigger.
 - `critical`: The critical threshold for the trigger.
 
+## Workflows
+
+Morgue supports managing workflow connections, integrations, and alerts, by using following subcommands:
+
+```
+morgue workflows connection [create | list | get | update | delete] <options>
+morgue workflows integration [create | list | get | update | delete] <options>
+morgue workflows alert [create | list | get | update | delete] <options>
+```
+
+### Managing connections
+
+Managing connections requires an universe to be specified.
+If it is not set via config or login, specify it by `--universe`.
+
+#### List connections
+
+```
+morgue workflows connection list [options]
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows connection list --raw
+```
+
+#### Get one connection
+
+```
+morgue workflows connection get [options] <connection id>
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows connection get 10
+```
+
+#### Create a connection
+
+```
+morgue workflows connection create <options>
+```
+
+By using `--from-file`, you can load connection spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+Options:
+
+- `--name` - `string` - connection name, required
+- `--plugin` - `string` plugin ID, required
+- `--options` - `object` - connection options specific to plugin ID, required
+- `--from-file` - `string` - load connection spec from file
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows connection create \
+  --name myConnection \
+  --plugin jira \
+  --options.baseUrl https://my-jira.atlassian.net \
+  --options.authorizationOptions.type basic \
+  --options.authorizationOptions.username user \
+  --options.authorizationOptions.password myPassword
+```
+
+#### Update a connection
+
+```
+morgue workflows connection update <options> <connection id>
+```
+
+By using `--from-file`, you can load connection spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+Options:
+
+- `--name` - `string` - connection name, if updated
+- `--options` - `object` - partial connection options specific to plugin ID, if updated
+- `--from-file` - `string` - load connection spec from file
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows connection update \
+  --name changedName \
+  --options.authorizationOptions.type basic \
+  --options.authorizationOptions.username user \
+  --options.authorizationOptions.password changedPassword \
+  10
+```
+
+#### Delete a connection
+
+```
+morgue workflows connection delete [options] <connection id>
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows connection delete 10
+```
+
+### Managing integrations
+
+Managing integrations requires an universe and a project to be specified.
+If the universe is not set via config or login, specify it by `--universe`.
+Specify the project using `--project`.
+
+#### List integrations
+
+```
+morgue workflows integration list [options]
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows integration list --project myProject --raw
+```
+
+#### Get one integration
+
+```
+morgue workflows integration get <integration id>
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows integration get --project myProject 20
+```
+
+#### Create a integration
+
+```
+morgue workflows integration create <options>
+```
+
+By using `--from-file`, you can load integration spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+Options:
+
+- `--name` - `string` - integration name, required
+- `--plugin` - `string` plugin ID, required
+- `--options` - `object` - integration options specific to plugin ID, required
+- `--state` - `enabled|disabled|stopped` - integration state, optional
+- `--synchronize-issues` - `boolean` - whether Backtrace to 3rd party issue synchronization is enabled (only for ticket managing plugins), optional
+- `--synchronize-issues-on-add` - `boolean` - whether Backtrace will synchronize issues from 3rd party on adding them from link (only for ticket managing plugins), optional
+- `--connection` - `int` - connection ID to use by the integration, optional (some plugins require a connection for integration)
+- `--from-file` - `string` - load integration spec from file
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows integration create \
+  --project myProject \
+  --name myIntegration \
+  --plugin jira \
+  --options.projectId 10017 \
+  --options.displaySettings.attributeList attr1 \
+  --options.displaySettings.attributeList attr2 \
+  --connection 10
+```
+
+#### Update a integration
+
+```
+morgue workflows integration update <options> <integration id>
+```
+
+By using `--from-file`, you can load integration spec from file.
+Arguments provided by CLI will override the file spec, integrationy be not required anymore.
+
+Options:
+
+- `--options` - `object` - partial integration options specific to plugin ID, if updated
+- `--state` - `enabled|disabled|stopped` - integration state, if updated
+- `--synchronize-issues` - `boolean` - whether Backtrace to 3rd party issue synchronization is enabled (only for ticket managing plugins), if updated
+- `--synchronize-issues-on-add` - `boolean` - whether Backtrace will synchronize issues from 3rd party on adding them from link (only for ticket managing plugins), if updated
+- `--connection` - `int` - connection ID to use by the integration, if updated
+- `--from-file` - `string` - load integration spec from file
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows integration update \
+  --project myProject \
+  --options.projectId 10020 \
+  20
+```
+
+#### Delete a integration
+
+```
+morgue workflows integration delete [options] <integration id>
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows integration delete 20
+```
+
+### Managing alerts
+
+Managing alerts requires an universe and a project to be specified.
+If the universe is not set via config or login, specify it by `--universe`.
+Specify the project using `--project`.
+
+#### List alerts
+
+```
+morgue workflows alert list [options]
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows alert list --project myProject --raw
+```
+
+#### Get one alert
+
+```
+morgue workflows alert get <alert id>
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows alert get --project myProject 30
+```
+
+#### Create an alert
+
+```
+morgue workflows alert create <options>
+```
+
+By using `--from-file`, you can load alert spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+Options:
+
+- `--name` - `string` - alert name, required
+- `--condition` - `object` - alert condition:
+  - `--condition.name` - `string` - can be one of:
+    - `group`,
+    - `trace`,
+    - `usersPerFingerprint`,
+      - `--condition.timeFrame` - `int` - time frame in milliseconds, required
+      - `--condition.value` - `int` - number of users per fingerprint, required
+    - `errorsPerFingerprint`
+      - `--condition.timeFrame` - `int` - time frame in milliseconds, required
+      - `--condition.value` - `int` - number of errors per fingerprint, required
+- `--frequency` - `int` - alert frequency in milliseconds, required
+- `--state` - `enabled|disabled|stopped` - alert state, optional
+- `--filters` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, optional
+- `--integration` - `int` - integration ID executed by alert, optional
+- `--from-file` - `string` - load alert spec from file
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows alert create \
+  --project myProject \
+  --name myAlert \
+  --condition.name usersPerFingerprint \
+  --condition.timeFrame 86400000 \
+  --condition.value 10 \
+  --frequency 60000 \
+  --filter attr1,equal,50 \
+  --filter attr2,at-least,40 \
+  --integration 20 \
+  --integration 21 \
+```
+
+#### Update an alert
+
+```
+morgue workflows alert update <options> <alert id>
+```
+
+By using `--from-file`, you can load alert spec from file.
+Arguments provided by CLI will override the file spec, alerty be not required anymore.
+
+Options:
+
+- `--name` - `string` - alert name, if updated
+- `--condition` - `object` - alert condition, if updated:
+  - `--condition.name` - `string` - can be one of:
+    - `group`,
+    - `trace`,
+    - `usersPerFingerprint`,
+      - `--condition.timeFrame` - `int` - time frame in milliseconds, required
+      - `--condition.value` - `int` - number of users per fingerprint, required
+    - `errorsPerFingerprint`
+      - `--condition.timeFrame` - `int` - time frame in milliseconds, required
+      - `--condition.value` - `int` - number of errors per fingerprint, required
+- `--frequency` - `int` - alert frequency in milliseconds, if updated
+- `--state` - `enabled|disabled|stopped` - alert state, if updated
+- `--filters` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, if updated
+- `--integration` - `int` - integration ID executed by alert, if updated
+- `--from-file` - `string` - load alert spec from file
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows alert update \
+  --project myProject \
+  --condition.name group \
+  30
+```
+
+#### Delete an alert
+
+```
+morgue workflows alert delete [options] <alert id>
+```
+
+Options:
+
+- `--raw` - `boolean` - output raw JSON
+
+Example:
+
+```
+morgue workflows alert delete --project myProject 30
+```
 
 ## Actions
 
@@ -1556,19 +1987,21 @@ For example:
 morgue actions upload --project myproj myconfig.json
 ```
 
-
 ## Attributes
 
 Morgue can be used to create or delete project index attributes.
 
 The provided commands are as follows:
+
 - `morgue attribute create <project> <name> --description --type --format ` : Create a project index attribute
 - `morgue attribute delete <project> <name> ` : Delete a project index attribute
 
 Formats
+
 - `bitmap`, `uint8`, `uint16`, `uint32`, `uint64`, `uint128`, `uuid`, `dictionary`
 
 Types
+
 - `none`, `commit`, `semver`, `callstack`, `hostname`, `bytes`, `kilobytes`, `gigabytes`, `nanoseconds`, `milliseconds`, `seconds`, `unix_timestamp`, `js_timestamp`, `gps_timestamp`, `memory_address`, `labels`, `sha256`, `uuid`, `ipv4`, `ipv6`
 
 For example:
@@ -1576,6 +2009,7 @@ For example:
 ```
 morgue attribute create myProject myAttribute --description='My Description' --type='uint64' --format='bytes'
 ```
+
 ```
 morgue attribute delete myProject myAttribute
 ```
@@ -1594,6 +2028,7 @@ For example:
 ```
 morgue view create myProject myQueryViewName --queries=queries.json --payload=payload.json
 ```
+
 ```
 morgue view delete myProject myQueryViewName
 ```
