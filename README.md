@@ -1833,6 +1833,7 @@ Options:
       - `--condition.timeFrame` - `int` - time frame in milliseconds, required
       - `--condition.value` - `int` - number of errors per fingerprint, required
 - `--frequency` - `int` - alert frequency in milliseconds, required
+- `--execution-delay` - `int` - alert execution delay in milliseconds, required
 - `--state` - `enabled|disabled|stopped` - alert state, optional
 - `--filters` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, optional
 - `--integration` - `int` - integration ID executed by alert, optional
@@ -1878,6 +1879,7 @@ Options:
       - `--condition.timeFrame` - `int` - time frame in milliseconds, required
       - `--condition.value` - `int` - number of errors per fingerprint, required
 - `--frequency` - `int` - alert frequency in milliseconds, if updated
+- `--execution-delay` - `int` - alert execution delay in milliseconds, if updated
 - `--state` - `enabled|disabled|stopped` - alert state, if updated
 - `--filters` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, if updated
 - `--integration` - `int` - integration ID executed by alert, if updated
