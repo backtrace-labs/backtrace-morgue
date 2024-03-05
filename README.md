@@ -1593,9 +1593,10 @@ Arguments provided by CLI will override the file spec, but they may not be requi
 
 Options:
 
-- `--name` - `string` - connection name, required
-- `--plugin` - `string` plugin ID, required
-- `--options` - `object` - connection options specific to plugin ID, required
+- `--name` - `string` - connection name, required from CLI or file spec
+- `--plugin` - `string` plugin ID, required from CLI or file spec
+  - `pluginId` - `string` - in file spec
+- `--options` - `object` - connection options specific to plugin ID, required from CLI or file spec
 - `--from-file` - `string` - load connection spec from file
 - `--raw` - `boolean` - output raw JSON
 
@@ -1609,6 +1610,28 @@ morgue workflows connection create \
   --options.authorizationOptions.type basic \
   --options.authorizationOptions.username user \
   --options.authorizationOptions.password myPassword
+```
+
+Example of file spec with above options:
+
+```
+morgue workflows connection create --from-file spec.json
+```
+
+```json
+// spec.json
+{
+  "name": "myConnection",
+  "pluginId": "jira",
+  "options": {
+    "baseUrl": "https://my-jira.atlassian.net",
+    "authorizationOptions": {
+      "type": "basic",
+      "username": "user",
+      "password": "myPassword"
+    }
+  }
+}
 ```
 
 #### Update a connection
@@ -1703,13 +1726,18 @@ Arguments provided by CLI will override the file spec, but they may not be requi
 
 Options:
 
-- `--name` - `string` - integration name, required
-- `--plugin` - `string` plugin ID, required
-- `--options` - `object` - integration options specific to plugin ID, required
+- `--name` - `string` - integration name, required from CLI or file spec
+  - `watcherName` - `string` - in file spec
+- `--plugin` - `string` plugin ID, required from CLI or file spec
+  - `pluginId` - `string` - in file spec
+- `--options` - `object` - integration options specific to plugin ID, required from CLI or file spec
 - `--state` - `enabled|disabled|stopped` - integration state, optional
 - `--synchronize-issues` - `boolean` - whether Backtrace to 3rd party issue synchronization is enabled (only for ticket managing plugins), optional
+  - `synchronizeIssues` - `boolean` - in file spec
 - `--synchronize-issues-on-add` - `boolean` - whether Backtrace will synchronize issues from 3rd party on adding them from link (only for ticket managing plugins), optional
+  - `synchronizeIssuesOnAdd` - `boolean` - in file spec
 - `--connection` - `int` - connection ID to use by the integration, optional (some plugins require a connection for integration)
+  - `connectionId` - `int` - in file spec
 - `--from-file` - `string` - load integration spec from file
 - `--raw` - `boolean` - output raw JSON
 
@@ -1727,6 +1755,28 @@ morgue workflows integration create \
   --options.attributeList attr2
 ```
 
+Example of file spec with above options:
+
+```
+morgue workflows integration create --project myProject --from-file spec.json
+```
+
+```json
+// spec.json
+{
+  "watcherName": "myIntegration",
+  "pluginId": "s3Export",
+  "options": {
+    "bucketPath": "s3://my-bucket",
+    "credentials": {
+      "awsAccessKeyId": "key",
+      "awsSecretAccessKey": "secret"
+    },
+    "attributeList": ["attr1", "attr2"]
+  }
+}
+```
+
 #### Update a integration
 
 ```
@@ -1741,8 +1791,11 @@ Options:
 - `--options` - `object` - partial integration options specific to plugin ID, if updated
 - `--state` - `enabled|disabled|stopped` - integration state, if updated
 - `--synchronize-issues` - `boolean` - whether Backtrace to 3rd party issue synchronization is enabled (only for ticket managing plugins), if updated
+  - `synchronizeIssues` - `boolean` - in file spec
 - `--synchronize-issues-on-add` - `boolean` - whether Backtrace will synchronize issues from 3rd party on adding them from link (only for ticket managing plugins), if updated
+  - `synchronizeIssuesOnAdd` - `boolean` - in file spec
 - `--connection` - `int` - connection ID to use by the integration, if updated
+  - `connectionId` - `int` - in file spec
 - `--from-file` - `string` - load integration spec from file
 - `--raw` - `boolean` - output raw JSON
 
@@ -1821,22 +1874,28 @@ Arguments provided by CLI will override the file spec, but they may not be requi
 
 Options:
 
-- `--name` - `string` - alert name, required
-- `--condition` - `object` - alert condition:
+- `--name` - `string` - alert name, required from CLI or file spec
+- `--condition` - `object` - alert condition, required from CLI or file spec:
   - `--condition.name` - `string` - can be one of:
     - `group`,
     - `trace`,
     - `usersPerFingerprint`,
-      - `--condition.timeFrame` - `int` - time frame in milliseconds, required
-      - `--condition.value` - `int` - number of users per fingerprint, required
+      - `--condition.timeFrame` - `int` - time frame in milliseconds, required from CLI or file spec
+      - `--condition.value` - `int` - number of users per fingerprint, required from CLI or file spec
     - `errorsPerFingerprint`
-      - `--condition.timeFrame` - `int` - time frame in milliseconds, required
-      - `--condition.value` - `int` - number of errors per fingerprint, required
-- `--frequency` - `int` - alert frequency in milliseconds, required
-- `--execution-delay` - `int` - alert execution delay in milliseconds, required
+      - `--condition.timeFrame` - `int` - time frame in milliseconds, required from CLI or file spec
+      - `--condition.value` - `int` - number of errors per fingerprint, required from CLI or file spec
+- `--frequency` - `int` - alert frequency in milliseconds, required from CLI or file spec
+- `--execution-delay` - `int` - alert execution delay in milliseconds, required from CLI or file spec
+  - `executionDelay` - `int` - in file spec
 - `--state` - `enabled|disabled|stopped` - alert state, optional
-- `--filters` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, optional
+- `--filter` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, optional
+  - `filters` - `filter[]` - in file spec, of which `filter` is an object with keys:
+    - `attribute` - `string` - attribute name,
+    - `filter[0]` - `string` - operator name,
+    - `filter[1]` - `any` - operator value
 - `--integration` - `int` - integration ID executed by alert, optional
+  - `integrations` - `int[]` - in file spec
 - `--from-file` - `string` - load alert spec from file
 - `--raw` - `boolean` - output raw JSON
 
@@ -1854,6 +1913,36 @@ morgue workflows alert create \
   --filter attr2,at-least,40 \
   --integration 20 \
   --integration 21 \
+```
+
+Example of file spec with above options:
+
+```
+morgue workflows alert create --project myProject --from-file spec.json
+```
+
+```json
+// spec.json
+{
+  "name": "myAlert",
+  "condition": {
+    "name": "usersPerFingerprint",
+    "timeFrame": 86400000,
+    "value": 10
+  },
+  "frequency": 60000,
+  "filters": [
+    {
+      "attribute": "attr1",
+      "op": ["equal", 50]
+    }, 
+    {
+      "attribute": "attr2",
+      "op": ["at-least", 40]
+    }
+  ],
+  "integrations": [20, 21]
+}
 ```
 
 #### Update an alert
@@ -1880,9 +1969,15 @@ Options:
       - `--condition.value` - `int` - number of errors per fingerprint, required
 - `--frequency` - `int` - alert frequency in milliseconds, if updated
 - `--execution-delay` - `int` - alert execution delay in milliseconds, if updated
+  - `executionDelay` - `int` - in file spec
 - `--state` - `enabled|disabled|stopped` - alert state, if updated
-- `--filters` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, if updated
+- `--filter` - `filter` - alert filter, in the form of `<attribute>,<operator>,[value]`, if updated
+  - `filters` - `filter[]` - in file spec, of which `filter` is an object with keys:
+    - `attribute` - `string` - attribute name,
+    - `filter[0]` - `string` - operator name,
+    - `filter[1]` - `any` - operator value
 - `--integration` - `int` - integration ID executed by alert, if updated
+  - `integrations` - `int[]` - in file spec
 - `--from-file` - `string` - load alert spec from file
 - `--raw` - `boolean` - output raw JSON
 
