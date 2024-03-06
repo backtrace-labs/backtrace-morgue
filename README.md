@@ -1547,8 +1547,8 @@ morgue workflows alert [create | list | get | update | delete] <options>
 
 ### Managing connections
 
-Managing connections requires an universe to be specified.
-If it is not set via config or login, specify it by `--universe`.
+Managing connections requires a universe to be specified.
+If it is not set via config or login, specify it with `--universe`.
 
 #### List connections
 
@@ -1679,9 +1679,8 @@ morgue workflows connection delete 10
 
 ### Managing integrations
 
-Managing integrations requires an universe and a project to be specified.
-If the universe is not set via config or login, specify it by `--universe`.
-Specify the project using `--project`.
+Managing integrations requires both a universe and a project to be specified.
+If universe or project are not set via config or login, specify them with `--universe` and `--project`.
 
 #### List integrations
 
@@ -1715,7 +1714,7 @@ Example:
 morgue workflows integration get --project myProject 20
 ```
 
-#### Create a integration
+#### Create an integration
 
 ```
 morgue workflows integration create <options>
@@ -1777,14 +1776,14 @@ morgue workflows integration create --project myProject --from-file spec.json
 }
 ```
 
-#### Update a integration
+#### Update an integration
 
 ```
 morgue workflows integration update <options> <integration id>
 ```
 
 By using `--from-file`, you can load integration spec from file.
-Arguments provided by CLI will override the file spec, integrationy be not required anymore.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
 
 Options:
 
@@ -1809,7 +1808,7 @@ morgue workflows integration update \
   20
 ```
 
-#### Delete a integration
+#### Delete an integration
 
 ```
 morgue workflows integration delete [options] <integration id>
@@ -1827,9 +1826,8 @@ morgue workflows integration delete 20
 
 ### Managing alerts
 
-Managing alerts requires an universe and a project to be specified.
-If the universe is not set via config or login, specify it by `--universe`.
-Specify the project using `--project`.
+Managing alerts requires both a universe and a project to be specified.
+If universe or project are not set via config or login, specify them with `--universe` and `--project`.
 
 #### List alerts
 
@@ -1877,12 +1875,12 @@ Options:
 - `--name` - `string` - alert name, required from CLI or file spec
 - `--condition` - `object` - alert condition, required from CLI or file spec:
   - `--condition.name` - `string` - can be one of:
-    - `group`,
-    - `trace`,
-    - `usersPerFingerprint`,
+    - `group` - triggers when a new fingerprint (error group) is detected,
+    - `trace` - triggers when a new error is detected,
+    - `usersPerFingerprint` - triggers when number of users affected by a fingerprint is greater than `value` in `timeFrame`,
       - `--condition.timeFrame` - `int` - time frame in milliseconds, required from CLI or file spec
       - `--condition.value` - `int` - number of users per fingerprint, required from CLI or file spec
-    - `errorsPerFingerprint`
+    - `errorsPerFingerprint` - triggers when number of errors in a fingerprint is greater than `value` in `timeFrame`
       - `--condition.timeFrame` - `int` - time frame in milliseconds, required from CLI or file spec
       - `--condition.value` - `int` - number of errors per fingerprint, required from CLI or file spec
 - `--frequency` - `int` - alert frequency in milliseconds, required from CLI or file spec
@@ -1952,7 +1950,7 @@ morgue workflows alert update <options> <alert id>
 ```
 
 By using `--from-file`, you can load alert spec from file.
-Arguments provided by CLI will override the file spec, alerty be not required anymore.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
 
 Options:
 
