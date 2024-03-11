@@ -37,6 +37,7 @@ const alertsCli = require("../lib/alerts/cli");
 const timeCli = require('../lib/cli/time');
 const queryCli = require('../lib/cli/query');
 const { chalk, err, error_color, errx, success_color, warn } = require('../lib/cli/errors');
+const WorkflowsCli = require('../lib/workflows/cli.js');
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
@@ -246,6 +247,7 @@ var commands = {
   "metrics-importer": metricsImporterCmd,
   stability: coronerStability,
   alerts: alertsCmd,
+  workflows: workflowsCmd,
 };
 
 process.stdout.on('error', function(){process.exit(0);});
@@ -7770,6 +7772,14 @@ async function alertsCmd(argv, config) {
   const cli = await alertsCli.alertsCliFromCoroner(coroner, argv, config);
   argv._.shift();
   await cli.routeMethod(argv);
+}
+
+async function workflowsCmd(argv, config) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientArgv(config, argv);
+  const cli = await WorkflowsCli.fromCoroner(coroner, argv, config);
+  argv._.shift();
+  await cli.routeMethod(argv)
 }
 
 function projectIdFromFlags(config, model, argv) {

@@ -1537,6 +1537,466 @@ follows:
 - `warning`: the warning threshold for the trigger.
 - `critical`: The critical threshold for the trigger.
 
+## Workflows
+
+Morgue supports managing workflow connections, integrations, and alerts, by using following subcommands:
+
+```
+morgue workflows connection [create | list | get | update | delete] <options>
+morgue workflows integration [create | list | get | update | delete] <options>
+morgue workflows alert [create | list | get | update | delete] <options>
+```
+
+### Managing connections
+
+Managing connections requires a universe to be specified.
+If it is not set via config or login, specify it with `--universe`.
+
+#### List connections
+
+```
+morgue workflows connection list [options]
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows connection list --raw
+```
+
+#### Get one connection
+
+```
+morgue workflows connection get [options] <connection id>
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows connection get 10
+```
+
+#### Create a connection
+
+```
+morgue workflows connection create <options>
+```
+
+By using `--from-file`, you can load connection spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`name`|`name`|`string`|connection name|&check;|
+|`plugin`|`pluginId`|`string`|plugin ID|&check;|
+|`options`|`options`|`object`|connection options specific to plugin ID|&check;|
+|`from-file`||`string`|load connection spec from file||
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows connection create \
+  --name myConnection \
+  --plugin jira \
+  --options.baseUrl https://my-jira.atlassian.net \
+  --options.authorizationOptions.type basic \
+  --options.authorizationOptions.username user \
+  --options.authorizationOptions.password myPassword
+```
+
+##### Example of file spec with above options
+
+```
+morgue workflows connection create --from-file spec.json
+```
+
+```json
+// spec.json
+{
+  "name": "myConnection",
+  "pluginId": "jira",
+  "options": {
+    "baseUrl": "https://my-jira.atlassian.net",
+    "authorizationOptions": {
+      "type": "basic",
+      "username": "user",
+      "password": "myPassword"
+    }
+  }
+}
+```
+
+#### Update a connection
+
+```
+morgue workflows connection update <options> <connection id>
+```
+
+By using `--from-file`, you can load connection spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`name`|`name`|`string`|connection name||
+|`options`|`options`|`object`|connection options specific to plugin ID||
+|`from-file`||`string`|load connection spec from file||
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows connection update \
+  --name changedName \
+  --options.authorizationOptions.type basic \
+  --options.authorizationOptions.username user \
+  --options.authorizationOptions.password changedPassword \
+  10
+```
+
+#### Delete a connection
+
+```
+morgue workflows connection delete [options] <connection id>
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows connection delete 10
+```
+
+### Managing integrations
+
+Managing integrations requires both a universe and a project to be specified.
+If universe or project are not set via config or login, specify them with `--universe` and `--project`.
+
+#### List integrations
+
+```
+morgue workflows integration list [options]
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows integration list --project myProject --raw
+```
+
+#### Get one integration
+
+```
+morgue workflows integration get <integration id>
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows integration get --project myProject 20
+```
+
+#### Create an integration
+
+```
+morgue workflows integration create <options>
+```
+
+By using `--from-file`, you can load integration spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`name`|`watcherName`|`string`|integration name|&check;||
+|`plugin`|`pluginId`|`string`|plugin ID|&check;||
+|`options`|`options`|`object`|integration options specific to plugin ID|&check;||
+|`state`|`state`|`enabled\|disabled\|stopped`|integration state||`enabled`|
+|`synchronize-issues`|`synchronizeIssues`|`boolean`|whether Backtrace to 3rd party issue synchronization is enabled (only for ticket managing plugins)||`false`|
+|`synchronize-issues-on-add`|`synchronizeIssuesOnAdd`|`boolean`|whether Backtrace will synchronize issues from 3rd party on adding them from link (only for ticket managing plugins)||`false`|
+|`connection`|`connectionId`|`int`|connection ID to use by the integration|depends on plugin ID||
+|`from-file`||`string`|load integration spec from file|||
+|`raw`||`boolean`|output raw JSON||`false`|
+
+
+##### Example
+
+```
+morgue workflows integration create \
+  --project myProject \
+  --name myIntegration \
+  --plugin s3export \
+  --options.bucketPath s3://my-bucket \
+  --options.credentials.awsAccessKeyId key \
+  --options.credentials.awsSecretAccessKey secret \
+  --options.attributeList attr1 \
+  --options.attributeList attr2
+```
+
+##### Example of file spec with above options
+
+```
+morgue workflows integration create --project myProject --from-file spec.json
+```
+
+```json
+// spec.json
+{
+  "watcherName": "myIntegration",
+  "pluginId": "s3Export",
+  "options": {
+    "bucketPath": "s3://my-bucket",
+    "credentials": {
+      "awsAccessKeyId": "key",
+      "awsSecretAccessKey": "secret"
+    },
+    "attributeList": ["attr1", "attr2"]
+  }
+}
+```
+
+#### Update an integration
+
+```
+morgue workflows integration update <options> <integration id>
+```
+
+By using `--from-file`, you can load integration spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`options`|`options`|`object`|integration options specific to plugin ID|||
+|`state`|`state`|`enabled\|disabled\|stopped`|integration state||`enabled`|
+|`synchronize-issues`|`synchronizeIssues`|`boolean`|whether Backtrace to 3rd party issue synchronization is enabled (only for ticket managing plugins)||`false`|
+|`synchronize-issues-on-add`|`synchronizeIssuesOnAdd`|`boolean`|whether Backtrace will synchronize issues from 3rd party on adding them from link (only for ticket managing plugins)||`false`|
+|`connection`|`connectionId`|`int`|connection ID to use by the integration|||
+|`from-file`||`string`|load integration spec from file|||
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows integration update \
+  --project myProject \
+  --options.bucketPath s3://new-bucket-path \
+  --options.attributeList attr1 \
+  20
+```
+
+#### Delete an integration
+
+```
+morgue workflows integration delete [options] <integration id>
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows integration delete 20
+```
+
+### Managing alerts
+
+Managing alerts requires both a universe and a project to be specified.
+If universe or project are not set via config or login, specify them with `--universe` and `--project`.
+
+#### List alerts
+
+```
+morgue workflows alert list [options]
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows alert list --project myProject --raw
+```
+
+#### Get one alert
+
+```
+morgue workflows alert get <alert id>
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows alert get --project myProject 30
+```
+
+#### Create an alert
+
+```
+morgue workflows alert create <options>
+```
+
+By using `--from-file`, you can load alert spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`name`|`name`|`string`|connection name|&check;||
+|`condition.name`|`condition.name`|`string`|[alert condition name](#condition-types)|&check;||
+|`condition.*`|`condition.*`||[alert condition options](#condition-types)|depends on name||
+|`frequency`|`frequency`|`int`|alert frequency in milliseconds|&check;||
+|`execution-delay`|`executionDelay`|`int`|alert execution delay in milliseconds||0|
+|`state`|`state`|`enabled\|disabled\|stopped`|alert state||`enabled`|
+|`filter`|`filters`|`filter[]`|[alert filter](#alert-filters)|||
+|`integration`|`integrations`|`int[]`|integration IDs executed by alert|||
+|`from-file`||`string`|load alert spec from file||
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows alert create \
+  --project myProject \
+  --name myAlert \
+  --condition.name usersPerFingerprint \
+  --condition.timeFrame 86400000 \
+  --condition.value 10 \
+  --frequency 60000 \
+  --filter attr1,equal,50 \
+  --filter attr2,at-least,40 \
+  --integration 20 \
+  --integration 21 \
+```
+
+Example of file spec with above options:
+
+```
+morgue workflows alert create --project myProject --from-file spec.json
+```
+
+```json
+// spec.json
+{
+  "name": "myAlert",
+  "condition": {
+    "name": "usersPerFingerprint",
+    "timeFrame": 86400000,
+    "value": 10
+  },
+  "frequency": 60000,
+  "filters": [
+    {
+      "attribute": "attr1",
+      "op": ["equal", 50]
+    }, 
+    {
+      "attribute": "attr2",
+      "op": ["at-least", 40]
+    }
+  ],
+  "integrations": [20, 21]
+}
+```
+
+#### Update an alert
+
+```
+morgue workflows alert update <options> <alert id>
+```
+
+By using `--from-file`, you can load alert spec from file.
+Arguments provided by CLI will override the file spec, but they may not be required anymore.
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`name`|`name`|`string`|connection name|||
+|`condition.name`|`condition.name`|`string`|[alert condition name](#condition-types)|||
+|`condition.*`|`condition.*`||[alert condition options](#condition-types)|depends on name||
+|`frequency`|`frequency`|`int`|alert frequency in milliseconds|||
+|`execution-delay`|`executionDelay`|`int`|alert execution delay in milliseconds|||
+|`state`|`state`|`enabled\|disabled\|stopped`|alert state||`enabled`|
+|`filter`|`filters`|`filter[]`|[alert filter](#alert-filters)|||
+|`integration`|`integrations`|`int[]`|integration IDs executed by alert|||
+|`from-file`||`string`|load alert spec from file||
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows alert update \
+  --project myProject \
+  --condition.name group \
+  30
+```
+
+#### Delete an alert
+
+```
+morgue workflows alert delete [options] <alert id>
+```
+
+|CLI option|File spec|Type|Description|Required|Default|
+|---|---|---|---|---|---|
+|`raw`||`boolean`|output raw JSON||`false`|
+
+##### Example
+
+```
+morgue workflows alert delete --project myProject 30
+```
+
+#### Alert options
+
+##### Condition types
+
+|Condition name|CLI option|File spec|Type|Description|Required|
+|---|---|---|---|---|---|
+|`group`|\<no options\>|||triggers when a new fingerprint (error group) is detected||
+|`trace`|\<no options\>|||triggers when a new error is detected||
+|`usersPerFingerprint`||||triggers when number of users affected by a fingerprint is greater than `value` in `timeFrame`||
+||`condition.timeFrame`|`condition.timeFrame`|`int`|time frame in milliseconds|&check;|
+||`condition.value`|`condition.value`|`int`|number of users per fingerprint|&check;|
+|`errorsPerFingerprint`||||triggers when number of users affected by a fingerprint is greater than `value` in `timeFrame`||
+||`condition.timeFrame`|`condition.timeFrame`|`int`|time frame in milliseconds|&check;|
+||`condition.value`|`condition.value`|`int`|number of errors per fingerprint|&check;|
+
+##### Alert filters
+
+Alert filters follow the same principle as [filters](#filters), but do not support flags.
+
+In file spec you can define alerts as object array of following keys:
+
+|Key|Type|Description|Required|
+|---|---|---|---|
+|`attribute`|`string`|attribute name|&check;|
+|`filter`|`[string, any]`|filter operator and value|&check;|
+|`filter[0]`|`string`|operator name|&check;|
+|`filter[1]`|`any`|operator value|&check;|
 
 ## Actions
 
