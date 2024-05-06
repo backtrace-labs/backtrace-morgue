@@ -61,11 +61,19 @@ const configDir = process.env.MORGUE_CONFIG_DIR ||
 const configFile = path.join(configDir, "current.json");
 const BACKTRACE_ROLES = ['admin', 'member', 'guest']
 
+const backtraceDatabaseDirectory = path.join(configDir, "backtrace");
 const client = bt.BacktraceClient.initialize({
   url: "https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json",
   timeout: 1500,
   userAttributes: {
     version: packageJson.version,
+  },
+  database: {
+    enable: true,
+    path: backtraceDatabaseDirectory,
+    autoSend: false,
+    captureNativeCrashes: true,
+    createDatabaseDirectory: true,
   },
   metrics: {
     enable: false,
@@ -7964,6 +7972,7 @@ function main() {
   var command = commands[commandName];
   if (!command) return usage();
 
+  client.database.send();
   promptLib.message = '';
   promptLib.delimiter = ':';
   promptLib.colors = false;
