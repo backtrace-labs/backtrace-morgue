@@ -7976,7 +7976,7 @@ function main() {
   promptLib.start();
 
   loadConfig(function(err, config) {
-    if (err && err.code !== "ENOENT") {
+    if (err && err.code !== 'ENOENT') {
       errx("Unable to read configuration: " + err.message + ".");
     }
 
