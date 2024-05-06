@@ -3,6 +3,10 @@
   "version": "1.24.5",
   "description": "command line interface to the Backtrace object store",
   "main": "./lib/coroner.js",
+  "engines": {
+    "node": ">=14"
+  },
+  "engineStrict": true,
   "keywords": [
     "backtrace",
     "crashes",
@@ -20,10 +24,10 @@
   },
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
+    "@backtrace/node": "^0.3.0",
     "assign-deep": "^1.0.1",
     "axios": "^0.21.2",
     "babel-core": "^6.26.0",
-    "backtrace-node": "^1.2.0",
     "btoa": "^1.1.2",
     "chalk": "^4.1.2",
     "chrono-node": "^2.2.4",

@@ -21,7 +21,7 @@ const mkdirp    = require('mkdirp');
 const promptLib = require('prompt');
 const path      = require('path');
 const table     = require('table').table;
-const bt        = require('backtrace-node');
+const bt        = require('@backtrace/node');
 const spawn     = require('child_process').spawn;
 const url       = require('url');
 const util      = require('util');
@@ -61,14 +61,15 @@ const configDir = process.env.MORGUE_CONFIG_DIR ||
 const configFile = path.join(configDir, "current.json");
 const BACKTRACE_ROLES = ['admin', 'member', 'guest']
 
-bt.initialize({
+const client = bt.BacktraceClient.initialize({
+  url: "https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json",
   timeout: 5000,
-  endpoint: "https://backtrace.sp.backtrace.io:6098",
-  token: "2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14",
-  attributes: {
+  userAttributes: {
     version: packageJson.version,
   },
-  enableMetricsSupport: false
+  metrics: {
+    enable: false
+  }
 });
 
 function usage(str) {
@@ -6051,7 +6052,7 @@ function callstackPrint(cs) {
     callstack = JSON.parse(cs);
   } catch (error) {
     if (callstackError === false) {
-      bt.report(error);
+      client.send(error);
       callstackError = true;
     }
 
