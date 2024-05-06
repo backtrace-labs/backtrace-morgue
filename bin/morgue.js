@@ -73,7 +73,7 @@ const client = bt.BacktraceClient.initialize({
     path: backtraceDatabaseDirectory,
     autoSend: false,
     captureNativeCrashes: true,
-    createDatabaseDirectory: true,
+    createDatabaseDirectory: true
   },
   metrics: {
     enable: false,
@@ -7972,6 +7972,7 @@ function main() {
   var command = commands[commandName];
   if (!command) return usage();
 
+  // send reports from the previous session
   client.database.send();
   promptLib.message = '';
   promptLib.delimiter = ':';
@@ -8005,6 +8006,7 @@ function main() {
          *
          */
         await client.send(e);
+        client.dispose();
         setTimeout(() => {
           throw e;
         }, 0);
