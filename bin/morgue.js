@@ -61,18 +61,11 @@ const configDir = process.env.MORGUE_CONFIG_DIR ||
 const configFile = path.join(configDir, "current.json");
 const BACKTRACE_ROLES = ['admin', 'member', 'guest']
 
-const backtraceDatabaseDirectory = path.join(configDir, "backtrace");
 const client = bt.BacktraceClient.initialize({
   url: "https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json",
-  timeout: 5000,
+  timeout: 1500,
   userAttributes: {
     version: packageJson.version,
-  },
-  database: {
-    enable: true,
-    path: backtraceDatabaseDirectory,
-    captureNativeCrashes: true,
-    createDatabaseDirectory: true,
   },
   metrics: {
     enable: false,
@@ -7944,6 +7937,7 @@ function coronerActions(argv, config) {
   fn(bpg, pid, ssa, /*path=*/argv._[2]);
 }
 
+
 function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
@@ -7989,18 +7983,22 @@ function main() {
      */
 
     (async function executeCommand() {
+      
       try {
-        await command(argv, config);
+        const result = command(argv, config);
+        if (result instanceof Promise) {
+          await result;
+        }
       } catch (e) {
         /*
          * If we throw directly in this handler, we're just rejecting
          * the promise again. Move the error out to the event loop, instead.
          *
-         * Wait for n seconds to make sure all exit task can finish gracefully
          */
-        setTimeout(async () => {
+        await client.send(e);
+        setTimeout(() => {
           throw e;
-        }, 5_000);
+        }, 0);
       }
     })();
   });
