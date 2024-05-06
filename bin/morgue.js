@@ -460,7 +460,7 @@ function abortIfNotLoggedIn(config) {
   errx("Must login first.");
 }
 
-function coronerSetupNext(coroner, bpg) {
+async function coronerSetupNext(coroner, bpg, setupCfg) {
   var model = bpg.get();
 
   process.stderr.write('\n');
@@ -472,14 +472,14 @@ function coronerSetupNext(coroner, bpg) {
   if (cons_l) {
     const dns_name = cons_l.get('dns_name');
     if (!dns_name || dns_name.length === 0)
-      return coronerSetupDns(coroner, bpg, cons_l);
+      return coronerSetupDns(coroner, bpg, cons_l, setupCfg);
   }
 
   if (!model.universe || model.universe.length === 0)
-    return coronerSetupUniverse(coroner, bpg);
+    return coronerSetupUniverse(coroner, bpg, setupCfg);
 
   if (!model.users || model.users.length === 0)
-    return coronerSetupUser(coroner, bpg);
+    return coronerSetupUser(coroner, bpg, setupCfg);
 
   process.stderr.write(
     'Please use a web browser to complete setup:\n');
@@ -487,123 +487,126 @@ function coronerSetupNext(coroner, bpg) {
   return;
 }
 
-function coronerSetupDns(coroner, bpg, cons_l) {
-  console.log(bold('Specify DNS name users will use to reach the server'));
-  console.log(
-    'We must specify this so that services accessing the server via SSL\n' +
-    'can reach it without skipping validation.\n');
+async function coronerSetupDns(coroner, bpg, cons_l, setupCfg) {
+  let dns_name = setupCfg?.dns_name;
+  if (!dns_name) {
+    console.log(bold('Specify DNS name users will use to reach the server'));
+    console.log(
+      'We must specify this so that services accessing the server via SSL\n' +
+      'can reach it without skipping validation.\n');
 
-  promptLib.get([
+    const result = await promptLib.get([
     {
       name: 'dns_name',
       description: 'DNS name',
       pattern: /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/,
       type: 'string',
       required: true,
-    }
-  ], (error, result) => {
-    var model = bpg.get();
+    }]);
+    dns_name = result.dns_name;
+  }
+  var model = bpg.get();
 
-    if (!result || !result.dns_name) {
-      errx('No DNS name provided.');
-    }
+  bpg.modify(cons_l, { dns_name });
+  bpg.commit();
 
-    bpg.modify(cons_l, { dns_name: result.dns_name });
-    bpg.commit();
-
-    return coronerSetupNext(coroner, bpg);
-  });
+  return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
-function coronerSetupUser(coroner, bpg) {
-  console.log(bold('Create an administrator'));
-  console.log(
-    'We must create an administrator user. This user will be used to configure\n' +
-    'the server as well as perform system-wide administrative tasks.\n');
+async function coronerSetupUser(coroner, bpg, setupCfg) {
+  let username = setupCfg?.username;
+  let email = setupCfg?.email;
+  let password = setupCfg?.password;
 
-  promptLib.get([
-  {
-    name: 'username',
-    description: 'Username',
-    pattern: /^[a-z0-9\_]+$/,
-    type: 'string',
-    required: true
-  },
-  {
-    name: 'email',
-    description: 'E-mail address',
-    required: true,
-    type: 'string',
-    pattern: /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/
-  },
-  {
-    name: 'password',
-    description: 'Password',
-    required: true,
-    hidden: true,
-    replace: '*',
-    type: 'string'
-  },
-  {
-    name: 'passwordConfirm',
-    description: 'Confirm password',
-    required: true,
-    hidden: true,
-    replace: '*',
-    type: 'string'
-  },
-  ], function(error, result) {
-    var model = bpg.get();
+  // Simplify a bit by requiring all inputs even if only one is missing.  Caller
+  // using the JSON file is expected to provide all inputs ahead of time.
+  if (!username) {
+    console.log(bold('Create an administrator'));
+    console.log(
+      'We must create an administrator user. This user will be used to configure\n' +
+      'the server as well as perform system-wide administrative tasks.\n');
 
-    if (!result || !result.username || !result.password) {
-      errx('No user provided.');
-    }
+    const result = await promptLib.get([
+    {
+      name: 'username',
+      description: 'Username',
+      pattern: /^[a-z0-9\_]+$/,
+      type: 'string',
+      required: true
+    },
+    {
+      name: 'email',
+      description: 'E-mail address',
+      required: true,
+      type: 'string',
+      pattern: /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/
+    },
+    {
+      name: 'password',
+      description: 'Password',
+      required: true,
+      hidden: true,
+      replace: '*',
+      type: 'string'
+    },
+    {
+      name: 'passwordConfirm',
+      description: 'Confirm password',
+      required: true,
+      hidden: true,
+      replace: '*',
+      type: 'string'
+    }]);
     if (result.password !== result.passwordConfirm) {
       errx('Passwords do not match.');
     }
+    username = result.username;
+    email = result.email;
+    password = result.password;
+  }
 
-    var user = bpg.new('users');
-    user.set('uid', 0);
-    user.set('superuser', 1);
-    user.set('method', 'password');
-    user.set('universe', model.universe[0].get('id'));
-    user.set('username', result.username);
-    user.set('email', result.email);
-    user.set('password', BPG.blobText(result.password));
-    bpg.create(user);
-    bpg.commit();
+  var model = bpg.get();
+  var user = bpg.new('users');
+  user.set('uid', 0);
+  user.set('superuser', 1);
+  user.set('method', 'password');
+  user.set('universe', model.universe[0].get('id'));
+  user.set('username', username);
+  user.set('email', email);
+  user.set('password', BPG.blobText(password));
+  bpg.create(user);
+  bpg.commit();
 
-    return coronerSetupNext(coroner, bpg);
-  });
+  return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
-function coronerSetupUniverse(coroner, bpg) {
-  console.log(bold('Create an organization'));
-  console.log(
-    'We must configure the organization that is using the object store.\n' +
-    'Please provide a one word name for the organization using the object store.\n' +
-    'For example, if your company name is "Appleseed Systems I/O", you could\n' +
-    'use the name "appleseed". The name must be lowercase.\n');
+async function coronerSetupUniverse(coroner, bpg, setupCfg) {
+  let universe_name = setupCfg?.universe;
+  if (!universe_name) {
+    console.log(bold('Create an organization'));
+    console.log(
+      'We must configure the organization that is using the object store.\n' +
+      'Please provide a one word name for the organization using the object store.\n' +
+      'For example, if your company name is "Appleseed Systems I/O", you could\n' +
+      'use the name "appleseed". The name must be lowercase.\n');
 
-  promptLib.get([{
-    name: 'universe',
-    description: 'Organization name',
-    message: 'Must be lowercase and only contains letters.',
-    type: 'string',
-    pattern: /^[a-z0-9]+$/,
-    required: true
-  }], function(error, result) {
-    if (!result || !result.universe) {
-      errx('No organization name provided.');
-    }
+    const result = await promptLib.get([{
+      name: 'universe',
+      description: 'Organization name',
+      message: 'Must be lowercase and only contains letters.',
+      type: 'string',
+      pattern: /^[a-z0-9]+$/,
+      required: true
+    }]);
+    universe_name = result.universe;
+  }
 
-    var universe = bpg.new('universe');
-    universe.set('id', 0);
-    universe.set('name', result.universe);
-    bpg.create(universe);
-    bpg.commit();
-    return coronerSetupNext(coroner, bpg);
-  });
+  var universe = bpg.new('universe');
+  universe.set('id', 0);
+  universe.set('name', universe_name);
+  bpg.create(universe);
+  bpg.commit();
+  return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
 function coronerBpgSetup(coroner, argv) {
@@ -654,8 +657,14 @@ function coronerClientArgvSubmit(config, argv) {
 
 function coronerSetupStart(coroner, argv) {
   var bpg = coronerBpgSetup(coroner, argv);
+  let setupCfg;
+  if (argv.setup_json && fs.existsSync(argv.setup_json)) {
+    setupCfg = JSON.parse(fs.readFileSync(argv.setup_json, 'utf8'));
+  }
 
-  return coronerSetupNext(coroner, bpg);
+  coronerSetupNext(coroner, bpg, setupCfg)
+    .then(() => console.log(`Setup complete`))
+    .catch((err) => console.log(`Setup failed: ${err}`));
 }
 
 function coronerSetup(argv, config) {
