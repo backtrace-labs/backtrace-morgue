@@ -779,6 +779,10 @@ independent again.
 When listing crashes, fingerprint;original can be used to get the original
 fingerprint from before the grouping process if wanted.
 
+**Note**: If the Workflows service is available in Coroner, the merge request 
+will be made to the service instead. First fingerprint is used as the source 
+fingerprint, from which all issue data is copied to the new merged fingerprint.
+
 ### repair
 
 ```
