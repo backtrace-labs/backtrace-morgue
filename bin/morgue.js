@@ -972,10 +972,14 @@ async function mergeFingerprints(argv, config) {
   const coroner = coronerClientArgv(config, argv);
   const isWorkflowsAvailable = await WorkflowsClient.isAvailable(coroner)
   if (isWorkflowsAvailable) {
-    console.log('Merging using the Workflows service')
+    if (argv.debug) {
+      console.log('Merging using the Workflows service')
+    }
     return _workflowsMerge(coroner, universe, project, fingerprints)
   } else {
-    console.log('Merging using Coroner directly')
+    if (argv.debug) {
+      console.log('Merging using Coroner directly')
+    }
     return _coronerMerge(coroner, universe, project, fingerprints, 'merge');
   }
 }
