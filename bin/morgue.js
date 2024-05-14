@@ -38,6 +38,7 @@ const timeCli = require('../lib/cli/time');
 const queryCli = require('../lib/cli/query');
 const { chalk, err, error_color, errx, success_color, warn } = require('../lib/cli/errors');
 const WorkflowsCli = require('../lib/workflows/cli.js');
+const WorkflowsClient = require('../lib/workflows/client.js');
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
@@ -243,8 +244,8 @@ var commands = {
   status: coronerStatus,
   user: coronerUser,
   users: coronerUsers,
-  merge: coronerMerge,
-  unmerge: coronerUnmerge,
+  merge: mergeFingerprints,
+  unmerge: unmergeFingerprints,
   "metrics-importer": metricsImporterCmd,
   stability: coronerStability,
   alerts: alertsCmd,
@@ -920,34 +921,21 @@ function dump_obj(o)
   console.log(util.inspect(o, {showHidden: false, depth: null}));
 }
 
-function _coronerMerge(argv, config, action) {
-  abortIfNotLoggedIn(config);
-  if (argv._.length === 0) {
-    userUsage();
-  }
-  const coroner = coronerClientArgv(config, argv);
-
-  if (argv._.length < 2) {
-    return usage("Missing project, universe arguments");
-  }
-  const p = coronerParams(argv, config);
-  let fingerprints = argv._;
-
-  fingerprints.splice(0,2);
+function _coronerMerge(coroner, universe, project, fingerprints, action) {
   const query = {
     actions: {
       fingerprint: [
-	{
-	  type: action,
-	  arguments: fingerprints
-	}
+        {
+          type: action,
+          arguments: fingerprints
+        }
       ]
     }
   };
 
   dump_obj(query);
 
-  coroner.query(p.universe, p.project, query, function(err, result) {
+  coroner.query(universe, project, query, function(err) {
     if (err) {
       errx(err.message);
     }
@@ -955,12 +943,64 @@ function _coronerMerge(argv, config, action) {
   });
 }
 
-function coronerMerge(argv, config) {
-  return _coronerMerge(argv, config, 'merge');
+async function _workflowsMerge(coroner, universe, project, fingerprints) {
+  const client = await WorkflowsClient.fromCoroner(coroner);
+  try {
+    await client.mergeFingerprints(universe, project, fingerprints)
+    console.log(success_color('Success.'));
+  } catch (err) {
+    errx(err.message);
+  }
 }
 
-function coronerUnmerge(argv, config) {
-  return _coronerMerge(argv, config, 'unmerge');
+async function mergeFingerprints(argv, config) {
+  abortIfNotLoggedIn(config);
+  if (argv._.length === 0) {
+    return userUsage();
+  }
+  
+  const { universe, project } = coronerParams(argv, config);
+  if (!universe || !project) {
+    return usage("Missing project, universe arguments");
+  }
+
+  const fingerprints = argv._.slice(2);
+  if (!fingerprints.length) {
+    return usage("At least one fingerprint must be specified")
+  }
+
+  const coroner = coronerClientArgv(config, argv);
+  const isWorkflowsAvailable = await WorkflowsClient.isAvailable(coroner)
+  if (isWorkflowsAvailable) {
+    if (argv.debug) {
+      console.log('Merging using the Workflows service')
+    }
+    return _workflowsMerge(coroner, universe, project, fingerprints)
+  } else {
+    if (argv.debug) {
+      console.log('Merging using Coroner directly')
+    }
+    return _coronerMerge(coroner, universe, project, fingerprints, 'merge');
+  }
+}
+
+function unmergeFingerprints(argv, config) {abortIfNotLoggedIn(config);
+  if (argv._.length === 0) {
+    return userUsage();
+  }
+  
+  const { universe, project} = coronerParams(argv, config);
+  if (!universe || !project) {
+    return usage("Missing project, universe arguments");
+  }
+
+  const fingerprints = argv._.slice(2);
+  if (!fingerprints.length) {
+    return usage("At least one fingerprint must be specified")
+  }
+
+  const coroner = coronerClientArgv(config, argv);
+  return _coronerMerge(coroner, universe, project, fingerprints, 'unmerge');
 }
 
 /*
