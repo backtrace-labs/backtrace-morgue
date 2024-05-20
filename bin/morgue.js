@@ -6752,7 +6752,7 @@ function coronerDelete(argv, config) {
   argvPushObjectRanges(o, argv);
 
   if (o.length === 0 && !(aq && aq.query)) {
-    errx('Must specify objects to be deleted.');
+    errx('Must specify either objects to be deleted or a query.');
   }
 
   if (argv.sync) {
@@ -6787,10 +6787,8 @@ function coronerDelete(argv, config) {
   }
 
   if (aq && aq.query) {
-    coroner.promise('query', p.universe, p.project, aq.query).then(function(r) {
-      unpackQueryObjects(o, r);
-      return delete_fn();
-    }).then(std_success_cb).catch(std_failure_cb);
+    coroner.promise('delete_by_query', p.universe, p.project, aq.query, params)
+      .then(std_success_cb).catch(std_failure_cb);
   } else {
     delete_fn().then(std_success_cb).catch(std_failure_cb);
   }

@@ -425,20 +425,39 @@ sum(process.age): 29630010305216 sec
 
 ### delete
 
-Allows deleting objects.
+Allows deleting objects by query or by object identifiers.
 
 ```
-Usage: morgue delete <[universe/]project> <oid1> [... oidN]
+Usage: morgue delete <[universe/]project> [subset] <query> | <oid1> ... <oidN>
 ```
 
-Object IDs must be specified; they can be found in `morgue list` output.
-The object ID printed in the example above is `9d33`.
+An optional subset can be specified to indicate whether physical, indexed, or
+both are deleted. By default, this command (as of 2019-02-26) requests
+physical-only deletion, which retains only indexing.  The previous
+`--physical-only` argument is now a no-op.
 
-By default, this command (as of 2019-02-26) requests physical-only deletion,
-which retains only indexing.  The previous `--physical-only` argument is a
-no-op.  The following options affect this behavior:
-`--all`: Delete all related data, including indexing.
-`--crdb-only`: Only delete the indexed data; requires physically deleted objects.
+The following options affect this behavior:
+  * `--physical-only` (default): Deletes only the physical data.
+  * `--crdb-only`: Delete only the indexed data; requires physically deleted objects.
+  * `--all`: Delete all related data, including indexing.
+
+Either a query or a list of object identifiers must be passed.
+
+Queries follow the same format as the `morgue list` command.
+
+Object IDs can be obtained by using the `morgue list` output. The object ID
+printed in the previous example is `9d33`.
+
+Example: to delete all data, physical and indexed, in the blackhole project
+after 2023-11-14 22:13:20 UTC.
+```
+$ morgue delete blackhole --all --filter="timestamp,greater-than,1700000000"
+```
+
+Example: to delete physical data (default subset) for object with identifier 9d33.
+```
+$ morgue delete blackhole 9d33
+```
 
 ### project
 
