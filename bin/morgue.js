@@ -5957,41 +5957,54 @@ function uint128ToUuid(uint128) {
   return parts.join("-");
 }
 
+function uint128ToIpv6(uint128) {
+  // already an ipv6 address
+  if (typeof uint128 === 'string' && uint128.includes(':')) {
+    return uint128;
+  }
+
+  const bytes = Buffer.from(uint128, 'hex')
+  const parts = []
+
+  for (let i=0; i<16; i+=2) {
+    parts.push(bytes.subarray(i, i+2).toString('hex').padStart(1, '0'))
+  }
+
+  return parts.join(':') || '::'
+}
+
 function fieldFormat(st, format) {
-  var rd = {
-    'memory_address' : function() {
+  switch (format) {
+    case 'memory_address':
       return printf("%#lx", st);
-    },
-    'kilobytes' : function() {
+    case 'kilobytes':
       return st + ' kB';
-    },
-    'megabytes' : function() {
+    case 'megabytes':
       return st + ' MB';
-    },
-    'gigabytes' : function() {
+    case 'gigabytes':
       return st + ' GB';
-    },
-    'bytes' : function() {
+    case 'bytes':
       return st + ' B';
-    },
-    'ipv4': function() {
+    case 'ipv4':
       return ip.fromLong(parseInt(st));
-    },
-    'unix_timestamp' : function() {
+    case 'ipv6':
+      return uint128ToIpv6(st)
+    case 'gps_timestamp':
+    case 'unix_timestamp':
         return String(new Date(parseInt(st) * 1000));
-    },
-    'seconds' : function() {
+    case 'js_timestamp':
+      return String(new Date(parseInt(st)));
+    case 'seconds':
       return st + ' sec';
-    },
-    'uuid' : function() {
+    case 'milliseconds':
+      return st + ' ms'
+    case 'nanoseconds':
+      return st + ' ns';
+    case 'uuid':
       return uint128ToUuid(st);
-    }
-  };
-
-  if (rd[format])
-    return rd[format]();
-
-  return st;
+    default:
+      return st
+  }
 }
 
 function rangePrint(field, factor) {
