@@ -3481,7 +3481,7 @@ function attachmentDelete(argv, config, params) {
     attachmentUsage("Must specify attachment by name or id.");
 
   p = params.project;
-  u = params.project;
+  u = params.universe;
   coroner.promise('delete_objects', u, p, req, delparams).
     then(std_success_cb).catch(std_failure_cb);
 }
