@@ -7973,7 +7973,8 @@ function main() {
   if (!command) return usage();
 
   // send reports from the previous session
-  client.database.send();
+  const abortController = new AbortController();
+  client.database.send(abortController.signal);
   promptLib.message = '';
   promptLib.delimiter = ':';
   promptLib.colors = false;
@@ -8006,6 +8007,7 @@ function main() {
          *
          */
         await client.send(e);
+        abortController.abort();
         client.dispose();
         setTimeout(() => {
           throw e;
