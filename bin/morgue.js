@@ -10,6 +10,7 @@ const BPG       = require('../lib/bpg.js');
 const minimist  = require('minimist');
 const os        = require('os');
 const ip        = require('ip');
+const ipv6      = require('ip6addr');
 const bar       = require('./bar.js');
 const ta        = require('time-ago');
 const histogram = require('./histogram.js');
@@ -5962,17 +5963,18 @@ function uint128ToUuid(uint128) {
 function uint128ToIpv6(uint128) {
   // already an ipv6 address
   if (typeof uint128 === 'string' && uint128.includes(':')) {
-    return uint128;
+    return ipv6.parse(uint128).toString()
   }
 
-  const bytes = Buffer.from(uint128, 'hex')
+  const bytes = Buffer.from(uint128.padStart(32, '0'), 'hex')
   const parts = []
 
   for (let i=0; i<16; i+=2) {
     parts.push(bytes.subarray(i, i+2).toString('hex').padStart(1, '0'))
   }
 
-  return parts.join(':') || '::'
+  const ipv6Str = parts.join(':') || '::'
+  return ipv6.parse(ipv6Str).toString()
 }
 
 function fieldFormat(st, format) {
