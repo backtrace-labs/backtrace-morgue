@@ -62,15 +62,23 @@ const configDir = process.env.MORGUE_CONFIG_DIR ||
 const configFile = path.join(configDir, "current.json");
 const BACKTRACE_ROLES = ['admin', 'member', 'guest']
 
+const backtraceDatabaseDirectory = path.join(configDir, "backtrace");
 const client = bt.BacktraceClient.initialize({
   url: "https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json",
-  timeout: 5000,
+  timeout: 1500,
   userAttributes: {
     version: packageJson.version,
   },
+  database: {
+    enable: true,
+    path: backtraceDatabaseDirectory,
+    autoSend: false,
+    captureNativeCrashes: true,
+    createDatabaseDirectory: true
+  },
   metrics: {
-    enable: false
-  }
+    enable: false,
+  },
 });
 
 function usage(str) {
@@ -7975,6 +7983,7 @@ function coronerActions(argv, config) {
   fn(bpg, pid, ssa, /*path=*/argv._[2]);
 }
 
+
 function main() {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
@@ -8001,6 +8010,9 @@ function main() {
   var command = commands[commandName];
   if (!command) return usage();
 
+  // send reports from the previous session
+  const abortController = new AbortController();
+  client.database.send(abortController.signal);
   promptLib.message = '';
   promptLib.delimiter = ':';
   promptLib.colors = false;
@@ -8018,15 +8030,25 @@ function main() {
      * i.e. see https://github.com/nodejs/node/pull/33021
      * or just Promise.reject(5) in a Node shell.
      */
-    Promise.resolve(command(argv, config)).catch(e => {
-      /*
-       * If we throw directly in this handler, we're just rejecting
-       * the promise again. Move the error out to the event loop, instead.
-       */
-      setTimeout(() => {
-        throw e;
-      }, 0);
-    });
+
+    (async function executeCommand() {
+      
+      try {
+        await command(argv, config);
+      } catch (e) {
+        /*
+         * If we throw directly in this handler, we're just rejecting
+         * the promise again. Move the error out to the event loop, instead.
+         *
+         */
+        await client.send(e);
+        abortController.abort();
+        client.dispose();
+        setTimeout(() => {
+          throw e;
+        }, 0);
+      }
+    })();
   });
 }
 

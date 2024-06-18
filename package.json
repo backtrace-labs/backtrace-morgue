@@ -4,7 +4,7 @@
   "description": "command line interface to the Backtrace object store",
   "main": "./lib/coroner.js",
   "engines": {
-    "node": ">=14"
+    "node": ">=14.17.0"
   },
   "engineStrict": true,
   "keywords": [
@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
-    "@backtrace/node": "^0.3.0",
+    "@backtrace/node": "^0.3.1",
     "assign-deep": "^1.0.1",
     "axios": "^0.21.2",
     "babel-core": "^6.26.0",
