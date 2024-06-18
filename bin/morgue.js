@@ -7996,10 +7996,7 @@ function main() {
     (async function executeCommand() {
       
       try {
-        const result = command(argv, config);
-        if (result instanceof Promise) {
-          await result;
-        }
+        await command(argv, config);
       } catch (e) {
         /*
          * If we throw directly in this handler, we're just rejecting
