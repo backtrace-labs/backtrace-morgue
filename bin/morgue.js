@@ -1816,7 +1816,7 @@ function coronerInvite(argv, config) {
       '    --metadata=<metadata>\n' +
       '    --tenant=<tenant name>\n' +
       '    --method=<password | saml | pam>\n' +
-      '  delete <token>\n' +
+      '  delete --universe <universe> <email>\n' +
       '  resend <token>';
 
   if (argv.h || argv.help) {
@@ -1825,7 +1825,7 @@ function coronerInvite(argv, config) {
   }
 
   var universe = argv.universe;
-  if (!universe)
+  if (!universe && config && config.config && config.config.universes)
     universe = Object.keys(config.config.universes)[0];
 
   var bpg = coronerBpgSetup(coroner, argv);
@@ -1852,18 +1852,22 @@ function coronerInvite(argv, config) {
 
     return;
   } else if (action === 'delete') {
-    var token = argv._[2];
+    var email = argv._[2];
     var matchToken;
 
-    if (!token)
-      errx('Usage: morgue invite delete <token substring>');
+    if (!universe || !email)
+      errx('Usage: morgue invite delete --universe <universe> <email>');
+
+    const u = model.universe.find((u) => u.get('name') === universe);
+    if (!u)
+      errx('Universe not found');
 
     for (var i = 0; i < model.signup_pending.length; i++) {
-      if ((model.signup_pending[i].get('token')).indexOf(token) > -1) {
-        if (matchToken)
-          errx('supplied token is ambiguous.');
-
+      const sp_email = model.signup_pending[i].get('email');
+      const sp_universe = model.signup_pending[i].get('universe');
+      if (sp_email === email && sp_universe === u.get('id')) {
         matchToken = model.signup_pending[i];
+        break;
       }
     }
 
