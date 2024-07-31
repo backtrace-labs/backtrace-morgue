@@ -2050,10 +2050,10 @@ The provided commands are as follows:
 - `morgue attribute create <project> <name> --description --type --format ` : Create a project index attribute
 - `morgue attribute delete <project> <name> ` : Delete a project index attribute
 
-Formats
+Types
 - `bitmap`, `uint8`, `uint16`, `uint32`, `uint64`, `uint128`, `uuid`, `dictionary`
 
-Types
+Formats
 - `none`, `commit`, `semver`, `callstack`, `hostname`, `bytes`, `kilobytes`, `gigabytes`, `nanoseconds`, `milliseconds`, `seconds`, `unix_timestamp`, `js_timestamp`, `gps_timestamp`, `memory_address`, `labels`, `sha256`, `uuid`, `ipv4`, `ipv6`
 
 For example:
