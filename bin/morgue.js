@@ -2,6 +2,9 @@
 
 'use strict';
 
+// setup abort controller
+require("../lib/abortController");
+
 const axios     = require('axios');
 const Callstack = require('../lib/callstack.js');
 const CoronerClient = require('../lib/coroner.js');
@@ -40,7 +43,6 @@ const queryCli = require('../lib/cli/query');
 const { chalk, err, error_color, errx, success_color, warn } = require('../lib/cli/errors');
 const WorkflowsCli = require('../lib/workflows/cli.js');
 const WorkflowsClient = require('../lib/workflows/client.js');
-const { createAbortController } = require("../lib/abortController");
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
