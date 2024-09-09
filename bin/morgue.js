@@ -40,6 +40,7 @@ const queryCli = require('../lib/cli/query');
 const { chalk, err, error_color, errx, success_color, warn } = require('../lib/cli/errors');
 const WorkflowsCli = require('../lib/workflows/cli.js');
 const WorkflowsClient = require('../lib/workflows/client.js');
+const { createAbortController } = require("../lib/abortController");
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
@@ -8032,7 +8033,7 @@ function main() {
   if (!command) return usage();
 
   // send reports from the previous session
-  const abortController = new AbortController();
+  const abortController = createAbortController()
   client.database.send(abortController.signal);
   promptLib.message = '';
   promptLib.delimiter = ':';
