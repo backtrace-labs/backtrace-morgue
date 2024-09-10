@@ -8035,7 +8035,7 @@ function main() {
   if (!command) return usage();
 
   // send reports from the previous session
-  const abortController = createAbortController()
+  const abortController = new AbortController();
   client.database.send(abortController.signal);
   promptLib.message = '';
   promptLib.delimiter = ':';
