@@ -2,6 +2,9 @@
 
 'use strict';
 
+// setup abort controller
+require("../lib/abortController");
+
 const axios     = require('axios');
 const Callstack = require('../lib/callstack.js');
 const CoronerClient = require('../lib/coroner.js');
