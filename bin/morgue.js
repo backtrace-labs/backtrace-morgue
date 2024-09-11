@@ -3611,6 +3611,7 @@ function coronerPut(argv, config) {
     'btt' : true,
     'minidump' : true,
     'json' : true,
+    'plcrash': true,
     'symbols' : true,
     'symbols-proguard': true,
     'sourcemap': true
@@ -3624,7 +3625,7 @@ function coronerPut(argv, config) {
   }
 
   if (!argv.format || !formats[argv.format]) {
-    errx('Format must be one of btt, json, symbols or minidump');
+    errx('Format must be one of btt, json, plcrash, symbols or minidump');
   }
 
   if (argv.compression && !supported_compression[argv.compression]) {
