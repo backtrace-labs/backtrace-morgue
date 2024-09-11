@@ -111,7 +111,7 @@ The following options are available:
 ### put
 
 ```
-Usage: morgue put <[<universe>/]project> <file> <--format=btt|minidump|json|symbols> [options]
+Usage: morgue put <[<universe>/]project> <file> <--format=btt|minidump|json|plcrash|symbols> [options]
 ```
 
 Uploads object file to the Backtrace object store. User has the following options
