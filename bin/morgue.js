@@ -3887,8 +3887,10 @@ function samplingStatusProject(argv, config, universe, project) {
         next = sprintf("after %s", timeCli.secondsToTimespec(next_time - now));
       }
     }
-    console.log(sprintf("    \"%s\": %d objects, last accept %s, next %s",
-      group.id ? group.id : "unknown", group.count, last.toString(), next));
+    console.log(sprintf("    \"%s\": %d objects, last accept _tx=%s on %s, next %s",
+      group.id ? group.id : "unknown", group.count,
+      group.last_accept_txid ? group.last_accept_txid.toString(16) : "unknown",
+      last.toString(), next));
   }
 }
 
