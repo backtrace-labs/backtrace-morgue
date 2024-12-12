@@ -617,15 +617,15 @@ Usage: morgue symbold symbolserver update [symbolserverid]
   <--servercredentials.username=...>
   <--servercredentials.password=...>
   <--aws.accesskey=...>
-  <--argv.aws.secret=...>
-  <--argv.aws.bucketname=...>
-  <--argv.aws.lowerfile=...>
-  <--argv.aws.lowerid=...>
-  <--argv.aws.usepdb=...>
-  <--argv.proxy.host=...>
-  <--argv.proxy.port=...>
-  <--argv.proxy.username=...>
-  <--argv.proxy.password=...>
+  <--aws.secret=...>
+  <--aws.bucketname=...>
+  <--aws.lowerfile=...>
+  <--aws.lowerid=...>
+  <--aws.usepdb=...>
+  <--proxy.host=...>
+  <--proxy.port=...>
+  <--proxy.username=...>
+  <--proxy.password=...>
 ```
 Update  symbol server with id [symbolServerId]. If aws, proxy and servercredentials data doesn't exists symbold will ignore update server credentials. If any of them exists, symbold will try to update all properties.
 Example:
