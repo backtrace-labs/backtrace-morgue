@@ -4936,9 +4936,16 @@ function viewSetupFn(config, argv, opts, subcmd) {
   }
 
   if (subcmd !== 'create') {
+    // First search for a view by its query name.
     opts.state.query = opts.state.model.query.find((query) => 
       query.fields.name === opts.params.attrname
     );
+    // If not found, search for a view using the dashboard query name.
+    if (!opts.state.query) {
+      opts.state.query = opts.state.model.query.find((query) =>
+        query.fields.name === "%dashboard% " + opts.params.attrname
+      );
+    }
     if (!opts.state.query)
       return viewUsageFn("View not found.");
     opts.state.attr_key = {
