@@ -55,7 +55,7 @@ environment variables `MORGUE_USERNAME` and `MORGUE_PASSWORD`. If these
 variables are set, the interactive prompt will be suppressed, and the values
 in the aforementioned environment variables used instead.
 
-If you have SSO enabled please follow [this document](https://support.backtrace.io/hc/en-us/articles/360040515871-How-can-I-login-to-the-morgue-tool-via-SSO) to log in with a token.
+If you have SSO enabled please follow [this document](https://docs.saucelabs.com/error-reporting/troubleshooting/#how-can-i-login-to-the-morgue-tool-via-sso) to log in with a token.
 
 ### clean
 
