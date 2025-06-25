@@ -25,9 +25,9 @@
   "homepage": "https://github.com/backtrace-labs/backtrace-morgue#readme",
   "dependencies": {
     "@backtrace/node": "^0.3.1",
-    "@slack/webhook": "^7.0.5",
+    "@slack/webhook": "^6.1.0",
     "assign-deep": "^1.0.1",
-    "axios": "^0.21.2",
+    "axios": "^1.10.0",
     "babel-core": "^6.26.3",
     "btoa": "^1.1.2",
     "chalk": "^4.1.2",
@@ -50,19 +50,17 @@
     "url-join": "^4.0.1",
     "winston": "2.4.5"
   },
-  "overrides": {
-    "follow-redirects": "1.15.5"
-  },
   "preferGlobal": true,
   "bin": {
     "morgue": "./bin/morgue.js"
   },
   "devDependencies": {
-    "babel-preset-env": "^0.0.0",
+    "@babel/core": "^7.27.4",
+    "@babel/preset-env": "^7.27.2",
     "del": "^3.0.0",
     "eslint": "^7.12.1",
     "gulp": "^5.0.0",
-    "gulp-babel": "^7.0.1"
+    "gulp-babel": "^8.0.0"
   },
   "scripts": {
     "lint": "eslint"
