@@ -6,29 +6,26 @@ bin "morgue"
 about "Command-line interface to the Backtrace object store"
 version "from-package-json"
 
-/*
-coronerClientArgv
-
-*/
-
 // Global flags
-/*
-See:
-- coronerClientArgvSubmit
-- coronerBpgSetup
-*/
-flag "-v --version" help="Print version number and exit"
-flag "--debug" help="Enable verbose debug printing"
-flag "-k" help="Disable SSL verification with CA"
-flag "--timeout" help="Set the timeout on API requests in milliseconds" {
-    arg "<MS>"
-}
-flag "--endpoint" help="Specify API endpoint" {
+flag "--endpoint" help="Specify API endpoint" global=#true {
     arg "<URL>"
 }
-flag "--token" help="Specify API token" {
+flag "--token" help="Specify API token" global=#true {
     arg "<TOKEN>"
 }
+flag "--universe" help="Universe name" global=#true {
+    arg "<UNIVERSE>"
+}
+flag "--project" help="Project name" global=#true {
+    arg "<PROJECT>"
+}
+flag "--timeout" help="Set the timeout on API requests in milliseconds" global=#true {
+    arg "<MS>"
+}
+flag "-h --help" help="Print help and exit" global=#true
+flag "-v --version" help="Print version number and exit"
+flag "--debug" help="Enable verbose debug printing" global=#true
+flag "-k" help="Disable SSL verification with CA"  global=#true
 
 // Commands
 
@@ -73,10 +70,14 @@ cmd "put" help="Upload object to object store" {
     arg "<FILE>" help="File to upload"
     
     flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=#true {
-        arg "<FORMAT>"
+        arg "<FORMAT>" {
+            choices btt minidump json plcrash symbols
+        }
     }
     flag "--compression" help="Compression: gzip|deflate" {
-        arg "<TYPE>"
+        arg "<TYPE>" {
+            choices gzip deflate
+        }
     }
     flag "--kv" help="Key-value pairs: key1:value1,key2:value2" {
         arg "<PAIRS>"
@@ -463,7 +464,9 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
             arg "<TITLE>"
         }
         flag "--period" help="Period: week|day" required=#true {
-            arg "<PERIOD>"
+            arg "<PERIOD>" {
+                choices week day
+            }
         }
         flag "--filter" help="Filter expression" {
             arg "<FILTER>"
