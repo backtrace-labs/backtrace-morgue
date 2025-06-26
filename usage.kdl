@@ -1,0 +1,1300 @@
+// morgue CLI Usage Specification
+// https://usage.jdx.dev/spec/
+
+name "morgue"
+bin "morgue"
+about "Command-line interface to the Backtrace object store"
+version "from-package-json"
+
+// Global flags
+flag "-v" "--version" help="Print version number and exit"
+flag "--debug" help="Enable verbose debug printing"
+flag "-k" help="Disable SSL verification with CA"
+flag "--timeout" help="Set the timeout on API requests in milliseconds" {
+    arg "ms"
+}
+flag "--endpoint" help="Specify API endpoint" {
+    arg "url"
+}
+flag "--token" help="Specify API token" {
+    arg "token"
+}
+
+// Commands
+
+cmd "login" help="Log into a Backtrace server" {
+    arg "url" help="Server URL (e.g., http://localhost)"
+}
+
+cmd "logout" help="Log out from the current server"
+
+cmd "setup" help="Configure initial organization and user for on-premise server" {
+    arg "url" help="Server URL"
+}
+
+cmd "list" help="Query and list objects with filters and aggregations" aliases="ls" {
+    arg "project" help="Project name or universe/project"
+    arg "substring" help="Optional substring filter" optional=true
+    
+    flag "--filter" help="Filter expression: attribute,operation,value" {
+        arg "filter"
+    }
+    flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+        arg "time"
+    }
+    flag "--time" help="Time range using natural language" {
+        arg "range"
+    }
+    flag "--select" help="Select specific attributes" {
+        arg "attribute"
+    }
+    flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+        arg "type"
+    }
+    flag "--limit" help="Number of rows to return" {
+        arg "n"
+    }
+    flag "--offset" help="Skip first N rows" {
+        arg "n"
+    }
+    flag "--sort" help="Sort results: [-](column|fold_term)" {
+        arg "term"
+    }
+    flag "--unique" help="Count distinct values" {
+        arg "attribute"
+    }
+    flag "--histogram" help="Show all distinct values" {
+        arg "attribute"
+    }
+    flag "--distribution" help="Show truncated histogram" {
+        arg "attribute"
+    }
+    flag "--mean" help="Calculate mean" {
+        arg "attribute"
+    }
+    flag "--sum" help="Sum all values" {
+        arg "attribute"
+    }
+    flag "--range" help="Show min and max values" {
+        arg "attribute"
+    }
+    flag "--count" help="Count non-null values" {
+        arg "attribute"
+    }
+    flag "--bin" help="Linear histogram of values" {
+        arg "attribute"
+    }
+    flag "--head" help="First value in factor" {
+        arg "attribute"
+    }
+    flag "--tail" help="Last value in factor" {
+        arg "attribute"
+    }
+    flag "--object" help="Maximum object identifier" {
+        arg "attribute"
+    }
+    flag "--factor" help="Group by attribute" {
+        arg "attribute"
+    }
+    flag "--quantize-uint" help="Compute quantized column" {
+        arg "spec"
+    }
+    flag "--csv" help="Output to CSV file" {
+        arg "file"
+    }
+    flag "--json" help="Output JSON format"
+    flag "--verbose" help="Show detailed query performance data"
+}
+
+cmd "describe" help="List and describe queryable metadata" {
+    arg "project" help="Project name or universe/project"
+    arg "substring" help="Filter by substring" optional=true
+}
+
+cmd "get" help="Download object from object store" {
+    arg "project" help="Project name or universe/project"
+    arg "object_id" help="Object identifier"
+    
+    flag "-o" "--output" help="Output to file" {
+        arg "file"
+    }
+    flag "--resource" help="Fetch specific resource" {
+        arg "name"
+    }
+}
+
+cmd "put" help="Upload object to object store" {
+    arg "project" help="Project name or universe/project"
+    arg "file" help="File to upload"
+    
+    flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=true {
+        arg "format"
+    }
+    flag "--compression" help="Compression: gzip|deflate" {
+        arg "type"
+    }
+    flag "--kv" help="Key-value pairs: key1:value1,key2:value2" {
+        arg "pairs"
+    }
+    flag "--form_data" help="Upload using multipart/form-data"
+}
+
+cmd "set" help="Modify object attributes" {
+    arg "project" help="Project name or universe/project"
+    arg "query" help="Query or object ID"
+    arg "assignment" help="key=value assignment"
+    
+    flag "--filter" help="Filter expression" {
+        arg "filter"
+    }
+    flag "--age" help="Age filter" {
+        arg "time"
+    }
+    flag "--time" help="Time filter" {
+        arg "range"
+    }
+}
+
+cmd "delete" help="Delete objects by query or ID" {
+    arg "project" help="Project name or universe/project"
+    arg "target" help="Query or object IDs" varargs=true
+    
+    flag "--physical-only" help="Delete only physical data (default)"
+    flag "--crdb-only" help="Delete only indexed data"
+    flag "--all" help="Delete all related data"
+    flag "--filter" help="Filter expression" {
+        arg "filter"
+    }
+}
+
+cmd "clean" help="Apply sampling retroactively" {
+    arg "project" help="Project name or universe/project"
+    
+    flag "--keep" help="Number of objects to keep per fingerprint" {
+        arg "n"
+    }
+    flag "--oldest" help="Keep N oldest objects" {
+        arg "n"
+    }
+    flag "--output" help="Output object IDs to stdout"
+    flag "--verbose" help="Verbose output"
+}
+
+cmd "attachment" help="Manage object attachments" {
+    cmd "add" help="Add attachment to object" {
+        arg "project" help="Project name"
+        arg "oid" help="Object ID"
+        arg "filename" help="File to attach"
+        
+        flag "--content-type" help="MIME content type" {
+            arg "type"
+        }
+        flag "--attachment-name" help="Attachment name" {
+            arg "name"
+        }
+    }
+    
+    cmd "get" help="Download attachment" {
+        arg "project" help="Project name"
+        arg "oid" help="Object ID"
+        
+        flag "--attachment-id" help="Attachment ID" {
+            arg "id"
+        }
+        flag "--attachment-name" help="Attachment name" {
+            arg "name"
+        }
+    }
+    
+    cmd "list" help="List attachments" {
+        arg "project" help="Project name"
+        arg "oid" help="Object ID"
+    }
+    
+    cmd "delete" help="Delete attachment" {
+        arg "project" help="Project name"
+        arg "oid" help="Object ID"
+        
+        flag "--attachment-id" help="Attachment ID" {
+            arg "id"
+        }
+        flag "--attachment-name" help="Attachment name" {
+            arg "name"
+        }
+    }
+}
+
+cmd "flamegraph" help="Generate callstack flamegraph" {
+    arg "project" help="Project name or universe/project"
+    
+    flag "--filter" help="Filter expression" {
+        arg "filter"
+    }
+    flag "-o" "--output" help="Output SVG file" {
+        arg "file"
+    }
+    flag "--reverse" help="Sample from leaf functions"
+    flag "--unique" help="Sample only unique crashes"
+}
+
+cmd "symbol" help="Manage debug symbols" {
+    arg "project" help="Project name or universe/project"
+    arg "action" help="Action: summary|list|missing|archives" optional=true
+    
+    flag "--tag" help="Filter by tag" {
+        arg "tag"
+    }
+    flag "--filter" help="Filter symbols" {
+        arg "filter"
+    }
+    flag "--json" help="JSON output"
+    flag "-o" "--output" help="Output to file" {
+        arg "file"
+    }
+}
+
+cmd "symbold" help="Manage symbold service" {
+    cmd "status" help="Get symbold status" {
+        arg "project" help="Project name"
+    }
+    
+    cmd "symbolserver" help="Manage symbol servers" {
+        cmd "list" help="List symbol servers" {
+            arg "project" help="Project name"
+        }
+        
+        cmd "details" help="Get symbol server details" {
+            arg "id" help="Symbol server ID"
+        }
+        
+        cmd "logs" help="Get symbol server logs" {
+            arg "id" help="Symbol server ID"
+            
+            flag "--take" help="Number of logs" {
+                arg "n"
+            }
+            flag "--page" help="Page number" {
+                arg "n"
+            }
+        }
+        
+        cmd "add" help="Add symbol server" {
+            arg "project" help="Project name"
+            arg "url" help="Symbol server URL"
+            
+            flag "--name" help="Server name" required=true {
+                arg "name"
+            }
+            flag "--timeout" help="Download timeout" {
+                arg "ms"
+            }
+            flag "--concurrentdownload" help="Max concurrent downloads" {
+                arg "n"
+            }
+            flag "--retrylimit" help="Retry limit" {
+                arg "n"
+            }
+            flag "--whitelist" help="Use whitelist" {
+                arg "bool"
+            }
+            flag "--retain" help="Retain original symbols" {
+                arg "bool"
+            }
+        }
+        
+        cmd "update" help="Update symbol server" {
+            arg "id" help="Symbol server ID"
+            
+            flag "--url" help="New URL" {
+                arg "url"
+            }
+            flag "--name" help="New name" {
+                arg "name"
+            }
+        }
+        
+        cmd "enable" help="Enable symbol server" {
+            arg "id" help="Symbol server ID"
+        }
+        
+        cmd "disable" help="Disable symbol server" {
+            arg "id" help="Symbol server ID"
+        }
+    }
+    
+    cmd "whitelist" help="Manage whitelist" {
+        cmd "add" help="Add to whitelist" {
+            flag "--name" help="Item name" required=true {
+                arg "name"
+            }
+        }
+        
+        cmd "remove" help="Remove from whitelist" {
+            flag "--itemid" help="Item ID" required=true {
+                arg "id"
+            }
+        }
+        
+        cmd "list" help="List whitelist items" {
+            flag "--page" help="Page number" {
+                arg "n"
+            }
+            flag "--take" help="Items per page" {
+                arg "n"
+            }
+        }
+    }
+    
+    cmd "blacklist" help="Manage blacklist" {
+        cmd "add" help="Add to blacklist" {
+            flag "--name" help="Item name" required=true {
+                arg "name"
+            }
+        }
+        
+        cmd "remove" help="Remove from blacklist" {
+            flag "--itemid" help="Item ID" required=true {
+                arg "id"
+            }
+        }
+        
+        cmd "list" help="List blacklist items" {
+            flag "--page" help="Page number" {
+                arg "n"
+            }
+            flag "--take" help="Items per page" {
+                arg "n"
+            }
+        }
+    }
+    
+    cmd "skiplist" help="Manage skiplist" {
+        cmd "find" help="Find items in skiplist" {
+            arg "server_id" help="Symbol server ID"
+            arg "filter" help="Filter string"
+            
+            flag "--page" help="Page number" {
+                arg "n"
+            }
+            flag "--take" help="Items per page" {
+                arg "n"
+            }
+        }
+        
+        cmd "remove" help="Remove from skiplist" {
+            cmd "all" help="Remove all items" {
+                arg "server_id" help="Symbol server ID"
+            }
+            
+            cmd "filter" help="Remove by filter" {
+                arg "server_id" help="Symbol server ID"
+                arg "filter" help="Filter criteria"
+            }
+        }
+    }
+    
+    cmd "queue" help="Manage symbold queue" {
+        cmd "list" help="List queue events"
+        
+        cmd "add" help="Add to queue" aliases="create" {
+            arg "project" help="Universe/project"
+            arg "symbol" help="Missing symbol"
+            arg "oid" help="Object ID"
+        }
+        
+        cmd "size" help="Get queue size"
+        
+        cmd "symbold" help="List missing symbols from events"
+    }
+}
+
+cmd "project" help="Manage projects" {
+    cmd "create" help="Create new project" {
+        arg "name" help="Project name"
+    }
+}
+
+cmd "projects" help="Manage projects" {
+    cmd "list" help="List all projects"
+}
+
+cmd "report" help="Manage scheduled reports" {
+    arg "project" help="Project name"
+    
+    cmd "create" help="Create report" {
+        flag "--rcpt" help="Recipient email" required=true {
+            arg "email"
+        }
+        flag "--title" help="Report title" required=true {
+            arg "title"
+        }
+        flag "--period" help="Period: week|day" required=true {
+            arg "period"
+        }
+        flag "--filter" help="Filter expression" {
+            arg "filter"
+        }
+        flag "--fingerprint" help="Fingerprint filter" {
+            arg "fp"
+        }
+        flag "--histogram" help="Include histogram" {
+            arg "attr"
+        }
+        flag "--hour" help="Hour to send" {
+            arg "hour"
+        }
+        flag "--day" help="Day to send" {
+            arg "day"
+        }
+    }
+    
+    cmd "list" help="List reports"
+    
+    cmd "delete" help="Delete report" {
+        arg "id" help="Report ID"
+    }
+    
+    cmd "send" help="Send report immediately"
+}
+
+cmd "merge" help="Merge fingerprints into group" {
+    arg "project" help="Project name"
+    arg "fingerprints" help="Fingerprints to merge" varargs=true
+}
+
+cmd "unmerge" help="Unmerge fingerprints from group" {
+    arg "project" help="Project name"
+    arg "fingerprints" help="Fingerprints to unmerge" varargs=true
+}
+
+cmd "repair" help="Repair project's attribute database" {
+    arg "project" help="Project name or universe/project"
+}
+
+cmd "reprocess" help="Reprocess objects" {
+    arg "project" help="Project name or universe/project"
+    arg "target" help="Query or object IDs" varargs=true optional=true
+    
+    flag "--first" help="First object ID" {
+        arg "n"
+    }
+    flag "--last" help="Last object ID" {
+        arg "n"
+    }
+}
+
+cmd "retention" help="Configure retention policy" {
+    cmd "list" help="List retention policies"
+    
+    cmd "set" help="Set retention policy" {
+        arg "name" help="Namespace name"
+        
+        flag "--type" help="Type: instance|universe|project" {
+            arg "type"
+        }
+        flag "--rules" help="Number of rules" {
+            arg "n"
+        }
+        flag "--age" help="Object age: [R,]O,T[,TE]" {
+            arg "spec"
+        }
+        flag "--max-age" help="Max age in seconds" {
+            arg "n"
+        }
+        flag "--compress" help="Compress matching objects" {
+            arg "rule"
+        }
+        flag "--delete" help="Delete subsets: physical|crdb" {
+            arg "subsets"
+        }
+        flag "--physical-only" help="Delete only physical data" {
+            arg "rule"
+        }
+        flag "--dryrun" help="Show command without executing"
+    }
+    
+    cmd "status" help="Get retention status" {
+        flag "--type" help="Type: universe|project" {
+            arg "type"
+        }
+    }
+    
+    cmd "clear" help="Clear retention policy" {
+        arg "name" help="Namespace name"
+        
+        flag "--type" help="Type: project" {
+            arg "type"
+        }
+    }
+}
+
+cmd "sampling" help="Manage object sampling" {
+    cmd "status" help="Get sampling status" {
+        flag "--fingerprint" help="Specific fingerprint" {
+            arg "fp"
+        }
+        flag "--project" help="Specific project" {
+            arg "project"
+        }
+        flag "--max-groups" help="Max groups to display" {
+            arg "n"
+        }
+    }
+    
+    cmd "reset" help="Reset sampling" {
+        flag "--fingerprint" help="Specific fingerprint" {
+            arg "fp"
+        }
+        flag "--project" help="Specific project" {
+            arg "project"
+        }
+    }
+    
+    cmd "configure" help="Configure sampling" {
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--disable" help="Disable sampling"
+        flag "--clear" help="Clear project config"
+        flag "--attribute" help="Sample by attribute" {
+            arg "attr"
+        }
+        flag "--backoff" help="Backoff: count,interval" {
+            arg "spec"
+        }
+        flag "--buckets" help="Max sampling buckets" {
+            arg "n"
+        }
+        flag "--process-whitelisted" help="Sample whitelisted symbols" {
+            arg "bool"
+        }
+        flag "--process-private" help="Sample private symbols" {
+            arg "bool"
+        }
+        flag "--reset-interval" help="Reset interval" {
+            arg "interval"
+        }
+    }
+}
+
+cmd "scrubber" help="Manage data scrubbers" {
+    arg "project" help="Project name"
+    
+    cmd "list" help="List scrubbers"
+    
+    cmd "create" help="Create scrubber" {
+        flag "--name" help="Scrubber name" required=true {
+            arg "name"
+        }
+        flag "--regexp" help="Pattern to match" {
+            arg "pattern"
+        }
+        flag "--builtin" help="Builtin: ssn|ccn|key|env|all" {
+            arg "type"
+        }
+        flag "--enable" help="Enable scrubber" {
+            arg "value"
+        }
+    }
+    
+    cmd "modify" help="Modify scrubber" {
+        flag "--name" help="Scrubber name" required=true {
+            arg "name"
+        }
+        flag "--regexp" help="New pattern" {
+            arg "pattern"
+        }
+        flag "--enable" help="Enable/disable" {
+            arg "value"
+        }
+    }
+    
+    cmd "delete" help="Delete scrubber" {
+        flag "--name" help="Scrubber name" required=true {
+            arg "name"
+        }
+    }
+}
+
+cmd "nuke" help="Delete object and dependencies" {
+    flag "--universe" help="Universe name" required=true {
+        arg "universe"
+    }
+    flag "--project" help="Project name" {
+        arg "project"
+    }
+}
+
+cmd "token" help="Manage API tokens" {
+    cmd "create" help="Create token" {
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+        flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=true {
+            arg "cap"
+        }
+    }
+    
+    cmd "list" help="List tokens" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" {
+            arg "project"
+        }
+    }
+    
+    cmd "delete" help="Delete token" {
+        arg "token" help="Token SHA256 or prefix"
+    }
+}
+
+cmd "user" help="Manage users" {
+    cmd "reset" help="Reset user password" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--user" help="Username" {
+            arg "user"
+        }
+        flag "--password" help="New password" {
+            arg "password"
+        }
+        flag "--role" help="User role" {
+            arg "role"
+        }
+    }
+}
+
+cmd "users" help="Manage users" {
+    cmd "add-signup-whitelist" help="Add domain to signup whitelist" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--domain" help="Domain name" {
+            arg "domain"
+        }
+        flag "--role" help="Default role" {
+            arg "role"
+        }
+        flag "--method" help="Auth method" {
+            arg "method"
+        }
+    }
+    
+    cmd "list-teamless-users" help="List users not in any team"
+}
+
+cmd "tenant" help="Manage isolated tenants (enterprise)" {
+    cmd "create" help="Create tenant" {
+        arg "name" help="Tenant name"
+    }
+    
+    cmd "delete" help="Delete tenant" {
+        arg "name" help="Tenant name"
+    }
+    
+    cmd "list" help="List all tenants"
+}
+
+cmd "similarity" help="Compute crash group similarity" {
+    arg "project" help="Project name or universe/project"
+    arg "filter" help="Filter expression" optional=true
+    
+    flag "--threshold" help="Min callstack length" {
+        arg "n"
+    }
+    flag "--truncate" help="Shorten callstack before comparing" {
+        arg "n"
+    }
+    flag "--intersection" help="Min common symbols" {
+        arg "n"
+    }
+    flag "--distance" help="Max edit distance" {
+        arg "n"
+    }
+    flag "--fingerprint" help="Compare to specific fingerprint" {
+        arg "fp"
+    }
+    flag "--json" help="Return JSON result"
+}
+
+cmd "invite" help="Invite users to system" {
+    cmd "create" help="Create invitation" {
+        arg "username" help="Username"
+        arg "email" help="Email address"
+        
+        flag "--role" help="Role: guest|member|admin" {
+            arg "role"
+        }
+        flag "--metadata" help="Additional metadata" {
+            arg "data"
+        }
+        flag "--tenant" help="Tenant name" {
+            arg "tenant"
+        }
+        flag "--method" help="Auth method: password|saml|pam" {
+            arg "method"
+        }
+    }
+    
+    cmd "list" help="List pending invitations"
+    
+    cmd "delete" help="Delete invitation" {
+        arg "token" help="Invitation token"
+    }
+    
+    cmd "resend" help="Resend invitation" {
+        arg "token" help="Invitation token"
+    }
+}
+
+cmd "callstack" help="Evaluate callstack processing" {
+    cmd "evaluate" help="Check callstack results" {
+        arg "project" help="Project name"
+        arg "target" help="Object ID or JSON file"
+    }
+}
+
+cmd "access" help="Control access permissions" {
+    cmd "team" help="Manage teams" {
+        cmd "create" help="Create team" {
+            arg "team" help="Team name"
+        }
+        
+        cmd "remove" help="Remove team" {
+            arg "team" help="Team name"
+        }
+        
+        cmd "details" help="Get team details" {
+            arg "team" help="Team name"
+        }
+        
+        cmd "add-user" help="Add user to team" {
+            arg "team" help="Team name"
+            arg "user" help="Username"
+        }
+        
+        cmd "remove-user" help="Remove user from team" {
+            arg "team" help="Team name"
+            arg "user" help="Username"
+        }
+        
+        cmd "list" help="List all teams"
+    }
+    
+    cmd "project" help="Manage project access" {
+        arg "project" help="Project name"
+        
+        cmd "add-team" help="Add team to project" {
+            arg "team" help="Team name"
+            arg "role" help="Role: admin|member|guest"
+        }
+        
+        cmd "remove-team" help="Remove team from project" {
+            arg "team" help="Team name"
+        }
+        
+        cmd "add-user" help="Add user to project" {
+            arg "user" help="Username"
+            arg "role" help="Role: admin|member|guest"
+        }
+        
+        cmd "remove-user" help="Remove user from project" {
+            arg "user" help="Username"
+        }
+        
+        cmd "details" help="Get project access details"
+    }
+}
+
+cmd "stability" help="Manage stability metrics" {
+    cmd "create-metric" help="Create metric" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+        flag "--metric-group" help="Metric group name" required=true {
+            arg "group"
+        }
+        flag "--name" help="Metric name" required=true {
+            arg "name"
+        }
+        flag "--attribute" help="Attribute: name,value" {
+            arg "spec"
+        }
+    }
+}
+
+cmd "metrics-importer" help="Control metrics importer" {
+    cmd "source" help="Manage sources" {
+        cmd "check-query" help="Validate query" {
+            flag "--source" help="Source UUID" required=true {
+                arg "id"
+            }
+            flag "--project" help="Project name" required=true {
+                arg "project"
+            }
+            flag "--query" help="Query to validate" required=true {
+                arg "query"
+            }
+        }
+    }
+    
+    cmd "importer" help="Manage importers" {
+        cmd "create" help="Create importer" {
+            flag "--project" help="Project name" required=true {
+                arg "project"
+            }
+            flag "--source" help="Source UUID" required=true {
+                arg "id"
+            }
+            flag "--name" help="Importer name" required=true {
+                arg "name"
+            }
+            flag "--start-at" help="Start time (RFC3339)" required=true {
+                arg "time"
+            }
+            flag "--metric" help="Metric name" required=true {
+                arg "name"
+            }
+            flag "--metric-group" help="Metric group" required=true {
+                arg "group"
+            }
+            flag "--query" help="Data query" required=true {
+                arg "query"
+            }
+            flag "--delay" help="Delay in seconds" {
+                arg "n"
+            }
+        }
+    }
+    
+    cmd "logs" help="Display logs" {
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+        flag "--source-id" help="Source ID" {
+            arg "id"
+        }
+        flag "--importer-id" help="Importer ID" {
+            arg "id"
+        }
+        flag "--limit" help="Log limit" {
+            arg "n"
+        }
+    }
+}
+
+cmd "alerts" help="Manage alerts" {
+    cmd "target" help="Manage alert targets" {
+        cmd "create" help="Create target" {
+            flag "--project" help="Project name" required=true {
+                arg "project"
+            }
+            flag "--name" help="Target name" required=true {
+                arg "name"
+            }
+            flag "--workflow-name" help="Workflow name" required=true {
+                arg "name"
+            }
+        }
+        
+        cmd "list" help="List targets"
+        
+        cmd "get" help="Get target" {
+            flag "--id" help="Target ID" {
+                arg "id"
+            }
+            flag "--name" help="Target name" {
+                arg "name"
+            }
+        }
+        
+        cmd "update" help="Update target" {
+            flag "--id" help="Target ID" {
+                arg "id"
+            }
+            flag "--name" help="Target name" {
+                arg "name"
+            }
+            flag "--rename" help="New name" {
+                arg "name"
+            }
+            flag "--workflow-name" help="New workflow" {
+                arg "name"
+            }
+        }
+        
+        cmd "delete" help="Delete target" {
+            flag "--id" help="Target ID" {
+                arg "id"
+            }
+            flag "--name" help="Target name" {
+                arg "name"
+            }
+        }
+    }
+    
+    cmd "alert" help="Manage alerts" {
+        cmd "create" help="Create alert" {
+            flag "--project" help="Project name" required=true {
+                arg "project"
+            }
+            flag "--name" help="Alert name" required=true {
+                arg "name"
+            }
+            flag "--query-period" help="Query period" required=true {
+                arg "time"
+            }
+            flag "--min-notification-interval" help="Min notification interval" required=true {
+                arg "time"
+            }
+            flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=true {
+                arg "spec"
+            }
+            flag "--target-name" help="Target name" {
+                arg "name"
+            }
+            flag "--target-id" help="Target ID" {
+                arg "id"
+            }
+            flag "--enabled" help="Enable alert" {
+                arg "bool"
+            }
+            flag "--mute-until" help="Mute until timestamp" {
+                arg "ts"
+            }
+            // Query flags similar to list command
+            flag "--filter" help="Filter expression" {
+                arg "filter"
+            }
+            flag "--unique" help="Count distinct values" {
+                arg "attribute"
+            }
+            flag "--count" help="Count values" {
+                arg "attribute"
+            }
+            flag "--sum" help="Sum values" {
+                arg "attribute"
+            }
+        }
+        
+        cmd "list" help="List alerts"
+        
+        cmd "get" help="Get alert" {
+            flag "--id" help="Alert ID" {
+                arg "id"
+            }
+            flag "--name" help="Alert name" {
+                arg "name"
+            }
+        }
+        
+        cmd "update" help="Update alert" {
+            flag "--id" help="Alert ID" {
+                arg "id"
+            }
+            flag "--name" help="Alert name" {
+                arg "name"
+            }
+            flag "--rename" help="New name" {
+                arg "name"
+            }
+            flag "--replace-query" help="Replace query"
+            flag "--clear-targets" help="Clear targets"
+            // Other update flags
+        }
+        
+        cmd "delete" help="Delete alert" {
+            flag "--id" help="Alert ID" {
+                arg "id"
+            }
+            flag "--name" help="Alert name" {
+                arg "name"
+            }
+        }
+    }
+}
+
+cmd "workflows" help="Manage workflow integrations" {
+    cmd "connection" help="Manage connections" {
+        cmd "create" help="Create connection" {
+            flag "--name" help="Connection name" required=true {
+                arg "name"
+            }
+            flag "--plugin" help="Plugin ID" required=true {
+                arg "id"
+            }
+            flag "--options" help="Plugin options" required=true {
+                arg "json"
+            }
+            flag "--from-file" help="Load from file" {
+                arg "file"
+            }
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "list" help="List connections" {
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "get" help="Get connection" {
+            arg "id" help="Connection ID"
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "update" help="Update connection" {
+            arg "id" help="Connection ID"
+            flag "--name" help="New name" {
+                arg "name"
+            }
+            flag "--options" help="New options" {
+                arg "json"
+            }
+            flag "--from-file" help="Load from file" {
+                arg "file"
+            }
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "delete" help="Delete connection" {
+            arg "id" help="Connection ID"
+            flag "--raw" help="Output raw JSON"
+        }
+    }
+    
+    cmd "integration" help="Manage integrations" {
+        cmd "create" help="Create integration" {
+            flag "--project" help="Project name" required=true {
+                arg "project"
+            }
+            flag "--name" help="Integration name" required=true {
+                arg "name"
+            }
+            flag "--plugin" help="Plugin ID" required=true {
+                arg "id"
+            }
+            flag "--options" help="Plugin options" required=true {
+                arg "json"
+            }
+            flag "--state" help="State: enabled|disabled|stopped" {
+                arg "state"
+            }
+            flag "--connection" help="Connection ID" {
+                arg "id"
+            }
+            flag "--synchronize-issues" help="Enable issue sync" {
+                arg "bool"
+            }
+            flag "--synchronize-issues-on-add" help="Sync on add" {
+                arg "bool"
+            }
+            flag "--from-file" help="Load from file" {
+                arg "file"
+            }
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "list" help="List integrations" {
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "get" help="Get integration" {
+            arg "id" help="Integration ID"
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "update" help="Update integration" {
+            arg "id" help="Integration ID"
+            flag "--options" help="New options" {
+                arg "json"
+            }
+            flag "--state" help="New state" {
+                arg "state"
+            }
+            flag "--connection" help="New connection ID" {
+                arg "id"
+            }
+            flag "--from-file" help="Load from file" {
+                arg "file"
+            }
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "delete" help="Delete integration" {
+            arg "id" help="Integration ID"
+            flag "--raw" help="Output raw JSON"
+        }
+    }
+    
+    cmd "alert" help="Manage workflow alerts" {
+        cmd "create" help="Create workflow alert" {
+            flag "--project" help="Project name" required=true {
+                arg "project"
+            }
+            flag "--name" help="Alert name" required=true {
+                arg "name"
+            }
+            flag "--condition.name" help="Condition type" required=true {
+                arg "type"
+            }
+            flag "--frequency" help="Frequency in ms" required=true {
+                arg "ms"
+            }
+            flag "--execution-delay" help="Delay in ms" {
+                arg "ms"
+            }
+            flag "--state" help="State: enabled|disabled|stopped" {
+                arg "state"
+            }
+            flag "--filter" help="Filter expression" {
+                arg "filter"
+            }
+            flag "--integration" help="Integration ID" {
+                arg "id"
+            }
+            flag "--from-file" help="Load from file" {
+                arg "file"
+            }
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "list" help="List workflow alerts" {
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "get" help="Get workflow alert" {
+            arg "id" help="Alert ID"
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "update" help="Update workflow alert" {
+            arg "id" help="Alert ID"
+            flag "--name" help="New name" {
+                arg "name"
+            }
+            flag "--from-file" help="Load from file" {
+                arg "file"
+            }
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "delete" help="Delete workflow alert" {
+            arg "id" help="Alert ID"
+            flag "--raw" help="Output raw JSON"
+        }
+    }
+}
+
+cmd "actions" help="Manage actions configuration" {
+    cmd "get" help="Display actions config" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+    }
+    
+    cmd "disable" help="Disable actions" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+    }
+    
+    cmd "enable" help="Enable actions" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+    }
+    
+    cmd "upload" help="Upload actions config" {
+        arg "path" help="Config file path"
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+    }
+    
+    cmd "delete" help="Delete actions config" {
+        flag "--universe" help="Universe name" {
+            arg "universe"
+        }
+        flag "--project" help="Project name" required=true {
+            arg "project"
+        }
+    }
+}
+
+cmd "attribute" help="Manage project attributes" {
+    cmd "create" help="Create attribute" {
+        arg "project" help="Project name"
+        arg "name" help="Attribute name"
+        
+        flag "--description" help="Attribute description" {
+            arg "desc"
+        }
+        flag "--type" help="Type: bitmap|uint8|uint16|uint32|uint64|uint128|uuid|dictionary" {
+            arg "type"
+        }
+        flag "--format" help="Format: none|commit|semver|callstack|hostname|bytes|..." {
+            arg "format"
+        }
+    }
+    
+    cmd "delete" help="Delete attribute" {
+        arg "project" help="Project name"
+        arg "name" help="Attribute name"
+    }
+}
+
+cmd "view" help="Manage query views" {
+    cmd "create" help="Create view" {
+        arg "project" help="Project name"
+        arg "name" help="View name"
+        
+        flag "--queries" help="Queries JSON file" {
+            arg "file"
+        }
+        flag "--payload" help="Payload JSON file" {
+            arg "file"
+        }
+    }
+    
+    cmd "delete" help="Delete view" {
+        arg "project" help="Project name"
+        arg "name" help="View name"
+    }
+}
+
+// Hidden/internal commands
+cmd "error" help="Throw test error" hidden=true {
+    arg "message" help="Error message"
+}
+
+cmd "log" help="Show changelog" hidden=true
+cmd "audit" help="Audit log operations" hidden=true
+cmd "bpg" help="Binary protocol operations" hidden=true
+cmd "control" help="Control operations" hidden=true
+cmd "deduplication" help="Deduplication operations" hidden=true
+cmd "latency" help="Latency testing" hidden=true
+cmd "cts" help="CTS operations" hidden=true
+cmd "ci" help="CI operations" hidden=true
+cmd "session" help="Session operations" hidden=true
+cmd "limit" help="Limit operations" hidden=true
+cmd "service" help="Service operations" hidden=true
+cmd "status" help="Status operations" hidden=true
