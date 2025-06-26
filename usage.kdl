@@ -127,7 +127,7 @@ cmd "put" help="Upload object to object store" {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<FILE>" help="File to upload"
     
-    flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=true {
+    flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=#true {
         arg "<FORMAT>"
     }
     flag "--compression" help="Compression: gzip|deflate" {
@@ -282,7 +282,7 @@ cmd "symbold" help="Manage symbold service" {
             arg "<PROJECT>" help="Project name"
             arg "<URL>" help="Symbol server URL"
             
-            flag "--name" help="Server name" required=true {
+            flag "--name" help="Server name" required=#true {
                 arg "<NAME>"
             }
             flag "--timeout" help="Download timeout" {
@@ -324,13 +324,13 @@ cmd "symbold" help="Manage symbold service" {
     
     cmd "whitelist" help="Manage whitelist" {
         cmd "add" help="Add to whitelist" {
-            flag "--name" help="Item name" required=true {
+            flag "--name" help="Item name" required=#true {
                 arg "<NAME>"
             }
         }
         
         cmd "remove" help="Remove from whitelist" {
-            flag "--itemid" help="Item ID" required=true {
+            flag "--itemid" help="Item ID" required=#true {
                 arg "<ID>"
             }
         }
@@ -347,13 +347,13 @@ cmd "symbold" help="Manage symbold service" {
     
     cmd "blacklist" help="Manage blacklist" {
         cmd "add" help="Add to blacklist" {
-            flag "--name" help="Item name" required=true {
+            flag "--name" help="Item name" required=#true {
                 arg "<NAME>"
             }
         }
         
         cmd "remove" help="Remove from blacklist" {
-            flag "--itemid" help="Item ID" required=true {
+            flag "--itemid" help="Item ID" required=#true {
                 arg "<ID>"
             }
         }
@@ -422,13 +422,13 @@ cmd "report" help="Manage scheduled reports" {
     arg "<PROJECT>" help="Project name"
     
     cmd "create" help="Create report" {
-        flag "--rcpt" help="Recipient email" required=true {
+        flag "--rcpt" help="Recipient email" required=#true {
             arg "<EMAIL>"
         }
-        flag "--title" help="Report title" required=true {
+        flag "--title" help="Report title" required=#true {
             arg "<TITLE>"
         }
-        flag "--period" help="Period: week|day" required=true {
+        flag "--period" help="Period: week|day" required=#true {
             arg "<PERIOD>"
         }
         flag "--filter" help="Filter expression" {
@@ -551,7 +551,7 @@ cmd "sampling" help="Manage object sampling" {
     }
     
     cmd "configure" help="Configure sampling" {
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
         flag "--universe" help="Universe name" {
@@ -586,7 +586,7 @@ cmd "scrubber" help="Manage data scrubbers" {
     cmd "list" help="List scrubbers"
     
     cmd "create" help="Create scrubber" {
-        flag "--name" help="Scrubber name" required=true {
+        flag "--name" help="Scrubber name" required=#true {
             arg "<NAME>"
         }
         flag "--regexp" help="Pattern to match" {
@@ -601,7 +601,7 @@ cmd "scrubber" help="Manage data scrubbers" {
     }
     
     cmd "modify" help="Modify scrubber" {
-        flag "--name" help="Scrubber name" required=true {
+        flag "--name" help="Scrubber name" required=#true {
             arg "<NAME>"
         }
         flag "--regexp" help="New pattern" {
@@ -613,14 +613,14 @@ cmd "scrubber" help="Manage data scrubbers" {
     }
     
     cmd "delete" help="Delete scrubber" {
-        flag "--name" help="Scrubber name" required=true {
+        flag "--name" help="Scrubber name" required=#true {
             arg "<NAME>"
         }
     }
 }
 
 cmd "nuke" help="Delete object and dependencies" {
-    flag "--universe" help="Universe name" required=true {
+    flag "--universe" help="Universe name" required=#true {
         arg "<UNIVERSE>"
     }
     flag "--project" help="Project name" {
@@ -630,10 +630,10 @@ cmd "nuke" help="Delete object and dependencies" {
 
 cmd "token" help="Manage API tokens" {
     cmd "create" help="Create token" {
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
-        flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=true {
+        flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=#true {
             arg "<CAP>"
         }
     }
@@ -816,13 +816,13 @@ cmd "stability" help="Manage stability metrics" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
         }
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
-        flag "--metric-group" help="Metric group name" required=true {
+        flag "--metric-group" help="Metric group name" required=#true {
             arg "<GROUP>"
         }
-        flag "--name" help="Metric name" required=true {
+        flag "--name" help="Metric name" required=#true {
             arg "<NAME>"
         }
         flag "--attribute" help="Attribute: name,value" {
@@ -834,13 +834,13 @@ cmd "stability" help="Manage stability metrics" {
 cmd "metrics-importer" help="Control metrics importer" {
     cmd "source" help="Manage sources" {
         cmd "check-query" help="Validate query" {
-            flag "--source" help="Source UUID" required=true {
+            flag "--source" help="Source UUID" required=#true {
                 arg "<ID>"
             }
-            flag "--project" help="Project name" required=true {
+            flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
             }
-            flag "--query" help="Query to validate" required=true {
+            flag "--query" help="Query to validate" required=#true {
                 arg "<QUERY>"
             }
         }
@@ -848,25 +848,25 @@ cmd "metrics-importer" help="Control metrics importer" {
     
     cmd "importer" help="Manage importers" {
         cmd "create" help="Create importer" {
-            flag "--project" help="Project name" required=true {
+            flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
             }
-            flag "--source" help="Source UUID" required=true {
+            flag "--source" help="Source UUID" required=#true {
                 arg "<ID>"
             }
-            flag "--name" help="Importer name" required=true {
+            flag "--name" help="Importer name" required=#true {
                 arg "<NAME>"
             }
-            flag "--start-at" help="Start time (RFC3339)" required=true {
+            flag "--start-at" help="Start time (RFC3339)" required=#true {
                 arg "<TIME>"
             }
-            flag "--metric" help="Metric name" required=true {
+            flag "--metric" help="Metric name" required=#true {
                 arg "<NAME>"
             }
-            flag "--metric-group" help="Metric group" required=true {
+            flag "--metric-group" help="Metric group" required=#true {
                 arg "<GROUP>"
             }
-            flag "--query" help="Data query" required=true {
+            flag "--query" help="Data query" required=#true {
                 arg "<QUERY>"
             }
             flag "--delay" help="Delay in seconds" {
@@ -876,7 +876,7 @@ cmd "metrics-importer" help="Control metrics importer" {
     }
     
     cmd "logs" help="Display logs" {
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
         flag "--source-id" help="Source ID" {
@@ -894,13 +894,13 @@ cmd "metrics-importer" help="Control metrics importer" {
 cmd "alerts" help="Manage alerts" {
     cmd "target" help="Manage alert targets" {
         cmd "create" help="Create target" {
-            flag "--project" help="Project name" required=true {
+            flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
             }
-            flag "--name" help="Target name" required=true {
+            flag "--name" help="Target name" required=#true {
                 arg "<NAME>"
             }
-            flag "--workflow-name" help="Workflow name" required=true {
+            flag "--workflow-name" help="Workflow name" required=#true {
                 arg "<NAME>"
             }
         }
@@ -943,19 +943,19 @@ cmd "alerts" help="Manage alerts" {
     
     cmd "alert" help="Manage alerts" {
         cmd "create" help="Create alert" {
-            flag "--project" help="Project name" required=true {
+            flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
             }
-            flag "--name" help="Alert name" required=true {
+            flag "--name" help="Alert name" required=#true {
                 arg "<NAME>"
             }
-            flag "--query-period" help="Query period" required=true {
+            flag "--query-period" help="Query period" required=#true {
                 arg "<TIME>"
             }
-            flag "--min-notification-interval" help="Min notification interval" required=true {
+            flag "--min-notification-interval" help="Min notification interval" required=#true {
                 arg "<TIME>"
             }
-            flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=true {
+            flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=#true {
                 arg "<SPEC>"
             }
             flag "--target-name" help="Target name" {
@@ -1025,13 +1025,13 @@ cmd "alerts" help="Manage alerts" {
 cmd "workflows" help="Manage workflow integrations" {
     cmd "connection" help="Manage connections" {
         cmd "create" help="Create connection" {
-            flag "--name" help="Connection name" required=true {
+            flag "--name" help="Connection name" required=#true {
                 arg "<NAME>"
             }
-            flag "--plugin" help="Plugin ID" required=true {
+            flag "--plugin" help="Plugin ID" required=#true {
                 arg "<ID>"
             }
-            flag "--options" help="Plugin options" required=true {
+            flag "--options" help="Plugin options" required=#true {
                 arg "<JSON>"
             }
             flag "--from-file" help="Load from file" {
@@ -1071,16 +1071,16 @@ cmd "workflows" help="Manage workflow integrations" {
     
     cmd "integration" help="Manage integrations" {
         cmd "create" help="Create integration" {
-            flag "--project" help="Project name" required=true {
+            flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
             }
-            flag "--name" help="Integration name" required=true {
+            flag "--name" help="Integration name" required=#true {
                 arg "<NAME>"
             }
-            flag "--plugin" help="Plugin ID" required=true {
+            flag "--plugin" help="Plugin ID" required=#true {
                 arg "<ID>"
             }
-            flag "--options" help="Plugin options" required=true {
+            flag "--options" help="Plugin options" required=#true {
                 arg "<JSON>"
             }
             flag "--state" help="State: enabled|disabled|stopped" {
@@ -1135,16 +1135,16 @@ cmd "workflows" help="Manage workflow integrations" {
     
     cmd "alert" help="Manage workflow alerts" {
         cmd "create" help="Create workflow alert" {
-            flag "--project" help="Project name" required=true {
+            flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
             }
-            flag "--name" help="Alert name" required=true {
+            flag "--name" help="Alert name" required=#true {
                 arg "<NAME>"
             }
-            flag "--condition.name" help="Condition type" required=true {
+            flag "--condition.name" help="Condition type" required=#true {
                 arg "<TYPE>"
             }
-            flag "--frequency" help="Frequency in ms" required=true {
+            flag "--frequency" help="Frequency in ms" required=#true {
                 arg "<MS>"
             }
             flag "--execution-delay" help="Delay in ms" {
@@ -1197,7 +1197,7 @@ cmd "actions" help="Manage actions configuration" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
         }
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
     }
@@ -1206,7 +1206,7 @@ cmd "actions" help="Manage actions configuration" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
         }
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
     }
@@ -1215,7 +1215,7 @@ cmd "actions" help="Manage actions configuration" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
         }
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
     }
@@ -1225,7 +1225,7 @@ cmd "actions" help="Manage actions configuration" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
         }
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
     }
@@ -1234,7 +1234,7 @@ cmd "actions" help="Manage actions configuration" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
         }
-        flag "--project" help="Project name" required=true {
+        flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
     }
