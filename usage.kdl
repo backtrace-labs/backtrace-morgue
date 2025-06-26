@@ -11,170 +11,170 @@ flag "-v --version" help="Print version number and exit"
 flag "--debug" help="Enable verbose debug printing"
 flag "-k" help="Disable SSL verification with CA"
 flag "--timeout" help="Set the timeout on API requests in milliseconds" {
-    arg "ms"
+    arg "<MS>"
 }
 flag "--endpoint" help="Specify API endpoint" {
-    arg "url"
+    arg "<URL>"
 }
 flag "--token" help="Specify API token" {
-    arg "token"
+    arg "<TOKEN>"
 }
 
 // Commands
 
 cmd "login" help="Log into a Backtrace server" {
-    arg "url" help="Server URL (e.g., http://localhost)"
+    arg "<URL>" help="Server URL (e.g., http://localhost)"
 }
 
 cmd "logout" help="Log out from the current server"
 
 cmd "setup" help="Configure initial organization and user for on-premise server" {
-    arg "url" help="Server URL"
+    arg "<URL>" help="Server URL"
 }
 
 cmd "list" help="Query and list objects with filters and aggregations" aliases="ls" {
-    arg "project" help="Project name or universe/project"
-    arg "substring" help="Optional substring filter" optional=true
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<SUBSTRING>" help="Optional substring filter" optional=true
     
     flag "--filter" help="Filter expression: attribute,operation,value" {
-        arg "filter"
+        arg "<FILTER>"
     }
     flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
-        arg "time"
+        arg "<TIME>"
     }
     flag "--time" help="Time range using natural language" {
-        arg "range"
+        arg "<RANGE>"
     }
     flag "--select" help="Select specific attributes" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
-        arg "type"
+        arg "<TYPE>"
     }
     flag "--limit" help="Number of rows to return" {
-        arg "n"
+        arg "<N>"
     }
     flag "--offset" help="Skip first N rows" {
-        arg "n"
+        arg "<N>"
     }
     flag "--sort" help="Sort results: [-](column|fold_term)" {
-        arg "term"
+        arg "<TERM>"
     }
     flag "--unique" help="Count distinct values" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--histogram" help="Show all distinct values" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--distribution" help="Show truncated histogram" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--mean" help="Calculate mean" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--sum" help="Sum all values" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--range" help="Show min and max values" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--count" help="Count non-null values" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--bin" help="Linear histogram of values" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--head" help="First value in factor" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--tail" help="Last value in factor" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--object" help="Maximum object identifier" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--factor" help="Group by attribute" {
-        arg "attribute"
+        arg "<ATTRIBUTE>"
     }
     flag "--quantize-uint" help="Compute quantized column" {
-        arg "spec"
+        arg "<SPEC>"
     }
     flag "--csv" help="Output to CSV file" {
-        arg "file"
+        arg "<FILE>"
     }
     flag "--json" help="Output JSON format"
     flag "--verbose" help="Show detailed query performance data"
 }
 
 cmd "describe" help="List and describe queryable metadata" {
-    arg "project" help="Project name or universe/project"
-    arg "substring" help="Filter by substring" optional=true
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<SUBSTRING>" help="Filter by substring" optional=true
 }
 
 cmd "get" help="Download object from object store" {
-    arg "project" help="Project name or universe/project"
-    arg "object_id" help="Object identifier"
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<OBJECT_ID>" help="Object identifier"
     
     flag "-o" "--output" help="Output to file" {
-        arg "file"
+        arg "<FILE>"
     }
     flag "--resource" help="Fetch specific resource" {
-        arg "name"
+        arg "<NAME>"
     }
 }
 
 cmd "put" help="Upload object to object store" {
-    arg "project" help="Project name or universe/project"
-    arg "file" help="File to upload"
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<FILE>" help="File to upload"
     
     flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=true {
-        arg "format"
+        arg "<FORMAT>"
     }
     flag "--compression" help="Compression: gzip|deflate" {
-        arg "type"
+        arg "<TYPE>"
     }
     flag "--kv" help="Key-value pairs: key1:value1,key2:value2" {
-        arg "pairs"
+        arg "<PAIRS>"
     }
     flag "--form_data" help="Upload using multipart/form-data"
 }
 
 cmd "set" help="Modify object attributes" {
-    arg "project" help="Project name or universe/project"
-    arg "query" help="Query or object ID"
-    arg "assignment" help="key=value assignment"
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<QUERY>" help="Query or object ID"
+    arg "<ASSIGNMENT>" help="key=value assignment"
     
     flag "--filter" help="Filter expression" {
-        arg "filter"
+        arg "<FILTER>"
     }
     flag "--age" help="Age filter" {
-        arg "time"
+        arg "<TIME>"
     }
     flag "--time" help="Time filter" {
-        arg "range"
+        arg "<RANGE>"
     }
 }
 
 cmd "delete" help="Delete objects by query or ID" {
-    arg "project" help="Project name or universe/project"
-    arg "target" help="Query or object IDs" varargs=true
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<TARGET>" help="Query or object IDs" varargs=true
     
     flag "--physical-only" help="Delete only physical data (default)"
     flag "--crdb-only" help="Delete only indexed data"
     flag "--all" help="Delete all related data"
     flag "--filter" help="Filter expression" {
-        arg "filter"
+        arg "<FILTER>"
     }
 }
 
 cmd "clean" help="Apply sampling retroactively" {
-    arg "project" help="Project name or universe/project"
+    arg "<PROJECT>" help="Project name or universe/project"
     
     flag "--keep" help="Number of objects to keep per fingerprint" {
-        arg "n"
+        arg "<N>"
     }
     flag "--oldest" help="Keep N oldest objects" {
-        arg "n"
+        arg "<N>"
     }
     flag "--output" help="Output object IDs to stdout"
     flag "--verbose" help="Verbose output"
@@ -182,165 +182,165 @@ cmd "clean" help="Apply sampling retroactively" {
 
 cmd "attachment" help="Manage object attachments" {
     cmd "add" help="Add attachment to object" {
-        arg "project" help="Project name"
-        arg "oid" help="Object ID"
-        arg "filename" help="File to attach"
+        arg "<PROJECT>" help="Project name"
+        arg "<OID>" help="Object ID"
+        arg "<FILENAME>" help="File to attach"
         
         flag "--content-type" help="MIME content type" {
-            arg "type"
+            arg "<TYPE>"
         }
         flag "--attachment-name" help="Attachment name" {
-            arg "name"
+            arg "<NAME>"
         }
     }
     
     cmd "get" help="Download attachment" {
-        arg "project" help="Project name"
-        arg "oid" help="Object ID"
+        arg "<PROJECT>" help="Project name"
+        arg "<OID>" help="Object ID"
         
         flag "--attachment-id" help="Attachment ID" {
-            arg "id"
+            arg "<ID>"
         }
         flag "--attachment-name" help="Attachment name" {
-            arg "name"
+            arg "<NAME>"
         }
     }
     
     cmd "list" help="List attachments" {
-        arg "project" help="Project name"
-        arg "oid" help="Object ID"
+        arg "<PROJECT>" help="Project name"
+        arg "<OID>" help="Object ID"
     }
     
     cmd "delete" help="Delete attachment" {
-        arg "project" help="Project name"
-        arg "oid" help="Object ID"
+        arg "<PROJECT>" help="Project name"
+        arg "<OID>" help="Object ID"
         
         flag "--attachment-id" help="Attachment ID" {
-            arg "id"
+            arg "<ID>"
         }
         flag "--attachment-name" help="Attachment name" {
-            arg "name"
+            arg "<NAME>"
         }
     }
 }
 
 cmd "flamegraph" help="Generate callstack flamegraph" {
-    arg "project" help="Project name or universe/project"
+    arg "<PROJECT>" help="Project name or universe/project"
     
     flag "--filter" help="Filter expression" {
-        arg "filter"
+        arg "<FILTER>"
     }
     flag "-o" "--output" help="Output SVG file" {
-        arg "file"
+        arg "<FILE>"
     }
     flag "--reverse" help="Sample from leaf functions"
     flag "--unique" help="Sample only unique crashes"
 }
 
 cmd "symbol" help="Manage debug symbols" {
-    arg "project" help="Project name or universe/project"
-    arg "action" help="Action: summary|list|missing|archives" optional=true
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<ACTION>" help="Action: summary|list|missing|archives" optional=true
     
     flag "--tag" help="Filter by tag" {
-        arg "tag"
+        arg "<TAG>"
     }
     flag "--filter" help="Filter symbols" {
-        arg "filter"
+        arg "<FILTER>"
     }
     flag "--json" help="JSON output"
     flag "-o" "--output" help="Output to file" {
-        arg "file"
+        arg "<FILE>"
     }
 }
 
 cmd "symbold" help="Manage symbold service" {
     cmd "status" help="Get symbold status" {
-        arg "project" help="Project name"
+        arg "<PROJECT>" help="Project name"
     }
     
     cmd "symbolserver" help="Manage symbol servers" {
         cmd "list" help="List symbol servers" {
-            arg "project" help="Project name"
+            arg "<PROJECT>" help="Project name"
         }
         
         cmd "details" help="Get symbol server details" {
-            arg "id" help="Symbol server ID"
+            arg "<ID>" help="Symbol server ID"
         }
         
         cmd "logs" help="Get symbol server logs" {
-            arg "id" help="Symbol server ID"
+            arg "<ID>" help="Symbol server ID"
             
             flag "--take" help="Number of logs" {
-                arg "n"
+                arg "<N>"
             }
             flag "--page" help="Page number" {
-                arg "n"
+                arg "<N>"
             }
         }
         
         cmd "add" help="Add symbol server" {
-            arg "project" help="Project name"
-            arg "url" help="Symbol server URL"
+            arg "<PROJECT>" help="Project name"
+            arg "<URL>" help="Symbol server URL"
             
             flag "--name" help="Server name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--timeout" help="Download timeout" {
-                arg "ms"
+                arg "<MS>"
             }
             flag "--concurrentdownload" help="Max concurrent downloads" {
-                arg "n"
+                arg "<N>"
             }
             flag "--retrylimit" help="Retry limit" {
-                arg "n"
+                arg "<N>"
             }
             flag "--whitelist" help="Use whitelist" {
-                arg "bool"
+                arg "<BOOL>"
             }
             flag "--retain" help="Retain original symbols" {
-                arg "bool"
+                arg "<BOOL>"
             }
         }
         
         cmd "update" help="Update symbol server" {
-            arg "id" help="Symbol server ID"
+            arg "<ID>" help="Symbol server ID"
             
             flag "--url" help="New URL" {
-                arg "url"
+                arg "<URL>"
             }
             flag "--name" help="New name" {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
         cmd "enable" help="Enable symbol server" {
-            arg "id" help="Symbol server ID"
+            arg "<ID>" help="Symbol server ID"
         }
         
         cmd "disable" help="Disable symbol server" {
-            arg "id" help="Symbol server ID"
+            arg "<ID>" help="Symbol server ID"
         }
     }
     
     cmd "whitelist" help="Manage whitelist" {
         cmd "add" help="Add to whitelist" {
             flag "--name" help="Item name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
         cmd "remove" help="Remove from whitelist" {
             flag "--itemid" help="Item ID" required=true {
-                arg "id"
+                arg "<ID>"
             }
         }
         
         cmd "list" help="List whitelist items" {
             flag "--page" help="Page number" {
-                arg "n"
+                arg "<N>"
             }
             flag "--take" help="Items per page" {
-                arg "n"
+                arg "<N>"
             }
         }
     }
@@ -348,47 +348,47 @@ cmd "symbold" help="Manage symbold service" {
     cmd "blacklist" help="Manage blacklist" {
         cmd "add" help="Add to blacklist" {
             flag "--name" help="Item name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
         cmd "remove" help="Remove from blacklist" {
             flag "--itemid" help="Item ID" required=true {
-                arg "id"
+                arg "<ID>"
             }
         }
         
         cmd "list" help="List blacklist items" {
             flag "--page" help="Page number" {
-                arg "n"
+                arg "<N>"
             }
             flag "--take" help="Items per page" {
-                arg "n"
+                arg "<N>"
             }
         }
     }
     
     cmd "skiplist" help="Manage skiplist" {
         cmd "find" help="Find items in skiplist" {
-            arg "server_id" help="Symbol server ID"
-            arg "filter" help="Filter string"
+            arg "<SERVER_ID>" help="Symbol server ID"
+            arg "<FILTER>" help="Filter string"
             
             flag "--page" help="Page number" {
-                arg "n"
+                arg "<N>"
             }
             flag "--take" help="Items per page" {
-                arg "n"
+                arg "<N>"
             }
         }
         
         cmd "remove" help="Remove from skiplist" {
             cmd "all" help="Remove all items" {
-                arg "server_id" help="Symbol server ID"
+                arg "<SERVER_ID>" help="Symbol server ID"
             }
             
             cmd "filter" help="Remove by filter" {
-                arg "server_id" help="Symbol server ID"
-                arg "filter" help="Filter criteria"
+                arg "<SERVER_ID>" help="Symbol server ID"
+                arg "<FILTER>" help="Filter criteria"
             }
         }
     }
@@ -397,9 +397,9 @@ cmd "symbold" help="Manage symbold service" {
         cmd "list" help="List queue events"
         
         cmd "add" help="Add to queue" aliases="create" {
-            arg "project" help="Universe/project"
-            arg "symbol" help="Missing symbol"
-            arg "oid" help="Object ID"
+            arg "<PROJECT>" help="Universe/project"
+            arg "<SYMBOL>" help="Missing symbol"
+            arg "<OID>" help="Object ID"
         }
         
         cmd "size" help="Get queue size"
@@ -410,7 +410,7 @@ cmd "symbold" help="Manage symbold service" {
 
 cmd "project" help="Manage projects" {
     cmd "create" help="Create new project" {
-        arg "name" help="Project name"
+        arg "<NAME>" help="Project name"
     }
 }
 
@@ -419,67 +419,67 @@ cmd "projects" help="Manage projects" {
 }
 
 cmd "report" help="Manage scheduled reports" {
-    arg "project" help="Project name"
+    arg "<PROJECT>" help="Project name"
     
     cmd "create" help="Create report" {
         flag "--rcpt" help="Recipient email" required=true {
-            arg "email"
+            arg "<EMAIL>"
         }
         flag "--title" help="Report title" required=true {
-            arg "title"
+            arg "<TITLE>"
         }
         flag "--period" help="Period: week|day" required=true {
-            arg "period"
+            arg "<PERIOD>"
         }
         flag "--filter" help="Filter expression" {
-            arg "filter"
+            arg "<FILTER>"
         }
         flag "--fingerprint" help="Fingerprint filter" {
-            arg "fp"
+            arg "<FP>"
         }
         flag "--histogram" help="Include histogram" {
-            arg "attr"
+            arg "<ATTR>"
         }
         flag "--hour" help="Hour to send" {
-            arg "hour"
+            arg "<HOUR>"
         }
         flag "--day" help="Day to send" {
-            arg "day"
+            arg "<DAY>"
         }
     }
     
     cmd "list" help="List reports"
     
     cmd "delete" help="Delete report" {
-        arg "id" help="Report ID"
+        arg "<ID>" help="Report ID"
     }
     
     cmd "send" help="Send report immediately"
 }
 
 cmd "merge" help="Merge fingerprints into group" {
-    arg "project" help="Project name"
-    arg "fingerprints" help="Fingerprints to merge" varargs=true
+    arg "<PROJECT>" help="Project name"
+    arg "<FINGERPRINTS>" help="Fingerprints to merge" varargs=true
 }
 
 cmd "unmerge" help="Unmerge fingerprints from group" {
-    arg "project" help="Project name"
-    arg "fingerprints" help="Fingerprints to unmerge" varargs=true
+    arg "<PROJECT>" help="Project name"
+    arg "<FINGERPRINTS>" help="Fingerprints to unmerge" varargs=true
 }
 
 cmd "repair" help="Repair project's attribute database" {
-    arg "project" help="Project name or universe/project"
+    arg "<PROJECT>" help="Project name or universe/project"
 }
 
 cmd "reprocess" help="Reprocess objects" {
-    arg "project" help="Project name or universe/project"
-    arg "target" help="Query or object IDs" varargs=true optional=true
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<TARGET>" help="Query or object IDs" varargs=true optional=true
     
     flag "--first" help="First object ID" {
-        arg "n"
+        arg "<N>"
     }
     flag "--last" help="Last object ID" {
-        arg "n"
+        arg "<N>"
     }
 }
 
@@ -487,43 +487,43 @@ cmd "retention" help="Configure retention policy" {
     cmd "list" help="List retention policies"
     
     cmd "set" help="Set retention policy" {
-        arg "name" help="Namespace name"
+        arg "<NAME>" help="Namespace name"
         
         flag "--type" help="Type: instance|universe|project" {
-            arg "type"
+            arg "<TYPE>"
         }
         flag "--rules" help="Number of rules" {
-            arg "n"
+            arg "<N>"
         }
         flag "--age" help="Object age: [R,]O,T[,TE]" {
-            arg "spec"
+            arg "<SPEC>"
         }
         flag "--max-age" help="Max age in seconds" {
-            arg "n"
+            arg "<N>"
         }
         flag "--compress" help="Compress matching objects" {
-            arg "rule"
+            arg "<RULE>"
         }
         flag "--delete" help="Delete subsets: physical|crdb" {
-            arg "subsets"
+            arg "<SUBSETS>"
         }
         flag "--physical-only" help="Delete only physical data" {
-            arg "rule"
+            arg "<RULE>"
         }
         flag "--dryrun" help="Show command without executing"
     }
     
     cmd "status" help="Get retention status" {
         flag "--type" help="Type: universe|project" {
-            arg "type"
+            arg "<TYPE>"
         }
     }
     
     cmd "clear" help="Clear retention policy" {
-        arg "name" help="Namespace name"
+        arg "<NAME>" help="Namespace name"
         
         flag "--type" help="Type: project" {
-            arg "type"
+            arg "<TYPE>"
         }
     }
 }
@@ -531,140 +531,140 @@ cmd "retention" help="Configure retention policy" {
 cmd "sampling" help="Manage object sampling" {
     cmd "status" help="Get sampling status" {
         flag "--fingerprint" help="Specific fingerprint" {
-            arg "fp"
+            arg "<FP>"
         }
         flag "--project" help="Specific project" {
-            arg "project"
+            arg "<PROJECT>"
         }
         flag "--max-groups" help="Max groups to display" {
-            arg "n"
+            arg "<N>"
         }
     }
     
     cmd "reset" help="Reset sampling" {
         flag "--fingerprint" help="Specific fingerprint" {
-            arg "fp"
+            arg "<FP>"
         }
         flag "--project" help="Specific project" {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
     
     cmd "configure" help="Configure sampling" {
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--disable" help="Disable sampling"
         flag "--clear" help="Clear project config"
         flag "--attribute" help="Sample by attribute" {
-            arg "attr"
+            arg "<ATTR>"
         }
         flag "--backoff" help="Backoff: count,interval" {
-            arg "spec"
+            arg "<SPEC>"
         }
         flag "--buckets" help="Max sampling buckets" {
-            arg "n"
+            arg "<N>"
         }
         flag "--process-whitelisted" help="Sample whitelisted symbols" {
-            arg "bool"
+            arg "<BOOL>"
         }
         flag "--process-private" help="Sample private symbols" {
-            arg "bool"
+            arg "<BOOL>"
         }
         flag "--reset-interval" help="Reset interval" {
-            arg "interval"
+            arg "<INTERVAL>"
         }
     }
 }
 
 cmd "scrubber" help="Manage data scrubbers" {
-    arg "project" help="Project name"
+    arg "<PROJECT>" help="Project name"
     
     cmd "list" help="List scrubbers"
     
     cmd "create" help="Create scrubber" {
         flag "--name" help="Scrubber name" required=true {
-            arg "name"
+            arg "<NAME>"
         }
         flag "--regexp" help="Pattern to match" {
-            arg "pattern"
+            arg "<PATTERN>"
         }
         flag "--builtin" help="Builtin: ssn|ccn|key|env|all" {
-            arg "type"
+            arg "<TYPE>"
         }
         flag "--enable" help="Enable scrubber" {
-            arg "value"
+            arg "<VALUE>"
         }
     }
     
     cmd "modify" help="Modify scrubber" {
         flag "--name" help="Scrubber name" required=true {
-            arg "name"
+            arg "<NAME>"
         }
         flag "--regexp" help="New pattern" {
-            arg "pattern"
+            arg "<PATTERN>"
         }
         flag "--enable" help="Enable/disable" {
-            arg "value"
+            arg "<VALUE>"
         }
     }
     
     cmd "delete" help="Delete scrubber" {
         flag "--name" help="Scrubber name" required=true {
-            arg "name"
+            arg "<NAME>"
         }
     }
 }
 
 cmd "nuke" help="Delete object and dependencies" {
     flag "--universe" help="Universe name" required=true {
-        arg "universe"
+        arg "<UNIVERSE>"
     }
     flag "--project" help="Project name" {
-        arg "project"
+        arg "<PROJECT>"
     }
 }
 
 cmd "token" help="Manage API tokens" {
     cmd "create" help="Create token" {
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
         flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=true {
-            arg "cap"
+            arg "<CAP>"
         }
     }
     
     cmd "list" help="List tokens" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
     
     cmd "delete" help="Delete token" {
-        arg "token" help="Token SHA256 or prefix"
+        arg "<TOKEN>" help="Token SHA256 or prefix"
     }
 }
 
 cmd "user" help="Manage users" {
     cmd "reset" help="Reset user password" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--user" help="Username" {
-            arg "user"
+            arg "<USER>"
         }
         flag "--password" help="New password" {
-            arg "password"
+            arg "<PASSWORD>"
         }
         flag "--role" help="User role" {
-            arg "role"
+            arg "<ROLE>"
         }
     }
 }
@@ -672,16 +672,16 @@ cmd "user" help="Manage users" {
 cmd "users" help="Manage users" {
     cmd "add-signup-whitelist" help="Add domain to signup whitelist" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--domain" help="Domain name" {
-            arg "domain"
+            arg "<DOMAIN>"
         }
         flag "--role" help="Default role" {
-            arg "role"
+            arg "<ROLE>"
         }
         flag "--method" help="Auth method" {
-            arg "method"
+            arg "<METHOD>"
         }
     }
     
@@ -690,121 +690,121 @@ cmd "users" help="Manage users" {
 
 cmd "tenant" help="Manage isolated tenants (enterprise)" {
     cmd "create" help="Create tenant" {
-        arg "name" help="Tenant name"
+        arg "<NAME>" help="Tenant name"
     }
     
     cmd "delete" help="Delete tenant" {
-        arg "name" help="Tenant name"
+        arg "<NAME>" help="Tenant name"
     }
     
     cmd "list" help="List all tenants"
 }
 
 cmd "similarity" help="Compute crash group similarity" {
-    arg "project" help="Project name or universe/project"
-    arg "filter" help="Filter expression" optional=true
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "<FILTER>" help="Filter expression" optional=true
     
     flag "--threshold" help="Min callstack length" {
-        arg "n"
+        arg "<N>"
     }
     flag "--truncate" help="Shorten callstack before comparing" {
-        arg "n"
+        arg "<N>"
     }
     flag "--intersection" help="Min common symbols" {
-        arg "n"
+        arg "<N>"
     }
     flag "--distance" help="Max edit distance" {
-        arg "n"
+        arg "<N>"
     }
     flag "--fingerprint" help="Compare to specific fingerprint" {
-        arg "fp"
+        arg "<FP>"
     }
     flag "--json" help="Return JSON result"
 }
 
 cmd "invite" help="Invite users to system" {
     cmd "create" help="Create invitation" {
-        arg "username" help="Username"
-        arg "email" help="Email address"
+        arg "<USERNAME>" help="Username"
+        arg "<EMAIL>" help="Email address"
         
         flag "--role" help="Role: guest|member|admin" {
-            arg "role"
+            arg "<ROLE>"
         }
         flag "--metadata" help="Additional metadata" {
-            arg "data"
+            arg "<DATA>"
         }
         flag "--tenant" help="Tenant name" {
-            arg "tenant"
+            arg "<TENANT>"
         }
         flag "--method" help="Auth method: password|saml|pam" {
-            arg "method"
+            arg "<METHOD>"
         }
     }
     
     cmd "list" help="List pending invitations"
     
     cmd "delete" help="Delete invitation" {
-        arg "token" help="Invitation token"
+        arg "<TOKEN>" help="Invitation token"
     }
     
     cmd "resend" help="Resend invitation" {
-        arg "token" help="Invitation token"
+        arg "<TOKEN>" help="Invitation token"
     }
 }
 
 cmd "callstack" help="Evaluate callstack processing" {
     cmd "evaluate" help="Check callstack results" {
-        arg "project" help="Project name"
-        arg "target" help="Object ID or JSON file"
+        arg "<PROJECT>" help="Project name"
+        arg "<TARGET>" help="Object ID or JSON file"
     }
 }
 
 cmd "access" help="Control access permissions" {
     cmd "team" help="Manage teams" {
         cmd "create" help="Create team" {
-            arg "team" help="Team name"
+            arg "<TEAM>" help="Team name"
         }
         
         cmd "remove" help="Remove team" {
-            arg "team" help="Team name"
+            arg "<TEAM>" help="Team name"
         }
         
         cmd "details" help="Get team details" {
-            arg "team" help="Team name"
+            arg "<TEAM>" help="Team name"
         }
         
         cmd "add-user" help="Add user to team" {
-            arg "team" help="Team name"
-            arg "user" help="Username"
+            arg "<TEAM>" help="Team name"
+            arg "<USER>" help="Username"
         }
         
         cmd "remove-user" help="Remove user from team" {
-            arg "team" help="Team name"
-            arg "user" help="Username"
+            arg "<TEAM>" help="Team name"
+            arg "<USER>" help="Username"
         }
         
         cmd "list" help="List all teams"
     }
     
     cmd "project" help="Manage project access" {
-        arg "project" help="Project name"
+        arg "<PROJECT>" help="Project name"
         
         cmd "add-team" help="Add team to project" {
-            arg "team" help="Team name"
-            arg "role" help="Role: admin|member|guest"
+            arg "<TEAM>" help="Team name"
+            arg "<ROLE>" help="Role: admin|member|guest"
         }
         
         cmd "remove-team" help="Remove team from project" {
-            arg "team" help="Team name"
+            arg "<TEAM>" help="Team name"
         }
         
         cmd "add-user" help="Add user to project" {
-            arg "user" help="Username"
-            arg "role" help="Role: admin|member|guest"
+            arg "<USER>" help="Username"
+            arg "<ROLE>" help="Role: admin|member|guest"
         }
         
         cmd "remove-user" help="Remove user from project" {
-            arg "user" help="Username"
+            arg "<USER>" help="Username"
         }
         
         cmd "details" help="Get project access details"
@@ -814,19 +814,19 @@ cmd "access" help="Control access permissions" {
 cmd "stability" help="Manage stability metrics" {
     cmd "create-metric" help="Create metric" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
         flag "--metric-group" help="Metric group name" required=true {
-            arg "group"
+            arg "<GROUP>"
         }
         flag "--name" help="Metric name" required=true {
-            arg "name"
+            arg "<NAME>"
         }
         flag "--attribute" help="Attribute: name,value" {
-            arg "spec"
+            arg "<SPEC>"
         }
     }
 }
@@ -835,13 +835,13 @@ cmd "metrics-importer" help="Control metrics importer" {
     cmd "source" help="Manage sources" {
         cmd "check-query" help="Validate query" {
             flag "--source" help="Source UUID" required=true {
-                arg "id"
+                arg "<ID>"
             }
             flag "--project" help="Project name" required=true {
-                arg "project"
+                arg "<PROJECT>"
             }
             flag "--query" help="Query to validate" required=true {
-                arg "query"
+                arg "<QUERY>"
             }
         }
     }
@@ -849,44 +849,44 @@ cmd "metrics-importer" help="Control metrics importer" {
     cmd "importer" help="Manage importers" {
         cmd "create" help="Create importer" {
             flag "--project" help="Project name" required=true {
-                arg "project"
+                arg "<PROJECT>"
             }
             flag "--source" help="Source UUID" required=true {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Importer name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--start-at" help="Start time (RFC3339)" required=true {
-                arg "time"
+                arg "<TIME>"
             }
             flag "--metric" help="Metric name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--metric-group" help="Metric group" required=true {
-                arg "group"
+                arg "<GROUP>"
             }
             flag "--query" help="Data query" required=true {
-                arg "query"
+                arg "<QUERY>"
             }
             flag "--delay" help="Delay in seconds" {
-                arg "n"
+                arg "<N>"
             }
         }
     }
     
     cmd "logs" help="Display logs" {
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
         flag "--source-id" help="Source ID" {
-            arg "id"
+            arg "<ID>"
         }
         flag "--importer-id" help="Importer ID" {
-            arg "id"
+            arg "<ID>"
         }
         flag "--limit" help="Log limit" {
-            arg "n"
+            arg "<N>"
         }
     }
 }
@@ -895,13 +895,13 @@ cmd "alerts" help="Manage alerts" {
     cmd "target" help="Manage alert targets" {
         cmd "create" help="Create target" {
             flag "--project" help="Project name" required=true {
-                arg "project"
+                arg "<PROJECT>"
             }
             flag "--name" help="Target name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--workflow-name" help="Workflow name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
@@ -909,34 +909,34 @@ cmd "alerts" help="Manage alerts" {
         
         cmd "get" help="Get target" {
             flag "--id" help="Target ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Target name" {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
         cmd "update" help="Update target" {
             flag "--id" help="Target ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Target name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--rename" help="New name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--workflow-name" help="New workflow" {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
         cmd "delete" help="Delete target" {
             flag "--id" help="Target ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Target name" {
-                arg "name"
+                arg "<NAME>"
             }
         }
     }
@@ -944,44 +944,44 @@ cmd "alerts" help="Manage alerts" {
     cmd "alert" help="Manage alerts" {
         cmd "create" help="Create alert" {
             flag "--project" help="Project name" required=true {
-                arg "project"
+                arg "<PROJECT>"
             }
             flag "--name" help="Alert name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--query-period" help="Query period" required=true {
-                arg "time"
+                arg "<TIME>"
             }
             flag "--min-notification-interval" help="Min notification interval" required=true {
-                arg "time"
+                arg "<TIME>"
             }
             flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=true {
-                arg "spec"
+                arg "<SPEC>"
             }
             flag "--target-name" help="Target name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--target-id" help="Target ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--enabled" help="Enable alert" {
-                arg "bool"
+                arg "<BOOL>"
             }
             flag "--mute-until" help="Mute until timestamp" {
-                arg "ts"
+                arg "<TS>"
             }
             // Query flags similar to list command
             flag "--filter" help="Filter expression" {
-                arg "filter"
+                arg "<FILTER>"
             }
             flag "--unique" help="Count distinct values" {
-                arg "attribute"
+                arg "<ATTRIBUTE>"
             }
             flag "--count" help="Count values" {
-                arg "attribute"
+                arg "<ATTRIBUTE>"
             }
             flag "--sum" help="Sum values" {
-                arg "attribute"
+                arg "<ATTRIBUTE>"
             }
         }
         
@@ -989,22 +989,22 @@ cmd "alerts" help="Manage alerts" {
         
         cmd "get" help="Get alert" {
             flag "--id" help="Alert ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Alert name" {
-                arg "name"
+                arg "<NAME>"
             }
         }
         
         cmd "update" help="Update alert" {
             flag "--id" help="Alert ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Alert name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--rename" help="New name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--replace-query" help="Replace query"
             flag "--clear-targets" help="Clear targets"
@@ -1013,10 +1013,10 @@ cmd "alerts" help="Manage alerts" {
         
         cmd "delete" help="Delete alert" {
             flag "--id" help="Alert ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--name" help="Alert name" {
-                arg "name"
+                arg "<NAME>"
             }
         }
     }
@@ -1026,16 +1026,16 @@ cmd "workflows" help="Manage workflow integrations" {
     cmd "connection" help="Manage connections" {
         cmd "create" help="Create connection" {
             flag "--name" help="Connection name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--plugin" help="Plugin ID" required=true {
-                arg "id"
+                arg "<ID>"
             }
             flag "--options" help="Plugin options" required=true {
-                arg "json"
+                arg "<JSON>"
             }
             flag "--from-file" help="Load from file" {
-                arg "file"
+                arg "<FILE>"
             }
             flag "--raw" help="Output raw JSON"
         }
@@ -1045,26 +1045,26 @@ cmd "workflows" help="Manage workflow integrations" {
         }
         
         cmd "get" help="Get connection" {
-            arg "id" help="Connection ID"
+            arg "<ID>" help="Connection ID"
             flag "--raw" help="Output raw JSON"
         }
         
         cmd "update" help="Update connection" {
-            arg "id" help="Connection ID"
+            arg "<ID>" help="Connection ID"
             flag "--name" help="New name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--options" help="New options" {
-                arg "json"
+                arg "<JSON>"
             }
             flag "--from-file" help="Load from file" {
-                arg "file"
+                arg "<FILE>"
             }
             flag "--raw" help="Output raw JSON"
         }
         
         cmd "delete" help="Delete connection" {
-            arg "id" help="Connection ID"
+            arg "<ID>" help="Connection ID"
             flag "--raw" help="Output raw JSON"
         }
     }
@@ -1072,31 +1072,31 @@ cmd "workflows" help="Manage workflow integrations" {
     cmd "integration" help="Manage integrations" {
         cmd "create" help="Create integration" {
             flag "--project" help="Project name" required=true {
-                arg "project"
+                arg "<PROJECT>"
             }
             flag "--name" help="Integration name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--plugin" help="Plugin ID" required=true {
-                arg "id"
+                arg "<ID>"
             }
             flag "--options" help="Plugin options" required=true {
-                arg "json"
+                arg "<JSON>"
             }
             flag "--state" help="State: enabled|disabled|stopped" {
-                arg "state"
+                arg "<STATE>"
             }
             flag "--connection" help="Connection ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--synchronize-issues" help="Enable issue sync" {
-                arg "bool"
+                arg "<BOOL>"
             }
             flag "--synchronize-issues-on-add" help="Sync on add" {
-                arg "bool"
+                arg "<BOOL>"
             }
             flag "--from-file" help="Load from file" {
-                arg "file"
+                arg "<FILE>"
             }
             flag "--raw" help="Output raw JSON"
         }
@@ -1106,29 +1106,29 @@ cmd "workflows" help="Manage workflow integrations" {
         }
         
         cmd "get" help="Get integration" {
-            arg "id" help="Integration ID"
+            arg "<ID>" help="Integration ID"
             flag "--raw" help="Output raw JSON"
         }
         
         cmd "update" help="Update integration" {
-            arg "id" help="Integration ID"
+            arg "<ID>" help="Integration ID"
             flag "--options" help="New options" {
-                arg "json"
+                arg "<JSON>"
             }
             flag "--state" help="New state" {
-                arg "state"
+                arg "<STATE>"
             }
             flag "--connection" help="New connection ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--from-file" help="Load from file" {
-                arg "file"
+                arg "<FILE>"
             }
             flag "--raw" help="Output raw JSON"
         }
         
         cmd "delete" help="Delete integration" {
-            arg "id" help="Integration ID"
+            arg "<ID>" help="Integration ID"
             flag "--raw" help="Output raw JSON"
         }
     }
@@ -1136,31 +1136,31 @@ cmd "workflows" help="Manage workflow integrations" {
     cmd "alert" help="Manage workflow alerts" {
         cmd "create" help="Create workflow alert" {
             flag "--project" help="Project name" required=true {
-                arg "project"
+                arg "<PROJECT>"
             }
             flag "--name" help="Alert name" required=true {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--condition.name" help="Condition type" required=true {
-                arg "type"
+                arg "<TYPE>"
             }
             flag "--frequency" help="Frequency in ms" required=true {
-                arg "ms"
+                arg "<MS>"
             }
             flag "--execution-delay" help="Delay in ms" {
-                arg "ms"
+                arg "<MS>"
             }
             flag "--state" help="State: enabled|disabled|stopped" {
-                arg "state"
+                arg "<STATE>"
             }
             flag "--filter" help="Filter expression" {
-                arg "filter"
+                arg "<FILTER>"
             }
             flag "--integration" help="Integration ID" {
-                arg "id"
+                arg "<ID>"
             }
             flag "--from-file" help="Load from file" {
-                arg "file"
+                arg "<FILE>"
             }
             flag "--raw" help="Output raw JSON"
         }
@@ -1170,23 +1170,23 @@ cmd "workflows" help="Manage workflow integrations" {
         }
         
         cmd "get" help="Get workflow alert" {
-            arg "id" help="Alert ID"
+            arg "<ID>" help="Alert ID"
             flag "--raw" help="Output raw JSON"
         }
         
         cmd "update" help="Update workflow alert" {
-            arg "id" help="Alert ID"
+            arg "<ID>" help="Alert ID"
             flag "--name" help="New name" {
-                arg "name"
+                arg "<NAME>"
             }
             flag "--from-file" help="Load from file" {
-                arg "file"
+                arg "<FILE>"
             }
             flag "--raw" help="Output raw JSON"
         }
         
         cmd "delete" help="Delete workflow alert" {
-            arg "id" help="Alert ID"
+            arg "<ID>" help="Alert ID"
             flag "--raw" help="Output raw JSON"
         }
     }
@@ -1195,95 +1195,95 @@ cmd "workflows" help="Manage workflow integrations" {
 cmd "actions" help="Manage actions configuration" {
     cmd "get" help="Display actions config" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
     
     cmd "disable" help="Disable actions" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
     
     cmd "enable" help="Enable actions" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
     
     cmd "upload" help="Upload actions config" {
-        arg "path" help="Config file path"
+        arg "<PATH>" help="Config file path"
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
     
     cmd "delete" help="Delete actions config" {
         flag "--universe" help="Universe name" {
-            arg "universe"
+            arg "<UNIVERSE>"
         }
         flag "--project" help="Project name" required=true {
-            arg "project"
+            arg "<PROJECT>"
         }
     }
 }
 
 cmd "attribute" help="Manage project attributes" {
     cmd "create" help="Create attribute" {
-        arg "project" help="Project name"
-        arg "name" help="Attribute name"
+        arg "<PROJECT>" help="Project name"
+        arg "<NAME>" help="Attribute name"
         
         flag "--description" help="Attribute description" {
-            arg "desc"
+            arg "<DESC>"
         }
         flag "--type" help="Type: bitmap|uint8|uint16|uint32|uint64|uint128|uuid|dictionary" {
-            arg "type"
+            arg "<TYPE>"
         }
         flag "--format" help="Format: none|commit|semver|callstack|hostname|bytes|..." {
-            arg "format"
+            arg "<FORMAT>"
         }
     }
     
     cmd "delete" help="Delete attribute" {
-        arg "project" help="Project name"
-        arg "name" help="Attribute name"
+        arg "<PROJECT>" help="Project name"
+        arg "<NAME>" help="Attribute name"
     }
 }
 
 cmd "view" help="Manage query views" {
     cmd "create" help="Create view" {
-        arg "project" help="Project name"
-        arg "name" help="View name"
+        arg "<PROJECT>" help="Project name"
+        arg "<NAME>" help="View name"
         
         flag "--queries" help="Queries JSON file" {
-            arg "file"
+            arg "<FILE>"
         }
         flag "--payload" help="Payload JSON file" {
-            arg "file"
+            arg "<FILE>"
         }
     }
     
     cmd "delete" help="Delete view" {
-        arg "project" help="Project name"
-        arg "name" help="View name"
+        arg "<PROJECT>" help="Project name"
+        arg "<NAME>" help="View name"
     }
 }
 
 // Hidden/internal commands
 cmd "error" help="Throw test error" hide=#true {
-    arg "message" help="Error message"
+    arg "<MESSAGE>" help="Error message"
 }
 
 cmd "log" help="Show changelog" hide=#true
