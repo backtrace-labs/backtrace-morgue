@@ -34,7 +34,7 @@ cmd "setup" help="Configure initial organization and user for on-premise server"
 
 cmd "list" help="Query and list objects with filters and aggregations" aliases="ls" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<SUBSTRING>" help="Optional substring filter" optional=true
+    arg "<SUBSTRING>" help="Optional substring filter" required=#false
     
     flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<FILTER>"
@@ -108,7 +108,7 @@ cmd "list" help="Query and list objects with filters and aggregations" aliases="
 
 cmd "describe" help="List and describe queryable metadata" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<SUBSTRING>" help="Filter by substring" optional=true
+    arg "<SUBSTRING>" help="Filter by substring" required=#false
 }
 
 cmd "get" help="Download object from object store" {
@@ -157,8 +157,7 @@ cmd "set" help="Modify object attributes" {
 
 cmd "delete" help="Delete objects by query or ID" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<TARGET>" help="Query or object IDs" varargs=true
-    
+    arg "[TARGET]..." help="Query or object IDs" var=#true required=#false
     flag "--physical-only" help="Delete only physical data (default)"
     flag "--crdb-only" help="Delete only indexed data"
     flag "--all" help="Delete all related data"
@@ -239,7 +238,7 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
 
 cmd "symbol" help="Manage debug symbols" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<ACTION>" help="Action: summary|list|missing|archives" optional=true
+    arg "<ACTION>" help="Action: summary|list|missing|archives" required=#false
     
     flag "--tag" help="Filter by tag" {
         arg "<TAG>"
@@ -459,12 +458,12 @@ cmd "report" help="Manage scheduled reports" {
 
 cmd "merge" help="Merge fingerprints into group" {
     arg "<PROJECT>" help="Project name"
-    arg "<FINGERPRINTS>" help="Fingerprints to merge" varargs=true
+    arg "<FINGERPRINTS>" help="Fingerprints to merge" var=#true
 }
 
 cmd "unmerge" help="Unmerge fingerprints from group" {
     arg "<PROJECT>" help="Project name"
-    arg "<FINGERPRINTS>" help="Fingerprints to unmerge" varargs=true
+    arg "<FINGERPRINTS>" help="Fingerprints to unmerge" var=#true
 }
 
 cmd "repair" help="Repair project's attribute database" {
@@ -473,7 +472,7 @@ cmd "repair" help="Repair project's attribute database" {
 
 cmd "reprocess" help="Reprocess objects" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<TARGET>" help="Query or object IDs" varargs=true optional=true
+    arg "<TARGET>" help="Query or object IDs" var=#true required=#false
     
     flag "--first" help="First object ID" {
         arg "<N>"
@@ -702,7 +701,7 @@ cmd "tenant" help="Manage isolated tenants (enterprise)" {
 
 cmd "similarity" help="Compute crash group similarity" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<FILTER>" help="Filter expression" optional=true
+    arg "<FILTER>" help="Filter expression" required=#false
     
     flag "--threshold" help="Min callstack length" {
         arg "<N>"
