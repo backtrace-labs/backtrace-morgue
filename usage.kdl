@@ -6,7 +6,17 @@ bin "morgue"
 about "Command-line interface to the Backtrace object store"
 version "from-package-json"
 
+/*
+coronerClientArgv
+
+*/
+
 // Global flags
+/*
+See:
+- coronerClientArgvSubmit
+- coronerBpgSetup
+*/
 flag "-v --version" help="Print version number and exit"
 flag "--debug" help="Enable verbose debug printing"
 flag "-k" help="Disable SSL verification with CA"
@@ -28,82 +38,17 @@ cmd "login" help="Log into a Backtrace server" {
 
 cmd "logout" help="Log out from the current server"
 
-cmd "setup" help="Configure initial organization and user for on-premise server" {
-    arg "<URL>" help="Server URL"
-}
-
-cmd "list" help="Query and list objects with filters and aggregations" aliases="ls" {
+cmd "clean" help="Apply sampling retroactively" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<SUBSTRING>" help="Optional substring filter" required=#false
     
-    flag "--filter" help="Filter expression: attribute,operation,value" {
-        arg "<FILTER>"
-    }
-    flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
-        arg "<TIME>"
-    }
-    flag "--time" help="Time range using natural language" {
-        arg "<RANGE>"
-    }
-    flag "--select" help="Select specific attributes" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
-        arg "<TYPE>"
-    }
-    flag "--limit" help="Number of rows to return" {
+    flag "--keep" help="Number of objects to keep per fingerprint" {
         arg "<N>"
     }
-    flag "--offset" help="Skip first N rows" {
+    flag "--oldest" help="Keep N oldest objects" {
         arg "<N>"
     }
-    flag "--sort" help="Sort results: [-](column|fold_term)" {
-        arg "<TERM>"
-    }
-    flag "--unique" help="Count distinct values" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--histogram" help="Show all distinct values" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--distribution" help="Show truncated histogram" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--mean" help="Calculate mean" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--sum" help="Sum all values" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--range" help="Show min and max values" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--count" help="Count non-null values" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--bin" help="Linear histogram of values" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--head" help="First value in factor" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--tail" help="Last value in factor" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--object" help="Maximum object identifier" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--factor" help="Group by attribute" {
-        arg "<ATTRIBUTE>"
-    }
-    flag "--quantize-uint" help="Compute quantized column" {
-        arg "<SPEC>"
-    }
-    flag "--csv" help="Output to CSV file" {
-        arg "<FILE>"
-    }
-    flag "--json" help="Output JSON format"
-    flag "--verbose" help="Show detailed query performance data"
+    flag "--output" help="Output object IDs to stdout"
+    flag "--verbose" help="Verbose output"
 }
 
 cmd "describe" help="List and describe queryable metadata" {
@@ -155,30 +100,6 @@ cmd "set" help="Modify object attributes" {
     }
 }
 
-cmd "delete" help="Delete objects by query or ID" {
-    arg "<PROJECT>" help="Project name or universe/project"
-    arg "[TARGET]..." help="Query or object IDs" var=#true required=#false
-    flag "--physical-only" help="Delete only physical data (default)"
-    flag "--crdb-only" help="Delete only indexed data"
-    flag "--all" help="Delete all related data"
-    flag "--filter" help="Filter expression" {
-        arg "<FILTER>"
-    }
-}
-
-cmd "clean" help="Apply sampling retroactively" {
-    arg "<PROJECT>" help="Project name or universe/project"
-    
-    flag "--keep" help="Number of objects to keep per fingerprint" {
-        arg "<N>"
-    }
-    flag "--oldest" help="Keep N oldest objects" {
-        arg "<N>"
-    }
-    flag "--output" help="Output object IDs to stdout"
-    flag "--verbose" help="Verbose output"
-}
-
 cmd "attachment" subcommand_required=#true help="Manage object attachments" {
     cmd "add" help="Add attachment to object" {
         arg "<PROJECT>" help="Project name"
@@ -223,6 +144,141 @@ cmd "attachment" subcommand_required=#true help="Manage object attachments" {
     }
 }
 
+cmd "list" help="Query and list objects with filters and aggregations" aliases="ls" {
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "[SUBSTRING]" help="Optional substring filter" required=#false
+    // Filters
+    flag "--filter" help="Filter expression: attribute,operation,value" {
+        arg "<FILTER>"
+    }
+    // Pagination
+    flag "--limit" help="Number of rows to return" {
+        arg "<N>"
+    }
+    flag "--offset" help="Skip first N rows" {
+        arg "<N>"
+    }
+    // Selection
+    flag "--select" help="Select specific attributes" var=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+        arg "<TYPE>" {
+            choices physical derived virtual
+        }
+    }
+    // Aggregations
+    flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+        arg "<TIME>"
+    }
+    flag "--time" help="Time range using natural language" {
+        arg "<RANGE>"
+    }
+    flag "--unique" help="Count distinct values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--histogram" help="Show all distinct values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--distribution" help="Show truncated histogram" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--mean" help="Calculate mean" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--sum" help="Sum all values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--range" help="Show min and max values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--count" help="Count non-null values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--bin" help="Linear histogram of values" aliases="quantize" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--head" help="First value in factor" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--tail" help="Last value in factor" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--object" help="Maximum object identifier" {
+        arg "<ATTRIBUTE>"
+    }
+    // Aggregations (undocumented)
+    flag "--last" help="Last object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--first" help="First object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--min" help="Min object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--max" help="Max object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    // Sorting
+    flag "--sort" help="Sort results: [-](column|fold_term)" {
+        arg "<TERM>"
+    }
+    // Computed Views
+    flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" {
+        arg "<SPEC>"
+    }
+    // Not documented
+    flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+        arg "<QUERY>"
+    }
+    flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+        arg "<QUERY>"
+    }
+    flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+        arg "<QUERY>"
+    }
+    flag "--reverse" help="Reverse sort order" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--template" help="TODO: (ex: select)" { // TODO
+        arg "<ATTRIBUTE>"
+    }
+    flag "--factor" help="Group by attribute" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+        arg "<VALUE>"
+    }
+    // Output options
+    flag "--csv" help="Output to CSV file" {  // TODO: does this actually take a file path?
+        arg "<FILE>"
+    }
+    flag "--json" help="Output JSON format"
+    flag "--verbose" help="Show detailed query performance data"
+}
+
+cmd "delete" help="Delete objects by query or ID" {
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "[TARGET]..." help="Query or object IDs" var=#true required=#false
+    flag "--physical-only" help="Delete only physical data (default)"
+    flag "--crdb-only" help="Delete only indexed data"
+    flag "--all" help="Delete all related data"
+    flag "--filter" help="Filter expression" {
+        arg "<FILTER>"
+    }
+}
+
+cmd "project" subcommand_required=#true help="Manage projects" {
+    cmd "create" help="Create new project" {
+        arg "<NAME>" help="Project name"
+    }
+}
+
+cmd "projects" subcommand_required=#true help="Manage projects" {
+    cmd "list" help="List all projects"
+}
+
 cmd "flamegraph" help="Generate callstack flamegraph" {
     arg "<PROJECT>" help="Project name or universe/project"
     
@@ -236,22 +292,6 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
     flag "--unique" help="Sample only unique crashes"
 }
 
-cmd "symbol" help="Manage debug symbols" {
-    arg "<PROJECT>" help="Project name or universe/project"
-    arg "[ACTION]" help="Action: summary|list|missing|archives" required=#false default=summary {
-        choices summary list missing archives
-    }
-    flag "--tag" help="Filter by tag" {
-        arg "<TAG>"
-    }
-    flag "--filter" help="Filter symbols" {
-        arg "<FILTER>"
-    }
-    flag "--json" help="JSON output"
-    flag "-o --output" help="Output to file" {
-        arg "<FILE>"
-    }
-}
 
 cmd "symbold" subcommand_required=#true help="Manage symbold service" {
     cmd "status" help="Get symbold status" {
@@ -270,6 +310,10 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
         cmd "logs" help="Get symbol server logs" {
             arg "<ID>" help="Symbol server ID"
             
+            cmd "filter" {
+                arg "<FILTER>" help="Filter string"
+            }
+
             flag "--take" help="Number of logs" {
                 arg "<N>"
             }
@@ -312,12 +356,12 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
                 arg "<NAME>"
             }
         }
-        
-        cmd "enable" help="Enable symbol server" {
+
+        cmd "disable" help="Disable symbol server" {
             arg "<ID>" help="Symbol server ID"
         }
-        
-        cmd "disable" help="Disable symbol server" {
+                
+        cmd "enable" help="Enable symbol server" {
             arg "<ID>" help="Symbol server ID"
         }
     }
@@ -330,9 +374,7 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
         }
         
         cmd "remove" help="Remove from whitelist" {
-            flag "--itemid" help="Item ID" required=#true {
-                arg "<ID>"
-            }
+            arg "<ID>" help="Item ID" required=#true
         }
         
         cmd "list" help="List whitelist items" {
@@ -353,9 +395,7 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
         }
         
         cmd "remove" help="Remove from blacklist" {
-            flag "--itemid" help="Item ID" required=#true {
-                arg "<ID>"
-            }
+            arg "<ID>" help="Item ID" required=#true
         }
         
         cmd "list" help="List blacklist items" {
@@ -382,6 +422,8 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
         }
         
         cmd "remove" help="Remove from skiplist" {
+            arg "[ID]" help="Item ID" required=#false // TODO: would be nice to specify "required unless all|filter cmd given"
+
             cmd "all" help="Remove all items" {
                 arg "<SERVER_ID>" help="Symbol server ID"
             }
@@ -408,19 +450,11 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
     }
 }
 
-cmd "project" subcommand_required=#true help="Manage projects" {
-    cmd "create" help="Create new project" {
-        arg "<NAME>" help="Project name"
-    }
-}
-
-cmd "projects" subcommand_required=#true help="Manage projects" {
-    cmd "list" help="List all projects"
-}
-
 cmd "report" subcommand_required=#true help="Manage scheduled reports" {
     arg "<PROJECT>" help="Project name"
     
+    cmd "list" help="List reports"
+
     cmd "create" help="Create report" {
         flag "--rcpt" help="Recipient email" required=#true var=#true {
             arg "<EMAIL>"
@@ -446,9 +480,117 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         flag "--day" help="Day to send" {
             arg "<DAY>"
         }
+        // Undocumented create flags
+        // See coronerReport, in: if (action === 'create') { ... }
+        flag "--timezone" help="TImezone for report" hide=#true {
+            arg "<TIMEZONE>"
+        }
+        flag "--include-users" help="Whether to include users in the report" hide=#true
+        // Query flags (keep in sync with list command!)
+        // Filters
+        flag "--filter" help="Filter expression: attribute,operation,value" {
+            arg "<FILTER>"
+        }
+        // Pagination
+        flag "--limit" help="Number of rows to return" {
+            arg "<N>"
+        }
+        flag "--offset" help="Skip first N rows" {
+            arg "<N>"
+        }
+        // Selection
+        flag "--select" help="Select specific attributes" var=#true {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+            arg "<TYPE>" {
+                choices physical derived virtual
+            }
+        }
+        // Aggregations
+        flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+            arg "<TIME>"
+        }
+        flag "--time" help="Time range using natural language" {
+            arg "<RANGE>"
+        }
+        flag "--unique" help="Count distinct values" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--histogram" help="Show all distinct values" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--distribution" help="Show truncated histogram" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--mean" help="Calculate mean" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--sum" help="Sum all values" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--range" help="Show min and max values" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--count" help="Count non-null values" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--bin" help="Linear histogram of values" aliases="quantize" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--head" help="First value in factor" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--tail" help="Last value in factor" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--object" help="Maximum object identifier" {
+            arg "<ATTRIBUTE>"
+        }
+        // Aggregations (undocumented)
+        flag "--last" help="Last object identifier" hide=#true {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--first" help="First object identifier" hide=#true {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--min" help="Min object identifier" hide=#true {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--max" help="Max object identifier" hide=#true {
+            arg "<ATTRIBUTE>"
+        }
+        // Sorting
+        flag "--sort" help="Sort results: [-](column|fold_term)" {
+            arg "<TERM>"
+        }
+        // Computed Views
+        flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" {
+            arg "<SPEC>"
+        }
+        // Not documented
+        flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+            arg "<QUERY>"
+        }
+        flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+            arg "<QUERY>"
+        }
+        flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+            arg "<QUERY>"
+        }
+        flag "--reverse" help="Reverse sort order" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--template" help="TODO: (ex: select)" { // TODO
+            arg "<ATTRIBUTE>"
+        }
+        flag "--factor" help="Group by attribute" {
+            arg "<ATTRIBUTE>"
+        }
+        flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+            arg "<VALUE>"
+        }
     }
-    
-    cmd "list" help="List reports"
     
     cmd "delete" help="Delete report" {
         arg "<ID>" help="Report ID"
@@ -484,13 +626,18 @@ cmd "reprocess" help="Reprocess objects" {
 }
 
 cmd "retention" subcommand_required=#true help="Configure retention policy" {
-    cmd "list" help="List retention policies"
+    cmd "list" help="List retention policies" {
+
+    }
     
     cmd "set" help="Set retention policy" {
-        arg "<NAME>" help="Namespace name"
+        arg "<NAME>" help="Namespace name" // TODO: might be optional
         
+        flag "--dryrun" help="Show command without executing"
         flag "--type" help="Type: instance|universe|project" {
-            arg "<TYPE>"
+            arg "<TYPE>" {
+                choices instance universe project
+            }
         }
         flag "--rules" help="Number of rules" {
             arg "<N>"
@@ -510,12 +657,15 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
         flag "--physical-only" help="Delete only physical data" {
             arg "<RULE>"
         }
-        flag "--dryrun" help="Show command without executing"
     }
     
     cmd "status" help="Get retention status" {
+        arg "<NAME>" help="Namespace name"
+
         flag "--type" help="Type: universe|project" {
-            arg "<TYPE>"
+            arg "<TYPE>" default="project" {
+                choices universe project
+            }
         }
     }
     
@@ -523,7 +673,9 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
         arg "<NAME>" help="Namespace name"
         
         flag "--type" help="Type: project" {
-            arg "<TYPE>"
+            arg "<TYPE>" {
+                choices instance universe project
+            }
         }
     }
 }
@@ -580,6 +732,24 @@ cmd "sampling" subcommand_required=#true help="Manage object sampling" {
     }
 }
 
+cmd "symbol" help="Manage debug symbols" {
+    arg "<PROJECT>" help="Project name or universe/project"
+    arg "[ACTION]" help="Action: summary|list|missing|archives" required=#false default=summary {
+        choices summary list missing archives
+    }
+    flag "--tag" help="Filter by tag" {
+        arg "<TAG>"
+    }
+    flag "--filter" help="Filter symbols" {
+        arg "<FILTER>"
+    }
+    flag "--json" help="JSON output"
+    flag "-o --output" help="Output to file" {
+        arg "<FILE>"
+    }
+}
+
+// TODO: double check this
 cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
     arg "<PROJECT>" help="Project name"
     
@@ -619,6 +789,10 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
     }
 }
 
+cmd "setup" help="Configure initial organization and user for on-premise server" {
+    arg "<URL>" help="Server URL"
+}
+
 cmd "nuke" help="Delete object and dependencies" {
     flag "--universe" help="Universe name" required=#true {
         arg "<UNIVERSE>"
@@ -633,7 +807,7 @@ cmd "token" subcommand_required=#true help="Manage API tokens" {
         flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
         }
-        flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=#true {
+        flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=#true var=#true {
             arg "<CAP>"
         }
     }
@@ -942,49 +1116,6 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
     }
     
     cmd "alert" subcommand_required=#true help="Manage alerts" {
-        cmd "create" help="Create alert" {
-            flag "--project" help="Project name" required=#true {
-                arg "<PROJECT>"
-            }
-            flag "--name" help="Alert name" required=#true {
-                arg "<NAME>"
-            }
-            flag "--query-period" help="Query period" required=#true {
-                arg "<TIME>"
-            }
-            flag "--min-notification-interval" help="Min notification interval" required=#true {
-                arg "<TIME>"
-            }
-            flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=#true {
-                arg "<SPEC>"
-            }
-            flag "--target-name" help="Target name" {
-                arg "<NAME>"
-            }
-            flag "--target-id" help="Target ID" {
-                arg "<ID>"
-            }
-            flag "--enabled" help="Enable alert" {
-                arg "<BOOL>"
-            }
-            flag "--mute-until" help="Mute until timestamp" {
-                arg "<TS>"
-            }
-            // Query flags similar to list command
-            flag "--filter" help="Filter expression" {
-                arg "<FILTER>"
-            }
-            flag "--unique" help="Count distinct values" {
-                arg "<ATTRIBUTE>"
-            }
-            flag "--count" help="Count values" {
-                arg "<ATTRIBUTE>"
-            }
-            flag "--sum" help="Sum values" {
-                arg "<ATTRIBUTE>"
-            }
-        }
-        
         cmd "list" help="List alerts"
         
         cmd "get" help="Get alert" {
@@ -1017,6 +1148,143 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             }
             flag "--name" help="Alert name" {
                 arg "<NAME>"
+            }
+        }
+
+        cmd "create" help="Create alert" {
+            flag "--universe" help="Universe name" required=#false {
+                arg "<UNIVERSE>"
+            }
+            flag "--project" help="Project name" required=#false {
+                arg "<PROJECT>"
+            }
+            flag "--name" help="Alert name" required=#true {
+                arg "<NAME>"
+            }
+            flag "--enabled" help="Enable alert" {
+                arg "<BOOL>"
+            }
+            flag "--query-period" help="Query period" required=#true {
+                arg "<TIME>"
+            }
+            flag "--min-notification-interval" help="Min notification interval" required=#true {
+                arg "<TIME>"
+            }
+            flag "--mute-until" help="Mute until timestamp" {
+                arg "<TS>"
+            }
+            flag "--target-name" help="Target name" required=#false var=#true {
+                arg "<NAME>"
+            }
+            flag "--target-id" help="Target ID" required=#false var=#true {
+                arg "<ID>"
+            }
+            flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=#true {
+                arg "<SPEC>"
+            }
+            // Query flags (keep in sync with list command!)
+            // Filters
+            flag "--filter" help="Filter expression: attribute,operation,value" {
+                arg "<FILTER>"
+            }
+            // Pagination
+            flag "--limit" help="Number of rows to return" {
+                arg "<N>"
+            }
+            flag "--offset" help="Skip first N rows" {
+                arg "<N>"
+            }
+            // Selection
+            flag "--select" help="Select specific attributes" var=#true {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+                arg "<TYPE>" {
+                    choices physical derived virtual
+                }
+            }
+            // Aggregations
+            flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+                arg "<TIME>"
+            }
+            flag "--time" help="Time range using natural language" {
+                arg "<RANGE>"
+            }
+            flag "--unique" help="Count distinct values" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--histogram" help="Show all distinct values" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--distribution" help="Show truncated histogram" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--mean" help="Calculate mean" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--sum" help="Sum all values" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--range" help="Show min and max values" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--count" help="Count non-null values" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--bin" help="Linear histogram of values" aliases="quantize" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--head" help="First value in factor" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--tail" help="Last value in factor" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--object" help="Maximum object identifier" {
+                arg "<ATTRIBUTE>"
+            }
+            // Aggregations (undocumented)
+            flag "--last" help="Last object identifier" hide=#true {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--first" help="First object identifier" hide=#true {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--min" help="Min object identifier" hide=#true {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--max" help="Max object identifier" hide=#true {
+                arg "<ATTRIBUTE>"
+            }
+            // Sorting
+            flag "--sort" help="Sort results: [-](column|fold_term)" {
+                arg "<TERM>"
+            }
+            // Computed Views
+            flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" {
+                arg "<SPEC>"
+            }
+            // Not documented
+            flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+                arg "<QUERY>"
+            }
+            flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+                arg "<QUERY>"
+            }
+            flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+                arg "<QUERY>"
+            }
+            flag "--reverse" help="Reverse sort order" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--template" help="TODO: (ex: select)" { // TODO
+                arg "<ATTRIBUTE>"
+            }
+            flag "--factor" help="Group by attribute" {
+                arg "<ATTRIBUTE>"
+            }
+            flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+                arg "<VALUE>"
             }
         }
     }
@@ -1134,6 +1402,15 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
     }
     
     cmd "alert" subcommand_required=#true help="Manage workflow alerts" {
+        cmd "list" help="List workflow alerts" {
+            flag "--raw" help="Output raw JSON"
+        }
+        
+        cmd "get" help="Get workflow alert" {
+            arg "<ID>" help="Alert ID"
+            flag "--raw" help="Output raw JSON"
+        }
+        
         cmd "create" help="Create workflow alert" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -1162,15 +1439,6 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             flag "--from-file" help="Load from file" {
                 arg "<FILE>"
             }
-            flag "--raw" help="Output raw JSON"
-        }
-        
-        cmd "list" help="List workflow alerts" {
-            flag "--raw" help="Output raw JSON"
-        }
-        
-        cmd "get" help="Get workflow alert" {
-            arg "<ID>" help="Alert ID"
             flag "--raw" help="Output raw JSON"
         }
         
@@ -1249,10 +1517,14 @@ cmd "attribute" subcommand_required=#true help="Manage project attributes" {
             arg "<DESC>"
         }
         flag "--type" help="Type: bitmap|uint8|uint16|uint32|uint64|uint128|uuid|dictionary" {
-            arg "<TYPE>"
+            arg "<TYPE>" {
+                choices bitmap uint8 uint16 uint32 uint64 uint128 uuid dictionary
+            }
         }
-        flag "--format" help="Format: none|commit|semver|callstack|hostname|bytes|..." {
-            arg "<FORMAT>"
+        flag "--format" help="Format: none|commit|semver|callstack|hostname|bytes|kilobytes|gigabytes|nanoseconds|milliseconds|seconds|unix_timestamp|js_timestamp|gps_timestamp|memory_address|labels|sha256|uuid|ipv4|ipv6" {
+            arg "<FORMAT>" {
+                choices none commit semver callstack hostname bytes kilobytes gigabytes nanoseconds milliseconds seconds unix_timestamp js_timestamp gps_timestamp memory_address labels sha256 uuid ipv4 ipv6
+            }
         }
     }
     
