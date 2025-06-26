@@ -115,7 +115,7 @@ cmd "get" help="Download object from object store" {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<OBJECT_ID>" help="Object identifier"
     
-    flag "-o" "--output" help="Output to file" {
+    flag "-o --output" help="Output to file" {
         arg "<FILE>"
     }
     flag "--resource" help="Fetch specific resource" {
@@ -179,7 +179,7 @@ cmd "clean" help="Apply sampling retroactively" {
     flag "--verbose" help="Verbose output"
 }
 
-cmd "attachment" help="Manage object attachments" {
+cmd "attachment" subcommand_required=#true help="Manage object attachments" {
     cmd "add" help="Add attachment to object" {
         arg "<PROJECT>" help="Project name"
         arg "<OID>" help="Object ID"
@@ -229,7 +229,7 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
     flag "--filter" help="Filter expression" {
         arg "<FILTER>"
     }
-    flag "-o" "--output" help="Output SVG file" {
+    flag "-o --output" help="Output SVG file" {
         arg "<FILE>"
     }
     flag "--reverse" help="Sample from leaf functions"
@@ -238,8 +238,9 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
 
 cmd "symbol" help="Manage debug symbols" {
     arg "<PROJECT>" help="Project name or universe/project"
-    arg "<ACTION>" help="Action: summary|list|missing|archives" required=#false
-    
+    arg "[ACTION]" help="Action: summary|list|missing|archives" required=#false default=summary {
+        choices summary list missing archives
+    }
     flag "--tag" help="Filter by tag" {
         arg "<TAG>"
     }
@@ -247,17 +248,17 @@ cmd "symbol" help="Manage debug symbols" {
         arg "<FILTER>"
     }
     flag "--json" help="JSON output"
-    flag "-o" "--output" help="Output to file" {
+    flag "-o --output" help="Output to file" {
         arg "<FILE>"
     }
 }
 
-cmd "symbold" help="Manage symbold service" {
+cmd "symbold" subcommand_required=#true help="Manage symbold service" {
     cmd "status" help="Get symbold status" {
         arg "<PROJECT>" help="Project name"
     }
     
-    cmd "symbolserver" help="Manage symbol servers" {
+    cmd "symbolserver" subcommand_required=#true help="Manage symbol servers" {
         cmd "list" help="List symbol servers" {
             arg "<PROJECT>" help="Project name"
         }
@@ -321,7 +322,7 @@ cmd "symbold" help="Manage symbold service" {
         }
     }
     
-    cmd "whitelist" help="Manage whitelist" {
+    cmd "whitelist" subcommand_required=#true help="Manage whitelist" {
         cmd "add" help="Add to whitelist" {
             flag "--name" help="Item name" required=#true {
                 arg "<NAME>"
@@ -344,7 +345,7 @@ cmd "symbold" help="Manage symbold service" {
         }
     }
     
-    cmd "blacklist" help="Manage blacklist" {
+    cmd "blacklist" subcommand_required=#true help="Manage blacklist" {
         cmd "add" help="Add to blacklist" {
             flag "--name" help="Item name" required=#true {
                 arg "<NAME>"
@@ -367,7 +368,7 @@ cmd "symbold" help="Manage symbold service" {
         }
     }
     
-    cmd "skiplist" help="Manage skiplist" {
+    cmd "skiplist" subcommand_required=#true help="Manage skiplist" {
         cmd "find" help="Find items in skiplist" {
             arg "<SERVER_ID>" help="Symbol server ID"
             arg "<FILTER>" help="Filter string"
@@ -392,7 +393,7 @@ cmd "symbold" help="Manage symbold service" {
         }
     }
     
-    cmd "queue" help="Manage symbold queue" {
+    cmd "queue" subcommand_required=#true help="Manage symbold queue" {
         cmd "list" help="List queue events"
         
         cmd "add" help="Add to queue" aliases="create" {
@@ -407,21 +408,21 @@ cmd "symbold" help="Manage symbold service" {
     }
 }
 
-cmd "project" help="Manage projects" {
+cmd "project" subcommand_required=#true help="Manage projects" {
     cmd "create" help="Create new project" {
         arg "<NAME>" help="Project name"
     }
 }
 
-cmd "projects" help="Manage projects" {
+cmd "projects" subcommand_required=#true help="Manage projects" {
     cmd "list" help="List all projects"
 }
 
-cmd "report" help="Manage scheduled reports" {
+cmd "report" subcommand_required=#true help="Manage scheduled reports" {
     arg "<PROJECT>" help="Project name"
     
     cmd "create" help="Create report" {
-        flag "--rcpt" help="Recipient email" required=#true {
+        flag "--rcpt" help="Recipient email" required=#true var=#true {
             arg "<EMAIL>"
         }
         flag "--title" help="Report title" required=#true {
@@ -482,7 +483,7 @@ cmd "reprocess" help="Reprocess objects" {
     }
 }
 
-cmd "retention" help="Configure retention policy" {
+cmd "retention" subcommand_required=#true help="Configure retention policy" {
     cmd "list" help="List retention policies"
     
     cmd "set" help="Set retention policy" {
@@ -527,7 +528,7 @@ cmd "retention" help="Configure retention policy" {
     }
 }
 
-cmd "sampling" help="Manage object sampling" {
+cmd "sampling" subcommand_required=#true help="Manage object sampling" {
     cmd "status" help="Get sampling status" {
         flag "--fingerprint" help="Specific fingerprint" {
             arg "<FP>"
@@ -579,7 +580,7 @@ cmd "sampling" help="Manage object sampling" {
     }
 }
 
-cmd "scrubber" help="Manage data scrubbers" {
+cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
     arg "<PROJECT>" help="Project name"
     
     cmd "list" help="List scrubbers"
@@ -627,7 +628,7 @@ cmd "nuke" help="Delete object and dependencies" {
     }
 }
 
-cmd "token" help="Manage API tokens" {
+cmd "token" subcommand_required=#true help="Manage API tokens" {
     cmd "create" help="Create token" {
         flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
@@ -651,7 +652,7 @@ cmd "token" help="Manage API tokens" {
     }
 }
 
-cmd "user" help="Manage users" {
+cmd "user" subcommand_required=#true help="Manage users" {
     cmd "reset" help="Reset user password" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -668,7 +669,7 @@ cmd "user" help="Manage users" {
     }
 }
 
-cmd "users" help="Manage users" {
+cmd "users" subcommand_required=#true help="Manage users" {
     cmd "add-signup-whitelist" help="Add domain to signup whitelist" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -687,7 +688,7 @@ cmd "users" help="Manage users" {
     cmd "list-teamless-users" help="List users not in any team"
 }
 
-cmd "tenant" help="Manage isolated tenants (enterprise)" {
+cmd "tenant" subcommand_required=#true help="Manage isolated tenants (enterprise)" {
     cmd "create" help="Create tenant" {
         arg "<NAME>" help="Tenant name"
     }
@@ -721,7 +722,7 @@ cmd "similarity" help="Compute crash group similarity" {
     flag "--json" help="Return JSON result"
 }
 
-cmd "invite" help="Invite users to system" {
+cmd "invite" subcommand_required=#true help="Invite users to system" {
     cmd "create" help="Create invitation" {
         arg "<USERNAME>" help="Username"
         arg "<EMAIL>" help="Email address"
@@ -751,15 +752,15 @@ cmd "invite" help="Invite users to system" {
     }
 }
 
-cmd "callstack" help="Evaluate callstack processing" {
+cmd "callstack" subcommand_required=#true help="Evaluate callstack processing" {
     cmd "evaluate" help="Check callstack results" {
         arg "<PROJECT>" help="Project name"
         arg "<TARGET>" help="Object ID or JSON file"
     }
 }
 
-cmd "access" help="Control access permissions" {
-    cmd "team" help="Manage teams" {
+cmd "access" subcommand_required=#true help="Control access permissions" {
+    cmd "team" subcommand_required=#true help="Manage teams" {
         cmd "create" help="Create team" {
             arg "<TEAM>" help="Team name"
         }
@@ -785,7 +786,7 @@ cmd "access" help="Control access permissions" {
         cmd "list" help="List all teams"
     }
     
-    cmd "project" help="Manage project access" {
+    cmd "project" subcommand_required=#true help="Manage project access" {
         arg "<PROJECT>" help="Project name"
         
         cmd "add-team" help="Add team to project" {
@@ -810,7 +811,7 @@ cmd "access" help="Control access permissions" {
     }
 }
 
-cmd "stability" help="Manage stability metrics" {
+cmd "stability" subcommand_required=#true help="Manage stability metrics" {
     cmd "create-metric" help="Create metric" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -830,7 +831,7 @@ cmd "stability" help="Manage stability metrics" {
     }
 }
 
-cmd "metrics-importer" help="Control metrics importer" {
+cmd "metrics-importer" subcommand_required=#true help="Control metrics importer" {
     cmd "source" help="Manage sources" {
         cmd "check-query" help="Validate query" {
             flag "--source" help="Source UUID" required=#true {
@@ -845,7 +846,7 @@ cmd "metrics-importer" help="Control metrics importer" {
         }
     }
     
-    cmd "importer" help="Manage importers" {
+    cmd "importer" subcommand_required=#true help="Manage importers" {
         cmd "create" help="Create importer" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -890,8 +891,8 @@ cmd "metrics-importer" help="Control metrics importer" {
     }
 }
 
-cmd "alerts" help="Manage alerts" {
-    cmd "target" help="Manage alert targets" {
+cmd "alerts" subcommand_required=#true help="Manage alerts" {
+    cmd "target" subcommand_required=#true help="Manage alert targets" {
         cmd "create" help="Create target" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -940,7 +941,7 @@ cmd "alerts" help="Manage alerts" {
         }
     }
     
-    cmd "alert" help="Manage alerts" {
+    cmd "alert" subcommand_required=#true help="Manage alerts" {
         cmd "create" help="Create alert" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -1021,8 +1022,8 @@ cmd "alerts" help="Manage alerts" {
     }
 }
 
-cmd "workflows" help="Manage workflow integrations" {
-    cmd "connection" help="Manage connections" {
+cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
+    cmd "connection" subcommand_required=#true help="Manage connections" {
         cmd "create" help="Create connection" {
             flag "--name" help="Connection name" required=#true {
                 arg "<NAME>"
@@ -1068,7 +1069,7 @@ cmd "workflows" help="Manage workflow integrations" {
         }
     }
     
-    cmd "integration" help="Manage integrations" {
+    cmd "integration" subcommand_required=#true help="Manage integrations" {
         cmd "create" help="Create integration" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -1132,7 +1133,7 @@ cmd "workflows" help="Manage workflow integrations" {
         }
     }
     
-    cmd "alert" help="Manage workflow alerts" {
+    cmd "alert" subcommand_required=#true help="Manage workflow alerts" {
         cmd "create" help="Create workflow alert" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -1191,7 +1192,7 @@ cmd "workflows" help="Manage workflow integrations" {
     }
 }
 
-cmd "actions" help="Manage actions configuration" {
+cmd "actions" subcommand_required=#true help="Manage actions configuration" {
     cmd "get" help="Display actions config" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -1239,7 +1240,7 @@ cmd "actions" help="Manage actions configuration" {
     }
 }
 
-cmd "attribute" help="Manage project attributes" {
+cmd "attribute" subcommand_required=#true help="Manage project attributes" {
     cmd "create" help="Create attribute" {
         arg "<PROJECT>" help="Project name"
         arg "<NAME>" help="Attribute name"
@@ -1261,7 +1262,7 @@ cmd "attribute" help="Manage project attributes" {
     }
 }
 
-cmd "view" help="Manage query views" {
+cmd "view" subcommand_required=#true help="Manage query views" {
     cmd "create" help="Create view" {
         arg "<PROJECT>" help="Project name"
         arg "<NAME>" help="View name"
