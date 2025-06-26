@@ -7,7 +7,7 @@ about "Command-line interface to the Backtrace object store"
 version "from-package-json"
 
 // Global flags
-flag "-v" "--version" help="Print version number and exit"
+flag "-v --version" help="Print version number and exit"
 flag "--debug" help="Enable verbose debug printing"
 flag "-k" help="Disable SSL verification with CA"
 flag "--timeout" help="Set the timeout on API requests in milliseconds" {
@@ -1282,19 +1282,19 @@ cmd "view" help="Manage query views" {
 }
 
 // Hidden/internal commands
-cmd "error" help="Throw test error" hidden=true {
+cmd "error" help="Throw test error" hide=#true {
     arg "message" help="Error message"
 }
 
-cmd "log" help="Show changelog" hidden=true
-cmd "audit" help="Audit log operations" hidden=true
-cmd "bpg" help="Binary protocol operations" hidden=true
-cmd "control" help="Control operations" hidden=true
-cmd "deduplication" help="Deduplication operations" hidden=true
-cmd "latency" help="Latency testing" hidden=true
-cmd "cts" help="CTS operations" hidden=true
-cmd "ci" help="CI operations" hidden=true
-cmd "session" help="Session operations" hidden=true
-cmd "limit" help="Limit operations" hidden=true
-cmd "service" help="Service operations" hidden=true
-cmd "status" help="Status operations" hidden=true
+cmd "log" help="Show changelog" hide=#true
+cmd "audit" help="Audit log operations" hide=#true
+cmd "bpg" help="Binary protocol operations" hide=#true
+cmd "control" help="Control operations" hide=#true
+cmd "deduplication" help="Deduplication operations" hide=#true
+cmd "latency" help="Latency testing" hide=#true
+cmd "cts" help="CTS operations" hide=#true
+cmd "ci" help="CI operations" hide=#true
+cmd "session" help="Session operations" hide=#true
+cmd "limit" help="Limit operations" hide=#true
+cmd "service" help="Service operations" hide=#true
+cmd "status" help="Status operations" hide=#true
