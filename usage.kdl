@@ -145,7 +145,8 @@ cmd "attachment" subcommand_required=#true help="Manage object attachments" {
     }
 }
 
-cmd "list" help="Query and list objects with filters and aggregations" aliases="ls" {
+cmd "list" help="Query and list objects with filters and aggregations" {
+    // alias "ls"
     arg "<PROJECT>" help="Project name or universe/project"
     arg "[SUBSTRING]" help="Optional substring filter" required=#false
     // Filters
@@ -196,7 +197,8 @@ cmd "list" help="Query and list objects with filters and aggregations" aliases="
     flag "--count" help="Count non-null values" {
         arg "<ATTRIBUTE>"
     }
-    flag "--bin" help="Linear histogram of values" aliases="quantize" {
+    flag "--bin" help="Linear histogram of values" {
+        // alias "quantize"
         arg "<ATTRIBUTE>"
     }
     flag "--head" help="First value in factor" {
@@ -439,7 +441,8 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
     cmd "queue" subcommand_required=#true help="Manage symbold queue" {
         cmd "list" help="List queue events"
         
-        cmd "add" help="Add to queue" aliases="create" {
+        cmd "add" help="Add to queue" {
+            // alias "create"
             arg "<PROJECT>" help="Universe/project"
             arg "<SYMBOL>" help="Missing symbol"
             arg "<OID>" help="Object ID"
@@ -538,7 +541,8 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         flag "--count" help="Count non-null values" {
             arg "<ATTRIBUTE>"
         }
-        flag "--bin" help="Linear histogram of values" aliases="quantize" {
+        flag "--bin" help="Linear histogram of values" {
+            // alias "quantize"
             arg "<ATTRIBUTE>"
         }
         flag "--head" help="First value in factor" {
@@ -1234,7 +1238,8 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--count" help="Count non-null values" {
                 arg "<ATTRIBUTE>"
             }
-            flag "--bin" help="Linear histogram of values" aliases="quantize" {
+            flag "--bin" help="Linear histogram of values" {
+                // alias "quantize"
                 arg "<ATTRIBUTE>"
             }
             flag "--head" help="First value in factor" {
