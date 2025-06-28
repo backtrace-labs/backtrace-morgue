@@ -5,6 +5,7 @@ name "morgue"
 bin "morgue"
 about "Command-line interface to the Backtrace object store"
 version "from-package-json"
+license "GPL-2.0-only"
 
 // Global flags
 flag "--endpoint" help="Specify API endpoint" global=#true {
