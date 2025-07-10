@@ -12,7 +12,6 @@ const crdb      = require('../lib/crdb.js');
 const BPG       = require('../lib/bpg.js');
 const minimist  = require('minimist');
 const os        = require('os');
-const ip        = require('ip');
 const ipv6      = require('ip6addr');
 const bar       = require('./bar.js');
 const ta        = require('time-ago');
@@ -35,7 +34,6 @@ const chrono = require('chrono-node');
 const zlib      = require('zlib');
 const symbold = require('../lib/symbold.js');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const Slack = require('slack-node');
 const metricsImporterCli = require('../lib/metricsImporter/cli.js');
 const alertsCli = require("../lib/alerts/cli");
 const timeCli = require('../lib/cli/time');
@@ -232,7 +230,6 @@ var commands = {
   ls: coronerList,
   describe: coronerDescribe,
   cts: coronerCts,
-  ci: coronerCI,
   token: coronerToken,
   session: coronerSession,
   access: coronerAccessControl,
@@ -1013,177 +1010,6 @@ function unmergeFingerprints(argv, config) {abortIfNotLoggedIn(config);
 
   const coroner = coronerClientArgv(config, argv);
   return _coronerMerge(coroner, universe, project, fingerprints, 'unmerge');
-}
-
-/*
- * Usage: ci <project> --run=<attribute> --tag=<branch> <value> --slack=<base> --target=<channel>
- *
- * coroner ci cts run sbahra-123 --slack=292191/12392139/119212912 --target=#build
- */
-function coronerCI(argv, config) {
-  abortIfNotLoggedIn(config);
-  var coroner = coronerClientArgv(config, argv);
-  let message = '';
-  let slack;
-
-  let universe = argv.universe;
-  if (!universe) {
-    universe = Object.keys(config.config.universes)[0];
-  }
-
-  let project = argv._[1];
-  let value = argv._[2];
-  let attribute = argv.run;
-
-  /* Get a summary of issues found by tool for a given run. */
-  let query = queryCli.argvQuery(argv);
-  let q_v = query.query;
-  q_v.filter[0][attribute] = [ [ "equal", value ] ];
-  q_v.filter[0]['fingerprint;issues;state'] = [ [ "regular-expression", "open|progress" ] ];
-  q_v.group = ["tool"];
-  q_v.fold = {};
-  q_v.fold.fingerprint = [[ "unique" ]];
-
-  if (!argv.terminal && argv.slack && argv.target) {
-    slack = new Slack();
-    slack.setWebhook('https://hooks.slack.com/services/' + argv.slack);
-  }
-
-  coroner.query(universe, project, q_v, function(err, result) {
-    if (err) {
-      errx(err.message);
-    }
-
-    var rp = new crdb.Response(result.response);
-    rp = rp.unpack();
-
-    let total_f = 0;
-    let total_c = 0;
-    for (let j in rp) {
-      total_f += rp[j]['unique(fingerprint)'][0];
-      total_c += rp[j].count;
-    }
-
-    delete q_v.filter[0][attribute];
-    q_v.filter[0]['fingerprint;issues;tags'] = [["contains", argv.tag]];
-    q_v.fold.classifiers = [[ "distribution" ]];
-    delete q_v.group;
-
-    coroner.query(universe, project, q_v, function(err, result) {
-      if (err) {
-        errx(err.message);
-      }
-
-      var rp = new crdb.Response(result.response);
-      rp = rp.unpack();
-
-      let fields = [];
-
-      fields.push({title:"",short:false,value:""});
-
-      let open_count = 0;
-      if (rp && rp['*'] && rp['*'].count > 0) {
-        open_count = rp['*'].count;
-
-        fields.push({
-          title: "Failure",
-          value: open_count + ' regressions introduced in `' +
-              argv.tag + '` in an open state.\n'
-        });
-
-        let d_v = rp['*']['distribution(classifiers)'][0].vals;
-
-        for (var i = 0; i < d_v.length; i++) {
-          if (d_v[i][0].length > 32)
-            d_v[i][0] = d_v[i][0].substring(0, 16) + '...';
-
-          fields.push({ title: "`" + d_v[i][0] + "`", value: d_v[i][1] + "", "short" : true });
-        }
-      } else {
-        fields.push({
-          title: "Success",
-          value: "No open regressions found."
-        });
-      }
-
-      message += 'Found ' + total_c + ' errors across ' + total_f + ' open issues.\n';
-
-      function c_url(a, o, v) {
-        return config.endpoint + "/p/" + project + "/triage?time=month&filters=((" +
-          a + "%2C" + o + "%2C" + v + ")%2C(fingerprint%3Bissues%3Bstate%2Cregex%2Copen%7Cprogress))";
-      }
-
-      fields.push({title:"",short:false,value:""});
-
-      if (argv.author) {
-        fields.push({
-          title: "Author",
-          short: true,
-          value: argv.author
-        });
-      }
-
-      if (argv.build) {
-        fields.push({
-          title: "Build",
-          short: true,
-          value: argv.build + ""
-        });
-      }
-
-      if (total_f > 0 || open_count > 0) {
-        fields.push({
-          title: "Actions",
-          short: false,
-          value:
-            "<" + c_url("fingerprint%3Bissues%3Btags", "contains", argv.tag) + "|View regressions> | " +
-            "<" + c_url(argv.run, "equal", value) + "|View all defects>"
-        });
-      }
-
-      if (! argv.terminal) {
-        if (slack) {
-          if (argv.author) {
-            slack.webhook({
-              channel: '@' + argv.author,
-              username: 'Backtrace',
-              attachments: [
-                {
-                  color : open_count > 0 ? "#FF0000" : "good",
-                  footer: "Backtrace",
-                  footer_icon: "https://backtrace.io/images/icon.png",
-                  author_name: value,
-                  ts: parseInt(Date.now() / 1000),
-                  fields: fields,
-                  text: message
-                }
-              ]
-            }, function (e, r) {
-            });
-          }
-
-          slack.webhook({
-            channel: argv.target,
-            username: 'Backtrace',
-            attachments: [
-              {
-                color : open_count > 0 ? "#FF0000" : "good",
-                footer: "Backtrace",
-                footer_icon: "https://backtrace.io/images/icon.png",
-                author_name: value,
-                ts: parseInt(Date.now() / 1000),
-                fields: fields,
-                text: message
-              }
-            ]
-          }, function (e, r) {
-          });
-        }
-      } else {
-        console.log(JSON.stringify({msg: message, fields: fields}));
-      }
-    });
-  });
 }
 
 /*
@@ -6015,7 +5841,8 @@ function fieldFormat(st, format) {
     case 'bytes':
       return st + ' B';
     case 'ipv4':
-      return ip.fromLong(parseInt(st));
+      var ipl = parseInt(st);
+      return `${ipl >>> 24}.${ipl >> 16 & 255}.${ipl >> 8 & 255}.${ipl & 255}`;
     case 'ipv6':
       return uint128ToIpv6(st)
     case 'gps_timestamp':
