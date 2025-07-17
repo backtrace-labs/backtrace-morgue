@@ -45,7 +45,7 @@ function npmRun(scriptName) {
     let res = spawnSync(npm_node_execpath, [npm_execpath, 'run', scriptName], {
         stdio: 'inherit',
     });
-    process.exit(res.status || 1);
+    process.exit(typeof res.status === 'number' ? res.status : 1);
 }
 
 main();

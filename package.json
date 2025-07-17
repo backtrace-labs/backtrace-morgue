@@ -46,7 +46,6 @@
     "table": "^4.0.1",
     "time-ago": "^0.2.1",
     "url-join": "^4.0.1",
-    "typescript": "^5.8.3",
     "winston": "2.4.5"
   },
   "preferGlobal": true,
@@ -71,6 +70,7 @@
     "eslint": "^7.12.1",
     "gulp": "^5.0.1",
     "gulp-babel": "^8.0.0",
+    "typescript": "^5.8.3",
     "workaround-broken-npm-prepack-behavior": "https://github.com/cspotcode/workaround-broken-npm-prepack-behavior#1a7adbbb8a527784daf97edad6ba42d6e96611f6"
   },
   "files": [
