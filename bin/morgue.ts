@@ -581,6 +581,7 @@ async function coronerSetupUser(coroner, bpg, setupCfg): Promise<any> {
 }
 
 async function coronerSetupUniverse(coroner, bpg, setupCfg): Promise<any> {
+  console.log("HELLO!")
   let universe_name = setupCfg?.universe;
   if (!universe_name) {
     console.log(bold('Create an organization'));
