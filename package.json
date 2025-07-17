@@ -80,7 +80,7 @@
     "copy-assets": "cp -r assets dist/",
     "lint": "eslint",
     "prepack": "npm run build",
-    "prepare": "pwd ; echo $PATH | tr : $'\\n' ; ls -l $(echo $PATH | tr : $'\\n') ; sleep 3000 ; workaround-broken-npm-prepack-behavior prepack",
+    "prepare": "cp -r . /Users/charles.strahan/npm-cache ; pwd ; echo $PATH | tr : $'\\n' ; ls -l $(echo $PATH | tr : $'\\n') ; workaround-broken-npm-prepack-behavior prepack",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch"
   }
