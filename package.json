@@ -73,6 +73,9 @@
     "typescript": "^5.8.3",
     "workaround-broken-npm-prepack-behavior": "https://github.com/cspotcode/workaround-broken-npm-prepack-behavior#1a7adbbb8a527784daf97edad6ba42d6e96611f6"
   },
+  "files": [
+    "dist/**"
+  ],
   "scripts": {
     "build": "npm run clean && npm run compile",
     "clean": "tsc -b --clean",
@@ -83,6 +86,5 @@
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch"
-
   }
 }
