@@ -71,7 +71,7 @@
     "gulp": "^5.0.1",
     "gulp-babel": "^8.0.0",
     "typescript": "^5.8.3",
-    "workaround-broken-npm-prepack-behavior": "https://github.com/cspotcode/workaround-broken-npm-prepack-behavior#59e32763ce19d087062b6ce287a21ee00d9a7187"
+    "workaround-broken-npm-prepack-behavior": "https://github.com/cspotcode/workaround-broken-npm-prepack-behavior#1a7adbbb8a527784daf97edad6ba42d6e96611f6"
   },
   "scripts": {
     "build": "npm run clean && npm run compile",
