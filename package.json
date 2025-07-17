@@ -75,7 +75,7 @@
   },
   "scripts": {
     "build": "npm run clean && npm run compile",
-    "clean": "rm -rf dist",
+    "clean": "tsc -b --clean",
     "compile": "tsc && npm run copy-assets",
     "copy-assets": "cp -r assets dist/",
     "lint": "eslint",
