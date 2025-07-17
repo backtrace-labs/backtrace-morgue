@@ -1,4 +1,24 @@
+// AbortController polyfill for Node.js versions that don't have it built-in
+
+interface EventListener {
+  callback: Function;
+  options?: { once?: boolean };
+}
+
+interface EventListeners {
+  [type: string]: EventListener[];
+}
+
+interface AbortEvent {
+  type: string;
+  bubbles?: boolean;
+  cancelable?: boolean;
+  defaultPrevented?: boolean;
+}
+
 class Emitter {
+  listeners: EventListeners;
+
   constructor() {
     Object.defineProperty(this, "listeners", {
       value: {},
@@ -6,13 +26,15 @@ class Emitter {
       configurable: true,
     });
   }
-  addEventListener(type, callback, options) {
+
+  addEventListener(type: string, callback: Function, options?: { once?: boolean }): void {
     if (!(type in this.listeners)) {
       this.listeners[type] = [];
     }
     this.listeners[type].push({ callback, options });
   }
-  removeEventListener(type, callback) {
+
+  removeEventListener(type: string, callback: Function): void {
     if (!(type in this.listeners)) {
       return;
     }
@@ -24,9 +46,10 @@ class Emitter {
       }
     }
   }
-  dispatchEvent(event) {
+
+  dispatchEvent(event: AbortEvent): boolean {
     if (!(event.type in this.listeners)) {
-      return;
+      return false;
     }
     const stack = this.listeners[event.type];
     const stackToCall = stack.slice();
@@ -47,7 +70,11 @@ class Emitter {
   }
 }
 
-class AbortSignal extends Emitter {
+class AbortSignalPolyfill extends Emitter {
+  aborted: boolean;
+  onabort: ((event: AbortEvent) => void) | null;
+  reason: any;
+
   constructor() {
     super();
     // Some versions of babel does not transpile super() correctly for IE <= 10, if the parent
@@ -78,10 +105,12 @@ class AbortSignal extends Emitter {
       configurable: true,
     });
   }
-  toString() {
+
+  toString(): string {
     return "[object AbortSignal]";
   }
-  dispatchEvent(event) {
+
+  dispatchEvent(event: AbortEvent): boolean {
     if (event.type === "abort") {
       this.aborted = true;
       if (typeof this.onabort === "function") {
@@ -89,22 +118,25 @@ class AbortSignal extends Emitter {
       }
     }
 
-    super.dispatchEvent(event);
+    return super.dispatchEvent(event);
   }
 }
 
-class AbortController {
+class AbortControllerPolyfill {
+  signal: AbortSignalPolyfill;
+
   constructor() {
     // Compared to assignment, Object.defineProperty makes properties non-enumerable by default and
     // we want Object.keys(new AbortController()) to be [] for compat with the native impl
     Object.defineProperty(this, "signal", {
-      value: new AbortSignal(),
+      value: new AbortSignalPolyfill(),
       writable: true,
       configurable: true,
     });
   }
-  abort(reason) {
-    let event = {
+
+  abort(reason?: any): void {
+    const event: AbortEvent = {
       type: "abort",
       bubbles: false,
       cancelable: false,
@@ -119,11 +151,13 @@ class AbortController {
 
     this.signal.dispatchEvent(event);
   }
-  toString() {
+
+  toString(): string {
     return "[object AbortController]";
   }
 }
 
-if (!global.AbortController) {
-  global.AbortController = AbortController;
+// Only polyfill if not already available
+if (typeof global !== 'undefined' && !('AbortController' in global)) {
+  (global as any).AbortController = AbortControllerPolyfill;
 }

@@ -1,10 +1,10 @@
-const CreateIntegration = require("./models/createIntegration");
-const cliOptions = require("../cli/options");
-const router = require("../cli/router");
-const UpdateIntegration = require("./models/updateIntegration");
-const { output, loadInit, getPluginId } = require("./utils");
-const { errx } = require("../cli/errors");
-const { integrationOptions } = require("./plugins/plugins");
+import { CreateIntegration } from './models/createIntegration';
+import * as cliOptions from '../cli/options';
+import * as router from '../cli/router';
+import { UpdateIntegration } from './models/updateIntegration';
+import { output, loadInit, getPluginId } from './utils';
+import { errx } from '../cli/errors';
+import { integrationOptions } from './plugins/plugins';
 
 const HELP_MESSAGE = `
 Usage:
@@ -14,8 +14,12 @@ morgue workflows integration [create | list | get | update | delete] <args>
 See the Morgue README for option documentation.
 `;
 
-class WorkflowsIntegrationsCli {
-  constructor(client, universe, project) {
+export class WorkflowsIntegrationsCli {
+  client: any;
+  universe: any;
+  project: any;
+
+  constructor(client: any, universe: any, project: any) {
     this.client = client;
     this.universe = universe;
     this.project = project;
@@ -125,5 +129,3 @@ function printIntegration(integration) {
     `  name=${integration.watcherName} plugin=${integration.pluginId} state=${integration.state}`
   );
 }
-
-module.exports = WorkflowsIntegrationsCli;

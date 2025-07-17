@@ -1,9 +1,18 @@
-const cliOptions = require("../../cli/options");
-const assignDeep = require("assign-deep");
-const { parseFilter } = require("../../cli/query");
-const { skipNotDefinedKeys } = require("../utils");
+import * as cliOptions from '../../cli/options';
+import assignDeep from 'assign-deep';
+import { parseFilter } from '../../cli/query';
+import { skipNotDefinedKeys } from '../utils';
 
-class UpdateAlert {
+export class UpdateAlert {
+  name: any;
+  condition: any;
+  state: any;
+  filters: any;
+  threshold: any;
+  frequency: any;
+  integrations: any;
+  executionDelay: any;
+
   constructor({
     name,
     condition,
@@ -13,7 +22,7 @@ class UpdateAlert {
     frequency,
     integrations,
     executionDelay,
-  }) {
+  }: any) {
     this.name = name;
     this.condition = condition;
     this.state = state;
@@ -64,5 +73,3 @@ class UpdateAlert {
     );
   }
 }
-
-module.exports = UpdateAlert;

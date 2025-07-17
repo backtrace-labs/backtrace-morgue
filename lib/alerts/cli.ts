@@ -1,10 +1,10 @@
-const router = require('../cli/router');
-const options = require('../cli/options');
-const time = require('../cli/time');
-const { errx } = require('../cli/errors');
-const queryCli = require('../cli/query');
+import * as router from '../cli/router';
+import * as options from '../cli/options';
+import * as time from '../cli/time';
+import { errx } from '../cli/errors';
+import * as queryCli from '../cli/query';
 
-const client = require('./client');
+import * as client from './client';
 
 const HELP_MESSAGE = `
 USAGE:
@@ -14,7 +14,9 @@ morgue alerts alert [create | list | get | update | delete] <args>
 
 See the Morgue README for option documentation.
 `;
-class AlertsCli {
+export class AlertsCli {
+  client: any;
+
   constructor(client, universe, project) {
     this.client = client;
     this.client.setDefaultQs({ universe, project });
@@ -143,7 +145,7 @@ class AlertsCli {
    */
   async generateAlertSpec(argv, isCreate) {
     const convertOne = isCreate ? options.convertOne : options.convertAtMostOne;
-    const partial = {
+    const partial: any = {
       name: convertOne("name", argv.name),
       /* This is always optional, defaults true below if in create. */
       enabled: options.convertAtMostOne("enabled", argv.enabled),
@@ -261,8 +263,8 @@ class AlertsCli {
     /*
      * Filter out anything which wasn't set.
      */
-    const spec = {};
-    for (const [k, v] of unfilteredSpec) {
+    const spec: any = {};
+    for (const [k, v] of Object.entries(await unfilteredSpec)) {
       if (v === null || v === undefined) {
         continue;
       }
@@ -282,6 +284,8 @@ class AlertsCli {
      * because argvQuery is happy to generate queries from empty args, require
      * the user to be explicit.
      */
+    // cstrahan: note that updated was previously undefined :(
+    var updated: any = {};
     if (argv['replace-query']) {
       const query = queryCli.argvQuery(argv, /*implicitTimestampOps=*/false,
         /*doFolds=*/true).query;
@@ -295,9 +299,10 @@ class AlertsCli {
       updated.targets = [];
     }
 
-    const id = this.alertIdFromArgv(argv);
+    // cstrahan: note that this used to be spelled alertIdFromArgv; this function has been buggy for a while.
+    const id = this.alertIdFromArgs(argv);
     const alert  = await this.client.getAlert(id);
-    const updated = { ...alert, ...spec };
+    var updated = { ...alert, ...spec };
     await this.client.updateAlert(id, updated);
     console.log(`Updated alert ${id}`);
   }
@@ -328,7 +333,7 @@ class AlertsCli {
   }
 }
 
-async function alertsCliFromCoroner(coroner, argv, config) {
+export async function alertsCliFromCoroner(coroner, argv, config) {
   let universe = options.convertAtMostOne("universe", argv.universe);
   const project = options.convertOne("project", argv.project);
   /*
@@ -344,8 +349,3 @@ async function alertsCliFromCoroner(coroner, argv, config) {
   const c = await client.alertsClientFromCoroner(coroner);
   return new AlertsCli(c, universe, project);
 }
-
-module.exports = {
-  AlertsCli,
-  alertsCliFromCoroner,
-};

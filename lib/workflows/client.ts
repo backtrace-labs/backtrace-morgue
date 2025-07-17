@@ -1,11 +1,11 @@
-const { BaseServiceClient } = require("../baseServiceClient");
-const { err } = require("../cli/errors");
+import { BaseServiceClient } from '../baseServiceClient';
+import { err } from '../cli/errors';
 
 const urlBuilder = (...parts) => {
   return "/" + parts.filter((p) => p !== undefined).join("/");
 };
 
-const integrationsApiPath = (universe, project, id) => {
+const integrationsApiPath = (universe, project, id?: any) => {
   return urlBuilder(
     "universes",
     universe,
@@ -16,15 +16,15 @@ const integrationsApiPath = (universe, project, id) => {
   );
 };
 
-const alertsApiPath = (universe, project, id) => {
+const alertsApiPath = (universe, project, id?: any) => {
   return urlBuilder("universes", universe, "projects", project, "alerts", id);
 };
 
-const connectionsApiPath = (universe, id) => {
+const connectionsApiPath = (universe, id?: any) => {
   return urlBuilder("universes", universe, "connections", id);
 };
 
-class WorkflowsClient extends BaseServiceClient {
+export class WorkflowsClient extends BaseServiceClient {
   constructor(url, coronerLocation, coronerToken, insecure = false) {
     super(url, coronerLocation, coronerToken, insecure);
   }
@@ -191,5 +191,3 @@ class WorkflowsClient extends BaseServiceClient {
     return super.handleResponse(resp, body);
   }
 }
-
-module.exports = WorkflowsClient;

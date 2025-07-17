@@ -1,5 +1,9 @@
-function parseFrame(frame, options) {
+export interface CallstackOptions {
+  suffix?: number;
+  dynamic?: boolean;
+}
 
+function parseFrame(frame: string, options?: any): string[] {
   /* Templates are stripped by default. */
   frame = frame.replace(/<.*>/, "<…>");
 
@@ -10,40 +14,42 @@ function parseFrame(frame, options) {
   frame = frame.replace(/\(.*/, "");
 
   /* Now, split up the callstack label into class components. */
-  var classes = frame.split('::');
+  const classes = frame.split('::');
 
   return classes;
 }
  
-function parse(frames) {
-  var r = [];
+function parse(frames: string[]): string[][] {
+  const r: string[][] = [];
 
-  for (var i = 0; i < frames.length; i++) {
+  for (let i = 0; i < frames.length; i++) {
     r.push(parseFrame(frames[i]));
   }
 
   return r;
 }
 
-class Callstack {
-  constructor(frames) {
+export class Callstack {
+  frames: string[];
+  parsed: string[][];
+
+  constructor(frames: string[]) {
     this.frames = frames;
 
     /* We will begin tokenization step now. */
     this.parsed = parse(frames);
   }
 
-  render(options) {
-    var self = this;
-    var r = [];
+  render(options?: CallstackOptions): string[] {
+    const r: string[] = [];
 
-    for (var i = 0; i < this.parsed.length; i++) {
-      var frame = this.parsed[i];
-      var label;
+    for (let i = 0; i < this.parsed.length; i++) {
+      const frame = this.parsed[i];
+      let label: string;
 
       /* If a limit is set on the class suffix, then use that. */
       if (options && options.suffix) {
-        var begin = 0;
+        let begin = 0;
 
         if (frame.length > options.suffix) {
           begin = frame.length - options.suffix;
@@ -76,7 +82,5 @@ class Callstack {
     return r;
   }
 }
-
-module.exports = Callstack;
 
 //-- vim:ts=2:et:sw=2

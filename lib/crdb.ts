@@ -1,6 +1,9 @@
 "use strict";
 
-class Response {
+export class Response {
+  json: any;
+  _fields?: any;
+
   /**
    * This instantiates a coroner object associated with the specified
    * end-point.
@@ -167,7 +170,5 @@ class Response {
     return [row[0], result];
   }
 }
-
-module.exports.Response = Response;
 
 //-- vim:ts=2:et:sw=2

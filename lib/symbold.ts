@@ -1,12 +1,18 @@
-const request = require("@cypress/request");
-const symbolServer = require("./symbold/symboldSymbolServer");
-const symbolItem = require("./symbold/symboldSymbolItem");
-const queue = require("./symbold/symboldQueue");
+import * as request from '@cypress/request';
+import * as symbolServer from './symbold/symboldSymbolServer';
+import * as symbolItem from './symbold/symboldSymbolItem';
+import * as queue from './symbold/symboldQueue';
 
 /**
  * Symbold morgue client
  */
-class SymboldClient {
+export class SymboldClient {
+  coronerdClient: any;
+  debug: boolean;
+  timeout: number;
+  symboldEndpoint: string;
+  routing: any;
+
   constructor(coronerdClient) {
     this.coronerdClient = coronerdClient;
     this.debug = this.coronerdClient.debug;
@@ -154,7 +160,7 @@ class SymboldClient {
     );
   }
 
-  get(url, callback) {
+  get(url, callback?: (err: any, res: any) => any) {
     request.get(
       `${this.symboldEndpoint}${url}`,
       {
@@ -192,7 +198,7 @@ class SymboldClient {
     };
   }
 
-  showStatusHelp(err) {
+  showStatusHelp(err?: any) {
     if (err) {
       console.warn(`${err} \n`);
     }
@@ -204,7 +210,7 @@ class SymboldClient {
   `);
   }
 
-  showSymbolServerUsage(err) {
+  showSymbolServerUsage(err?: any) {
     if (err) {
       console.warn(`${err}`);
     }
@@ -218,4 +224,3 @@ class SymboldClient {
   }
 }
 
-module.exports.SymboldClient = SymboldClient;

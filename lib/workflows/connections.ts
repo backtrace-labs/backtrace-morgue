@@ -1,9 +1,9 @@
-const { output, loadInit, getPluginId } = require("./utils");
-const cliOptions = require("../cli/options");
-const CreateConnection = require("./models/createConnection");
-const router = require("../cli/router");
-const UpdateConnection = require("./models/updateConnection");
-const { connectionOptions } = require("./plugins/plugins");
+import { output, loadInit, getPluginId } from './utils';
+import * as cliOptions from '../cli/options';
+import { CreateConnection } from './models/createConnection';
+import * as router from '../cli/router';
+import { UpdateConnection } from './models/updateConnection';
+import { connectionOptions } from './plugins/plugins';
 
 const HELP_MESSAGE = `
 Usage:
@@ -13,8 +13,11 @@ morgue workflows connection [create | list | get | update | delete] <args>
 See the Morgue README for option documentation.
 `;
 
-class WorkflowsConnectionsCli {
-  constructor(client, universe) {
+export class WorkflowsConnectionsCli {
+  client: any;
+  universe: any;
+
+  constructor(client: any, universe: any) {
     this.client = client;
     this.universe = universe;
   }
@@ -87,5 +90,3 @@ function printConnection(connection) {
   console.log(`Connection ID=${connection.id}`);
   console.log(`  name=${connection.name} plugin=${connection.pluginId}`);
 }
-
-module.exports = WorkflowsConnectionsCli;

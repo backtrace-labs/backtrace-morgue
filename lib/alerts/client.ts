@@ -1,6 +1,6 @@
-const baseServiceClient = require('../baseServiceClient');
+import { BaseServiceClient } from '../baseServiceClient';
 
-class AlertsClient extends baseServiceClient.BaseServiceClient {
+export class AlertsClient extends BaseServiceClient {
   constructor(url, coronerLocation, coronerToken, insecure) {
     super(url, coronerLocation, coronerToken, insecure);
   }
@@ -48,13 +48,8 @@ class AlertsClient extends baseServiceClient.BaseServiceClient {
   }
 }
 
-async function alertsClientFromCoroner(coroner) {
+export async function alertsClientFromCoroner(coroner) {
   const serviceUrl = await coroner.find_service("alerts");
   return new AlertsClient(serviceUrl,
     coroner.endpoint, coroner.config.token, coroner.insecure);
 }
-
-module.exports = {
-  AlertsClient,
-  alertsClientFromCoroner,
-};

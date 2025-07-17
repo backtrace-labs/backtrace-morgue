@@ -1,4 +1,7 @@
-class SymboldSymbolItem {
+export class SymboldSymbolItem {
+  type: any;
+  symboldClient: any;
+
   constructor(type, client) {
     this.type = type;
     this.symboldClient = client;
@@ -150,7 +153,7 @@ class SymboldSymbolItem {
     this.symboldClient.get(url);
   }
 
-  showSymbolItemUsage(err) {
+  showSymbolItemUsage(err?: any) {
     if (err) {
       console.warn(`
       ${err} \n
@@ -197,5 +200,3 @@ class SymboldSymbolItem {
     }`);
   }
 }
-
-module.exports.SymboldSymbolItem = SymboldSymbolItem;

@@ -1,9 +1,9 @@
-const { output, loadInit } = require("./utils");
-const cliOptions = require("../cli/options");
-const CreateAlert = require("./models/createAlert");
-const router = require("../cli/router");
-const UpdateAlert = require("./models/updateAlert");
-const { errx } = require("../cli/errors");
+import { output, loadInit } from './utils';
+import * as cliOptions from '../cli/options';
+import { CreateAlert } from './models/createAlert';
+import * as router from '../cli/router';
+import { UpdateAlert } from './models/updateAlert';
+import { errx } from '../cli/errors';
 
 const HELP_MESSAGE = `
 Usage:
@@ -13,7 +13,11 @@ morgue workflows alert [create | list | get | update | delete] <args>
 See the Morgue README for option documentation.
 `;
 
-class WorkflowsAlertsCli {
+export class WorkflowsAlertsCli {
+  client: any;
+  universe: any;
+  project: any;
+
   constructor(client, universe, project) {
     this.client = client;
     this.universe = universe;
@@ -94,5 +98,3 @@ function printAlert(alert) {
   console.log(`Alert ID=${alert.id}`);
   console.log(`  name=${alert.name} state=${alert.state}`);
 }
-
-module.exports = WorkflowsAlertsCli;

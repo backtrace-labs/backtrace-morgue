@@ -18,7 +18,7 @@
  *
  * Displays usage on failure.
  */
-async function route(commands, usage, args) {
+export async function route(commands, usage, args) {
   let route = commands;
   let next;
 
@@ -39,7 +39,3 @@ async function route(commands, usage, args) {
 
   await route(args);
 }
-
-module.exports = {
-  route
-};

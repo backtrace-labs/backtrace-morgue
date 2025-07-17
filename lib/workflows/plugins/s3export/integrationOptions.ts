@@ -1,6 +1,6 @@
-const cliOptions = require("../../../cli/options");
-const assignDeep = require("assign-deep");
-const { skipNotDefinedKeys } = require("../../utils");
+import * as cliOptions from '../../../cli/options';
+import assignDeep from 'assign-deep';
+import { skipNotDefinedKeys } from '../../utils';
 
 /**
  * Schema:
@@ -19,7 +19,7 @@ const { skipNotDefinedKeys } = require("../../utils");
  * }
  * ```
  */
-function integrationOptions(options) {
+export function integrationOptions(options) {
   return assignDeep(
     {},
     options,
@@ -34,4 +34,3 @@ function integrationOptions(options) {
   );
 }
 
-module.exports = integrationOptions;

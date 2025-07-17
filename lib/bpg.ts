@@ -1,12 +1,36 @@
 'use strict';
 
-const request = require('sync-request'),
-       printf = require('printf'),
-        clone = require('clone');
+import printf from 'printf';
+import clone from 'clone';
+import request from 'sync-request';
+import chalk from 'chalk';
 
-function isPrimary(field) {
-  var i;
-  var primary = false;
+interface FieldConstraint {
+  type?: string;
+  constraints: string[];
+}
+
+interface FieldType {
+  [fieldName: string]: FieldConstraint;
+}
+
+interface BPGObjectOptions {
+  populate?: boolean;
+  key?: any;
+  cascade?: boolean;
+}
+
+interface CoronerdConfig {
+  url: string;
+  session?: {
+    token: string;
+  };
+  [key: string]: any;
+}
+
+function isPrimary(field: FieldConstraint): boolean {
+  let i: number;
+  let primary = false;
 
   for (i = 0; i < field.constraints.length; i++) {
     if (field.constraints[i] === 'primary')
@@ -23,10 +47,10 @@ function isPrimary(field) {
  * key used is that of the parent's primary fields. Otherwise, it uses
  * fields from existing object.
  */
-function generateKey(object) {
-  var source = object;
-  var field;
-  var hasPrimary = false;
+function generateKey(object: BPGObject): void {
+  let source = object;
+  let field: string;
+  let hasPrimary = false;
 
   if (object._parent)
     source = object._parent;
@@ -34,7 +58,7 @@ function generateKey(object) {
   object._key = {};
 
   for (field in object._type) {
-    var a = object._type[field].constraints;
+    const a = object._type[field].constraints;
     if (a.indexOf('primary') > -1) {
       hasPrimary = true;
       break;
@@ -42,7 +66,7 @@ function generateKey(object) {
   }
 
   for (field in object._type) {
-    var a = object._type[field].constraints;
+    const a = object._type[field].constraints;
 
     if (hasPrimary === true) {
       if (a.indexOf('primary') === -1)
@@ -56,14 +80,20 @@ function generateKey(object) {
 }
 
 class BPGObject {
-  constructor(t, name) {
+  _typeName: string;
+  _type: FieldType;
+  fields: { [key: string]: any };
+  _parent?: BPGObject;
+  _key?: { [key: string]: any };
+
+  constructor(t: FieldType, name: string) {
     this._typeName = name;
     this._type = t;
     this.fields = {};
   }
 
-  fork() {
-    var object = clone(this);
+  fork(): BPGObject {
+    const object = clone(this);
 
     /*
      * Clone the parent object, it is immutable outside of
@@ -73,18 +103,18 @@ class BPGObject {
     return object;
   }
 
-  remove(field) {
+  remove(field: string): void {
     delete this.fields[field];
   }
 
-  get(field) {
+  get(field: string): any {
     if (String(field).substring(0, 2) !== '__' && this.fields[field] === undefined)
       throw Error('unknown field ' + field);
     return this.fields[field];
   }
 
-  set(field, value, options) {
-    var expectedType, type;
+  set(field: string, value: any, options?: BPGObjectOptions): void {
+    let expectedType: string, type: string;
 
     if (!options)
       options = {};
@@ -103,7 +133,7 @@ class BPGObject {
     if (this._type[field] === undefined)
       throw Error('unknown field name "' + field + '"');
 
-    type = this._type[field].type;
+    type = this._type[field].type!;
     if (type === 'text') {
       expectedType = 'string';
     } else if (type === 'integer') {
@@ -122,8 +152,8 @@ class BPGObject {
     this.fields[field] = value;
   }
 
-  populate(result) {
-    var field;
+  populate(result: any): void {
+    let field: string;
     for (field in result) {
       this.set(field, result[field], {populate: true});
     }
@@ -135,12 +165,12 @@ class BPGObject {
    * obj = bpg.new('project').withFields({'id': 0, 'name': 'my-name' })
    *
    */
-  withFields(fields) {
+  withFields(fields: any): BPGObject {
     if (typeof(fields) != 'object') {
       throw Error('withFields expect an object');
     }
 
-    for (var field in fields) {
+    for (const field in fields) {
       this.set(field, fields[field])
     }
 
@@ -148,19 +178,27 @@ class BPGObject {
   }
 }
 
-class BPG {
-  constructor(coronerd, opts) {
+export class BPG {
+  coronerd: CoronerdConfig;
+  id: { [key: string]: number };
+  queue: any[];
+  opts: any;
+  types: { [key: string]: FieldType };
+  objects: { [key: string]: BPGObject[] };
+
+  constructor(coronerd: CoronerdConfig, opts?: any) {
     this.coronerd = coronerd;
     this.id = {};
     this.queue = [];
     this.opts = opts ? opts : {};
+    this.types = {};
+    this.objects = {};
     this.refresh();
   }
 
-  post(payload) {
-    var url = this.coronerd.url + '/api/bpg';
-    var full_payload = { json: payload };
-    var response;
+  post(payload: any): any {
+    let url = this.coronerd.url + '/api/bpg';
+    const full_payload = { json: payload };
 
     if (this.coronerd.session)
       url += '?token=' + this.coronerd.session.token;
@@ -170,7 +208,7 @@ class BPG {
       console.error(JSON.stringify(full_payload, null, 4));
     }
 
-    response = request('POST', url, full_payload);
+    let response = request('POST', url, full_payload);
 
     if (this.opts.debug) {
       console.error("\nResponse:\n");
@@ -179,8 +217,8 @@ class BPG {
     return response;
   }
 
-  refresh(token) {
-    var response, json, f;
+  refresh(token?: string): void {
+    let response: any, json: any, f: any;
 
     response = this.post({
       'actions' : [
@@ -199,8 +237,8 @@ class BPG {
     this.types = json.results[0].result;
   }
 
-  primary(type) {
-    var id;
+  primary(type: string): number {
+    let id: number;
 
     if (this.id[type] === undefined)
       this.id[type] = 0;
@@ -209,16 +247,16 @@ class BPG {
     return id;
   }
 
-  new(type) {
+  new(type: string): BPGObject {
     if (!this.types[type])
       throw Error('unknown type "' + type + '"');
 
     return new BPGObject(this.types[type], type);
   }
 
-  enqueue(a, object, fields, options) {
-    var cascade = false;
-    var key;
+  enqueue(a: string, object: BPGObject, fields: any, options?: BPGObjectOptions): void {
+    let cascade = false;
+    let key: any;
 
     if (a !== 'create' &&
         a !== 'modify' &&
@@ -226,7 +264,7 @@ class BPG {
       throw Error('unknown action');
     }
 
-    if (typeof fields != 'object')
+    if (fields !== null && typeof fields != 'object')
       throw Error('fields must be a dict')
     /*
      * Construct key object from parent, otherwise construct from
@@ -259,22 +297,22 @@ class BPG {
     }
   }
 
-  create(object, options) {
+  create(object: BPGObject, options?: BPGObjectOptions): void {
     this.enqueue('create', object, null, options);
   }
 
-  modify(object, fields, options) {
+  modify(object: BPGObject, fields: any, options?: BPGObjectOptions): void {
     this.enqueue('modify', object, fields, options);
   }
 
-  delete(object, options) {
+  delete(object: BPGObject, options?: BPGObjectOptions): void {
     this.enqueue('delete', object, null, options);
   }
 
-  get() {
-    var response, json, f, i;
-    var queue = [];
-    var types = [];
+  get(): { [key: string]: BPGObject[] } {
+    let response: any, json: any, f: string, i: number;
+    const queue: any[] = [];
+    const types: string[] = [];
 
     this.objects = {};
 
@@ -287,14 +325,14 @@ class BPG {
 
     json = JSON.parse(response.body);
     if (json.error && json.error.code === 5) {
-      console.log('Run setup one more time to receive setup instructions'.blue.bold);
+      console.log(chalk.bold.blue('Run setup one more time to receive setup instructions'));
       process.exit(0);
     }
 
     for (i = 0; i < json.results.length; i++) {
-      var j;
+      let j: number;
       for (j = 0; j < json.results[i].result.length; j++) {
-        var bo;
+        let bo: BPGObject;
 
         if (!this.objects[types[i]])
           this.objects[types[i]] = [];
@@ -309,9 +347,9 @@ class BPG {
     return this.objects;
   }
 
-  commit() {
-    var response, json, f, i;
-    var queue = this.queue;
+  commit(): void {
+    let response: any, json: any, f: any, i: number;
+    const queue = this.queue;
 
     this.queue = [];
 
@@ -324,7 +362,7 @@ class BPG {
     }
   }
 
-  commitWithResponse() {
+  commitWithResponse(): any {
     const queue = this.queue;
 
     this.queue = [];
@@ -340,9 +378,9 @@ class BPG {
   }
 }
 
-function blobText(text) {
-  var string = '';
-  var i;
+export function blobText(text: string): string {
+  let string = '';
+  let i: number;
 
   for (i = 0; i < text.length; i++) {
     string += printf('%.02x', text[i].charCodeAt(0));
@@ -350,8 +388,5 @@ function blobText(text) {
 
   return string;
 }
-
-module.exports.BPG = BPG;
-module.exports.blobText = blobText;
 
 //-- vim:ts=2:et:sw=2

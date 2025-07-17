@@ -6,12 +6,12 @@
  *
  * validateZeroOrOne("--alert-name", argv['alert-name'])
  */
-const { err, errx } = require('./errors');
+import { err, errx } from './errors';
 
 /*
  * validates that the specified option was specified exactly once.
  */
-function validateOne(option, value) {
+export function validateOne(option, value) {
   if (value === null || value === undefined) {
     err(`--${ option } is required`);
     return false;
@@ -26,7 +26,7 @@ function validateOne(option, value) {
 /*
  * validates that the specified option was specified at most once.
  */
-function validateAtMostOne(option, value) {
+export function validateAtMostOne(option, value) {
   if (Array.isArray(value)) {
     err(`--${ option } must have at most one value`);
     return false;
@@ -37,7 +37,7 @@ function validateAtMostOne(option, value) {
 /*
  * validates that the specified option is an object
  */
-function validateObject(option, value) {
+export function validateObject(option, value) {
   if (!value || typeof value !== "object") {
     err(`--${option} must be specified as an object, e.g. --${option}.prop`);
     return false;
@@ -49,14 +49,14 @@ function validateObject(option, value) {
  * Given an option name and value, convert to a single value.
  * Will exit the process with an informative error if the conversion fails.
  */
-function convertOne(option, value) {
+export function convertOne(option, value) {
   if (!validateOne(option, value)) {
     process.exit(1);
   }
   return value;
 }
 
-function convertAtMostOne(option, value) {
+export function convertAtMostOne(option, value) {
   if (!validateAtMostOne(option, value)) {
     process.exit(1);
   }
@@ -68,7 +68,7 @@ function convertAtMostOne(option, value) {
  *
  * If `value` is falsy and `defaultValue` is specified, it will be used instead.
  */
-function convertObject(option, value, defaultValue = undefined) {
+export function convertObject(option, value, defaultValue = undefined) {
   if (defaultValue !== undefined && !value) {
     return defaultValue;
   }
@@ -84,7 +84,7 @@ function convertObject(option, value, defaultValue = undefined) {
  * will have at least one item by default. To change this, specify
  * the third optional argument as false.
  */
-function convertMany(option, value, allowEmpty = false) {
+export function convertMany(option, value, allowEmpty = false) {
   if (allowEmpty && !value) {
     return [];
   }
@@ -103,7 +103,7 @@ function convertMany(option, value, allowEmpty = false) {
 const TRUTH_STRINGS = new Set([ 'yes', 'true', 'on', '1' ]);
 const FALSE_STRINGS = new Set([ 'no', 'false', 'off', '0' ]);
 
-function convertBool(name, value, defaultValue = undefined) {
+export function convertBool(name, value, defaultValue = undefined) {
   let v;
   if (defaultValue !== undefined) {
     v = convertAtMostOne(name, value);
@@ -124,14 +124,3 @@ function convertBool(name, value, defaultValue = undefined) {
   }
   errx(`--${name}: unrecognized boolean option ${v}`);
 }
-
-module.exports = {
-  validateOne,
-  validateAtMostOne,
-  validateObject,
-  convertOne,
-  convertAtMostOne,
-  convertMany,
-  convertObject,
-  convertBool,
-};

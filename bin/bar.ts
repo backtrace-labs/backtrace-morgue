@@ -1,4 +1,4 @@
-const chalk = require('chalk');
+import chalk from 'chalk';
 const grey = chalk.grey;
 const blue = chalk.blue;
 const yellow = chalk.yellow;
@@ -8,10 +8,12 @@ const red = chalk.red;
  * Shift data range to a new range according to middle points
  * of provided bins.
  */
-function remap(data, start, stop) {
-  var step;
-  var r = [];
-  var i;
+type DataPoint = [number, number, number];
+
+function remap(data: DataPoint[], start: number, stop: number): DataPoint[] {
+  let step: number;
+  const r: DataPoint[] = [];
+  let i: number;
 
   start = Math.floor(start);
   stop = Math.ceil(stop);
@@ -23,7 +25,7 @@ function remap(data, start, stop) {
   }
 
   for (i = 0; i < data.length; i++) {
-    var middle, offset;
+    let middle: number, offset: number;
 
     if (data[i][0] < start)
       continue;
@@ -36,14 +38,14 @@ function remap(data, start, stop) {
   return r;
 }
 
-function bar(data, start, stop) {
-  var i;
-  var glyph = [grey('\u2581'), blue('\u2581'), blue('\u2582'), blue('\u2583'),
+export function bar(data: DataPoint[], start?: number, stop?: number): void {
+  let i: number;
+  const glyph = [grey('\u2581'), blue('\u2581'), blue('\u2582'), blue('\u2583'),
     yellow('\u2584'), yellow('\u2585'), yellow('\u2586'),
     red('\u2587'), red('\u2588') ];
-  var ceiling = 0;
-  var output = '';
-  var step;
+  let ceiling = 0;
+  let output = '';
+  let step: number;
 
   /*
    * If a custom time range has been provided, then data may require
@@ -60,7 +62,7 @@ function bar(data, start, stop) {
   }
 
   for (i = 0; i < data.length; i++) {
-    var offset;
+    let offset: number;
 
     if (data[i][2] == 0) {
       offset = 0;
@@ -77,5 +79,4 @@ function bar(data, start, stop) {
   process.stdout.write(output);
 }
 
-module.exports = bar;
 //-- vim:ts=2:et:sw=2

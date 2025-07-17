@@ -1,9 +1,12 @@
-const cliOptions = require("../../cli/options");
-const assignDeep = require("assign-deep");
-const { skipNotDefinedKeys } = require("../utils");
+import * as cliOptions from '../../cli/options';
+import assignDeep from 'assign-deep';
+import { skipNotDefinedKeys } from '../utils';
 
-class UpdateConnection {
-  constructor({ name, options }) {
+export class UpdateConnection {
+  name: any;
+  options: any;
+
+  constructor({ name, options }: any) {
     this.name = name;
     this.options = options;
   }
@@ -20,5 +23,3 @@ class UpdateConnection {
     );
   }
 }
-
-module.exports = UpdateConnection;

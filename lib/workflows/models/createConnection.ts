@@ -1,9 +1,13 @@
-const cliOptions = require("../../cli/options");
-const assignDeep = require("assign-deep");
-const { skipNotDefinedKeys, getPluginId } = require("../utils");
+import * as cliOptions from '../../cli/options';
+import assignDeep from 'assign-deep';
+import { skipNotDefinedKeys, getPluginId } from '../utils';
 
-class CreateConnection {
-  constructor({ pluginId, name, options }) {
+export class CreateConnection {
+  pluginId: any;
+  name: any;
+  options: any;
+
+  constructor({ pluginId, name, options }: any) {
     this.pluginId = pluginId;
     this.name = name;
     this.options = options;
@@ -22,5 +26,3 @@ class CreateConnection {
     );
   }
 }
-
-module.exports = CreateConnection;

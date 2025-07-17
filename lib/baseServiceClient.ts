@@ -13,10 +13,16 @@
  * functions to aid in pagination which we will extend on a case-by-case basis
  * as we need them.
  */
-const request = require('@cypress/request');
-const urlJoin = require('url-join');
+import * as request from '@cypress/request';
+import urlJoin from 'url-join';
 
-class BaseServiceClient {
+export class BaseServiceClient {
+  url: any;
+  coronerLocation: any;
+  coronerToken: any;
+  defaultQs: any;
+  insecure: boolean;
+
   /*
    * @param url: The base URL of the service.
    * @param coronerLocation: the URL to the Coronerd instance.
@@ -67,7 +73,7 @@ class BaseServiceClient {
     }
     return new Promise((resolve, reject) => {
       const url = urlJoin(this.url, path);
-      let options = {
+      let options: any = {
         url,
         method: method.toUpperCase(),
         headers: {
@@ -98,13 +104,13 @@ class BaseServiceClient {
    * This scheme is used by Rust services which have additional requirements
    * that make limit-offset pagination unsuitable.
    */
-  async *tokenPager({ method, path, body=null, qs = {} }) {
+  async *tokenPager({ method, path, body=null, qs: any = {} }) {
     /*
      * Clone this so that if we passed something the caller will still use, we
      * won't corrupt their state.
      */
-    qs = { ... qs };
-    let batch = await this.request({ method, path, body, qs });
+    var qs = { ... qs };
+    let batch: any = await this.request({ method, path, body, qs });
     let token;
     while (batch.values.length > 0) {
       for (const i of batch.values) {
@@ -133,7 +139,3 @@ class BaseServiceClient {
     }
   }
 }
-
-module.exports = {
-  BaseServiceClient
-};

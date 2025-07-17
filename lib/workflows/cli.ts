@@ -1,10 +1,10 @@
-const cliOptions = require("../cli/options");
-const { errx } = require("../cli/errors");
-const WorkflowsClient = require("./client");
-const router = require("../cli/router");
-const WorkflowsIntegrationsCli = require("./integrations");
-const WorkflowsAlertsCli = require("./alerts");
-const WorkflowsConnectionsCli = require("./connections");
+import * as cliOptions from '../cli/options';
+import { errx } from '../cli/errors';
+import { WorkflowsClient } from './client';
+import * as router from '../cli/router';
+import { WorkflowsIntegrationsCli } from './integrations';
+import { WorkflowsAlertsCli } from './alerts';
+import { WorkflowsConnectionsCli } from './connections';
 
 const HELP_MESSAGE = `
 Usage:
@@ -16,14 +16,21 @@ morgue workflows alert [create | list | get | update | delete] <options>
 See the Morgue README for option documentation.
 `;
 
-class WorkflowsCli {
+export class WorkflowsCli {
+  client: any;
+  universe: any;
+  project: any;
+  integrations: any;
+  alerts: any;
+  connections: any;
+
   constructor(client, universe, project) {
     this.client = client;
     this.universe = universe;
     this.project = project;
     this.integrations = new WorkflowsIntegrationsCli(client, universe, project);
     this.alerts = new WorkflowsAlertsCli(client, universe, project);
-    this.connections = new WorkflowsConnectionsCli(client, universe, project);
+    this.connections = new WorkflowsConnectionsCli(client, universe);
   }
 
   static async fromCoroner(coroner, argv, config) {
@@ -55,5 +62,3 @@ class WorkflowsCli {
     await router.route(routes, HELP_MESSAGE, args);
   }
 }
-
-module.exports = WorkflowsCli;

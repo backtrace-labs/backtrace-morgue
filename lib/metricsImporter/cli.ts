@@ -1,4 +1,4 @@
-const client = require('./client');
+import * as client from './client';
 
 function validateOne(option, value) {
   if (!value) {
@@ -20,7 +20,9 @@ function validateZeroOrOne(option, value) {
   return true;
 }
 
-class MetricsImporterCli {
+export class MetricsImporterCli {
+  client: any;
+
   constructor(client) {
     this.client = client;
   }
@@ -52,7 +54,7 @@ class MetricsImporterCli {
       console.error("Unrecognized command. See metrics-importer help for usage");
       return;
     }
-    await route(args);
+    await (route as any)(args);
   }
 
   help() {
@@ -208,12 +210,7 @@ complete scrapes successfully.`);
   }
 }
 
-async function metricsImporterCliFromCoroner(coroner) {
+export async function metricsImporterCliFromCoroner(coroner) {
   const c = await client.metricsImporterClientFromCoroner(coroner);
   return new MetricsImporterCli(c);
 }
-
-module.exports = {
-  MetricsImporterCli,
-  metricsImporterCliFromCoroner
-};

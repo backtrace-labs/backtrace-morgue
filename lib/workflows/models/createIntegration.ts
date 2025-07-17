@@ -1,8 +1,16 @@
-const cliOptions = require("../../cli/options");
-const assignDeep = require("assign-deep");
-const { skipNotDefinedKeys, getPluginId } = require("../utils");
+import * as cliOptions from '../../cli/options';
+import assignDeep from 'assign-deep';
+import { skipNotDefinedKeys, getPluginId } from '../utils';
 
-class CreateIntegration {
+export class CreateIntegration {
+  pluginId: any;
+  watcherName: any;
+  state: any;
+  synchronizeIssues: any;
+  synchronizeIssuesOnAdd: any;
+  options: any;
+  connectionId: any;
+
   constructor({
     pluginId,
     watcherName,
@@ -11,7 +19,7 @@ class CreateIntegration {
     synchronizeIssuesOnAdd,
     options,
     connectionId,
-  }) {
+  }: any) {
     this.pluginId = pluginId;
     this.watcherName = watcherName;
     this.state = state;
@@ -52,5 +60,3 @@ class CreateIntegration {
     );
   }
 }
-
-module.exports = CreateIntegration;

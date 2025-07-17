@@ -3,44 +3,44 @@
 'use strict';
 
 // setup abort controller
-require("../lib/abortController");
+import "../lib/abortController";
 
-const axios     = require('axios');
-const Callstack = require('../lib/callstack.js');
-const CoronerClient = require('../lib/coroner.js');
-const crdb      = require('../lib/crdb.js');
-const BPG       = require('../lib/bpg.js');
-const minimist  = require('minimist');
-const os        = require('os');
-const ipv6      = require('ip6addr');
-const bar       = require('./bar.js');
-const ta        = require('time-ago');
-const histogram = require('./histogram.js');
-const printf    = require('printf');
-const moment    = require('moment');
-const moment_tz = require('moment-timezone');
-const fs        = require('fs');
-const mkdirp    = require('mkdirp');
-const promptLib = require('prompt');
-const path      = require('path');
-const table     = require('table').table;
-const bt        = require('@backtrace/node');
-const spawn     = require('child_process').spawn;
-const url       = require('url');
-const util      = require('util');
-const packageJson = require(path.join(__dirname, "..", "package.json"));
-const sprintf   = require('extsprintf').sprintf;
-const chrono = require('chrono-node');
-const zlib      = require('zlib');
-const symbold = require('../lib/symbold.js');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const metricsImporterCli = require('../lib/metricsImporter/cli.js');
-const alertsCli = require("../lib/alerts/cli");
-const timeCli = require('../lib/cli/time');
-const queryCli = require('../lib/cli/query');
-const { chalk, err, error_color, errx, success_color, warn } = require('../lib/cli/errors');
-const WorkflowsCli = require('../lib/workflows/cli.js');
-const WorkflowsClient = require('../lib/workflows/client.js');
+import axios from 'axios';
+import { Callstack, CallstackOptions } from '../lib/callstack';
+import { CoronerClient } from '../lib/coroner';
+import * as crdb from '../lib/crdb';
+import * as BPG from '../lib/bpg';
+import minimist from 'minimist';
+import * as os from 'os';
+import ipv6 from 'ip6addr';
+import { bar } from './bar';
+import timeago from 'time-ago';
+import { histogram } from './histogram';
+import printf from 'printf';
+import moment from 'moment';
+import moment_tz from 'moment-timezone';
+import * as fs from 'fs';
+import mkdirp from 'mkdirp';
+import promptLib from 'prompt';
+import * as path from 'path';
+import { table, TableUserConfig } from 'table';
+import * as bt from '@backtrace/node';
+import { spawn } from 'child_process';
+import * as url from 'url';
+import * as util from 'util';
+import * as packageJson from '../package.json';
+import { sprintf } from 'extsprintf';
+import chrono from 'chrono-node';
+import * as zlib from 'zlib';
+import * as symbold from '../lib/symbold';
+import { createObjectCsvWriter as createCsvWriter } from 'csv-writer';
+import * as metricsImporterCli from '../lib/metricsImporter/cli';
+import * as alertsCli from '../lib/alerts/cli';
+import * as timeCli from '../lib/cli/time';
+import * as queryCli from '../lib/cli/query';
+import { chalk, err, error_color, errx, success_color, warn } from '../lib/cli/errors';
+import { WorkflowsCli } from '../lib/workflows/cli';
+import { WorkflowsClient } from '../lib/workflows/client';
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
@@ -52,13 +52,13 @@ const label_color = yellow.bold;
 
 var flamegraph = path.join(__dirname, "..", "assets", "flamegraph.pl");
 
-var callstackError = false;
-var range_start = null;
-var range_stop = null;
-var endpoint;
-var endpointToken;
-var reverse = 1;
-var ARGV;
+let callstackError = false;
+let range_start: number | null = null;
+let range_stop: number | null = null;
+let endpoint: string;
+let endpointToken: string;
+let reverse = 1;
+let ARGV: any;
 const configDir = process.env.MORGUE_CONFIG_DIR ||
   path.join(os.homedir(), ".morgue");
 const configFile = path.join(configDir, "current.json");
@@ -83,7 +83,7 @@ const client = bt.BacktraceClient.initialize({
   },
 });
 
-function usage(str) {
+function usage(str?: string): never {
   if (typeof str === 'string')
     err(str + "\n");
   console.error("Usage: morgue <command> [options]");
@@ -99,29 +99,29 @@ function usage(str) {
   process.exit(1);
 }
 
-function nsToUs(tm) {
+function nsToUs(tm: any): number {
   return Math.round((tm[0] * 1000000) + (tm[1] / 1000));
 }
 
-function oidToString(oid) {
+function oidToString(oid: number): string {
   return oid.toString(16);
 }
 
-function oidFromString(oid) {
+function oidFromString(oid: string): number {
   return parseInt(oid, 16);
 }
 
 /* Standardized success/failure callbacks. */
-function std_success_cb(r) {
+function std_success_cb(r: any): any {
   console.log(success_color('Success'));
 }
 
-function std_json_cb(r) {
+function std_json_cb(r: any): any {
   console.log(success_color('Success:'));
   console.log(JSON.stringify(r, null, 4));
 }
 
-function std_failure_cb(e) {
+function std_failure_cb(e: any): any {
   var msg = e.toString();
 
   if (e.response_obj && e.response_obj.bodyData) {
@@ -141,11 +141,8 @@ function std_failure_cb(e) {
   errx(msg);
 }
 
-function objToPath(oid, resource) {
-  var str = oid;
-
-  if (typeof oid !== 'string')
-   str = oidToString(oid);
+function objToPath(oid: string | number, resource?: string): string {
+  var str = typeof oid !== 'string' ? oidToString(oid) : oid;
 
   if (resource)
     str += ":" + resource;
@@ -186,7 +183,7 @@ function printSamples(requests, samples, start, stop, concurrency) {
   return;
 }
 
-function sequence(tasks) {
+function sequence(tasks: any): Promise<any> {
   return tasks.reduce((chain, s) => {
     if (typeof s === 'function')
       return chain.then(s).catch((e) => { return Promise.reject(e) });
@@ -194,7 +191,7 @@ function sequence(tasks) {
   }, Promise.resolve());
 }
 
-function prompt_for(items) {
+function prompt_for(items: any): Promise<any> {
   return new Promise((resolve, reject) => {
     promptLib.get(items, (err, result) => {
       if (err)
@@ -265,7 +262,7 @@ process.stdout.on('error', function(){process.exit(0);});
 process.stderr.on('error', function(){process.exit(0);});
 main();
 
-function coronerError(argv, config) {
+function coronerError(argv: any, config: any): any {
   if (argv._.length < 2) {
     errx("Missing error string");
   }
@@ -273,7 +270,7 @@ function coronerError(argv, config) {
   throw Error(argv._[1]);
 }
 
-function coronerProject(argv, config) {
+function coronerProject(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
 
   let subcommand = argv._[1];
@@ -329,7 +326,7 @@ function coronerProject(argv, config) {
   bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
-async function coronerProjects(argv, config) {
+async function coronerProjects(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
 
   let subcommand = argv._[1];
@@ -349,16 +346,16 @@ async function coronerProjects(argv, config) {
     errx("Invalid universe")
   }
 
-  const projects = await bpgPostAsync(bpg, bpgSingleRequest({
+  const projects: any = await bpgPostAsync(bpg, bpgSingleRequest({
     action: "get",
     type: "configuration/project",
   }));
-  const users = await bpgPostAsync(bpg, bpgSingleRequest({
+  const users: any = await bpgPostAsync(bpg, bpgSingleRequest({
     action: "get",
     type: "configuration/users",
   }));
 
-  const userIdMap = {}
+  const userIdMap: any = {}
   users.forEach((u) => userIdMap[u.uid] = u )
 
   console.log('Projects:')
@@ -368,8 +365,8 @@ async function coronerProjects(argv, config) {
 /**
  * @brief Returns the universe/project pair to use for coroner commands.
  */
-function coronerParams(argv, config) {
-  var p = {};
+function coronerParams(argv: any, config: any): any {
+  const p: any = {};
 
   if (Array.isArray(argv._) === true && argv._.length > 1) {
     var split;
@@ -397,11 +394,11 @@ function coronerParams(argv, config) {
   return p;
 }
 
-function saveConfig(coroner, callback) {
+function saveConfig(coroner: any, callback: (err?: any) => void): void {
   makeConfigDir(function(err) {
     if (err) return callback(err);
 
-    var config = {
+    var config: any = {
       config: coroner.config,
       endpoint: coroner.endpoint,
     };
@@ -420,7 +417,7 @@ function saveConfig(coroner, callback) {
   });
 }
 
-function loadConfig(callback) {
+function loadConfig(callback: any): any {
   makeConfigDir(function(err) {
     if (err) return callback(err);
     fs.readFile(configFile, {encoding: 'utf8'}, function(err, text) {
@@ -440,11 +437,11 @@ function loadConfig(callback) {
   });
 }
 
-function makeConfigDir(callback) {
+function makeConfigDir(callback: any): any {
   mkdirp(configDir, {mode: "0700"}, callback);
 }
 
-function abortIfNotLoggedIn(config) {
+function abortIfNotLoggedIn(config: any): void {
   if (config && config.config && config.config.token) return;
 
   /* If an endpoint is specified, then synthensize aa configuration structure. */
@@ -463,7 +460,7 @@ function abortIfNotLoggedIn(config) {
   errx("Must login first.");
 }
 
-async function coronerSetupNext(coroner, bpg, setupCfg) {
+async function coronerSetupNext(coroner, bpg, setupCfg): Promise<any> {
   var model = bpg.get();
 
   process.stderr.write('\n');
@@ -490,7 +487,7 @@ async function coronerSetupNext(coroner, bpg, setupCfg) {
   return;
 }
 
-async function coronerSetupDns(coroner, bpg, cons_l, setupCfg) {
+async function coronerSetupDns(coroner, bpg, cons_l, setupCfg): Promise<any> {
   let dns_name = setupCfg?.dns_name;
   if (!dns_name) {
     console.log(bold('Specify DNS name users will use to reach the server'));
@@ -516,7 +513,7 @@ async function coronerSetupDns(coroner, bpg, cons_l, setupCfg) {
   return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
-async function coronerSetupUser(coroner, bpg, setupCfg) {
+async function coronerSetupUser(coroner, bpg, setupCfg): Promise<any> {
   let username = setupCfg?.username;
   let email = setupCfg?.email;
   let password = setupCfg?.password;
@@ -583,7 +580,7 @@ async function coronerSetupUser(coroner, bpg, setupCfg) {
   return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
-async function coronerSetupUniverse(coroner, bpg, setupCfg) {
+async function coronerSetupUniverse(coroner, bpg, setupCfg): Promise<any> {
   let universe_name = setupCfg?.universe;
   if (!universe_name) {
     console.log(bold('Create an organization'));
@@ -612,13 +609,13 @@ async function coronerSetupUniverse(coroner, bpg, setupCfg) {
   return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
-function coronerBpgSetup(coroner, argv) {
+function coronerBpgSetup(coroner: any, argv: any): any {
   var coronerd = {
     url: coroner.endpoint,
     session: { token: '000000000' }
   };
-  var opts = {};
-  var bpg = {};
+  var opts: any = {};
+  var bpg: any = {};
 
   if (coroner.config && coroner.config.token)
     coronerd.session.token = coroner.config.token;
@@ -640,7 +637,7 @@ function coronerClient(config, insecure, debug, endpoint, timeout) {
   });
 }
 
-function coronerClientArgv(config, argv) {
+function coronerClientArgv(config: any, argv: any): any {
   if (argv.token && argv.endpoint) {
     config.config.token = argv.token;
     config.endpoint = argv.endpoint;
@@ -653,12 +650,12 @@ function coronerClientArgv(config, argv) {
     argv.timeout
   );
 }
-function coronerClientArgvSubmit(config, argv) {
+function coronerClientArgvSubmit(config: any, argv: any): any {
   return coronerClient(config, !!argv.k, argv.debug,
     config.submissionEndpoint, argv.timeout);
 }
 
-function coronerSetupStart(coroner, argv) {
+function coronerSetupStart(coroner: any, argv: any): any {
   var bpg = coronerBpgSetup(coroner, argv);
   let setupCfg;
   if (argv.setup_json && fs.existsSync(argv.setup_json)) {
@@ -670,7 +667,7 @@ function coronerSetupStart(coroner, argv) {
     .catch((err) => console.log(`Setup failed: ${err}`));
 }
 
-function coronerSetup(argv, config) {
+function coronerSetup(argv: any, config: any): any {
   var coroner, pu;
 
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = (!argv.k) ? "1" : "0";
@@ -715,7 +712,7 @@ function coronerSetup(argv, config) {
   });
 }
 
-function userUsage(error_str) {
+function userUsage(error_str?: any): never {
   if (typeof error_str === 'string')
     err(error_str + '\n');
   console.log("Usage: morgue user reset [options]");
@@ -726,8 +723,8 @@ function userUsage(error_str) {
   process.exit(1);
 }
 
-function userReset(argv, config) {
-  var ctx = {
+function userReset(argv: any, config: any): void {
+  const ctx: any = {
     user: argv.user,
     password: argv.password,
     role: argv.role,
@@ -745,7 +742,7 @@ function userReset(argv, config) {
   if (!ctx.universe && config && config.config && config.config.universes)
     ctx.universe = Object.keys(config.config.universes)[0];
   if (!ctx.universe) {
-    coronerUsage("No universes.");
+    errx("No universes.");
   }
 
   /* Find the universe with the specified name. */
@@ -791,7 +788,7 @@ function userReset(argv, config) {
       return Promise.reject("Must specify valid user.");
     }
 
-    let modifyFields = {}
+    let modifyFields: any = {}
     if (!ctx.role && !ctx.password){
       return Promise.reject("Must specify a field to modify.");
     }
@@ -807,6 +804,7 @@ function userReset(argv, config) {
       ctx.bpg.modify(ctx.user_obj, modifyFields);
       ctx.bpg.commit();
       console.log(success_color("User successfully modified."));
+      return Promise.resolve();
     } catch(e) {
       return Promise.reject(e);
     }
@@ -818,7 +816,7 @@ function userReset(argv, config) {
   });
 }
 
-function addDomainWhitelist(argv, config) {
+function addDomainWhitelist(argv: any, config: any): Promise<any> {
   const domain = argv.domain
   const role = argv.role
   const method = argv.method
@@ -859,19 +857,20 @@ function addDomainWhitelist(argv, config) {
   bpg.create(signup);
   bpg.commit();
   console.log(`Created domain whitelist for domain ${domain}.`)
+  return Promise.resolve()
 }
 
-async function listTeamlessUsers(argv, config) {
+async function listTeamlessUsers(argv: any, config: any): Promise<any> {
   var coroner = coronerClientArgv(config, argv);
   var bpg = coronerBpgSetup(coroner, argv);
 
   // Get all users and team_members
-  const allUsers = await bpgPostAsync(bpg, bpgSingleRequest({
+  const allUsers: any = await bpgPostAsync(bpg, bpgSingleRequest({
     action: "get",
     type: "configuration/users",
   }));
   const users = allUsers.filter((u) => !isBacktraceUser(u))
-  const teamMembers = await bpgPostAsync(bpg, bpgSingleRequest({
+  const teamMembers: any = await bpgPostAsync(bpg, bpgSingleRequest({
     action: "get",
     type: "configuration/team_member",
   }));
@@ -892,12 +891,12 @@ async function listTeamlessUsers(argv, config) {
   console.log(noTeamUsers.map((u, i) => `${i+1}. username=${u.username}, email=${u.email}, role=${u.role}`).join('\n'))
 }
 
-function isBacktraceUser(user) {
+function isBacktraceUser(user: any): boolean {
   if(!user) return false
   return user.username === 'Backtrace' || user.email.includes('@backtrace.io')
 }
 
-function coronerUser(argv, config) {
+function coronerUser(argv: any, config: any): any {
   argv._.shift();
   if (argv._.length === 0) {
     userUsage();
@@ -911,7 +910,7 @@ function coronerUser(argv, config) {
   userReset(argv, config);
 }
 
-function coronerUsers(argv, config) {
+function coronerUsers(argv: any, config: any): any {
   argv._.shift();
   const action = argv._[0]
 
@@ -962,7 +961,7 @@ async function _workflowsMerge(coroner, universe, project, fingerprints) {
   }
 }
 
-async function mergeFingerprints(argv, config) {
+async function mergeFingerprints(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
   if (argv._.length === 0) {
     return userUsage();
@@ -993,7 +992,7 @@ async function mergeFingerprints(argv, config) {
   }
 }
 
-function unmergeFingerprints(argv, config) {abortIfNotLoggedIn(config);
+function unmergeFingerprints(argv: any, config: any): any {abortIfNotLoggedIn(config);
   if (argv._.length === 0) {
     return userUsage();
   }
@@ -1017,7 +1016,7 @@ function unmergeFingerprints(argv, config) {abortIfNotLoggedIn(config);
  *
  * Sets marker for uniquely introduced issues.
  */
-function coronerCts(argv, config) {
+function coronerCts(argv: any, config: any): any {
   /* First extract a list of all fingerprint values for the given target. */
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
@@ -1043,15 +1042,15 @@ function coronerCts(argv, config) {
     return;
   }
 
-  let fingerprint = {};
+  let fingerprint: any = {};
 
   coroner.query(universe, project, q_v, function(err, result) {
     if (err) {
       errx(err.message);
     }
 
-    var rp = new crdb.Response(result.response);
-    rp = rp.unpack();
+    var response = new crdb.Response(result.response);
+    var rp: any = response.unpack();
 
     for (var k in rp) {
       fingerprint[k] = true;
@@ -1065,8 +1064,8 @@ function coronerCts(argv, config) {
         errx(err.message);
       }
 
-      var rp = new crdb.Response(result.response);
-      rp = rp.unpack();
+      var response = new crdb.Response(result.response);
+      var rp: any = response.unpack();
 
       for (var k in rp) {
         if (!fingerprint[k])
@@ -1120,7 +1119,7 @@ function coronerCts(argv, config) {
 /**
  * @brief Implements the logout command.
  */
-function coronerLogout(argv, config) {
+function coronerLogout(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
@@ -1285,14 +1284,14 @@ function coronerProjectAddTeamUser({mode, bpg, argv, model, idSupply}) {
 
   const project = model.project.find(p => p.get('name') == projectName);
   if (project === undefined)
-    errx(`project not found: ${projectName}`.red);
+    errx(red(`project not found: ${projectName}`));
 
   const id = idSupply[mode](suppliedName);
 
   if (role === undefined)
-    errx('need to supply role'.red);
+    errx(red('need to supply role'));
   if (role.match(/(guest|member|admin)/) == false)
-    errx('unknown role'.red);
+    errx(red('unknown role'));
 
   let add = bpg.new(`project_member_${mode}`);
   add.set('project', project.get('pid'));
@@ -1310,7 +1309,7 @@ function coronerProjectRemoveTeamUser({mode, bpg, argv, model, idSupply}) {
 
   const project = model.project.find(p => p.get('name') == projectName);
   if (project === undefined)
-    errx(`project not found: ${projectName}`.red);
+    errx(red(`project not found: ${projectName}`));
 
   let bpgObject = model[`project_member_${mode}`].find(pm => pm.get(mode) == id && pm.get('project') == project.get('pid'));
   if (bpgObject === undefined)
@@ -1324,7 +1323,7 @@ function coronerProjectAccessDetails({argv, model}) {
   const projectName = argv._[2];
   const project = model.project.find(p => p.get('name') == projectName);
   if (project === undefined)
-    errx(`project not found: ${projectName}`.red);
+    errx(red(`project not found: ${projectName}`));
 
   const users = model.project_member_user.filter(pm => pm.get('project') == project.get('pid'));
   const teams = model.project_member_team.filter(pm => pm.get('project') == project.get('pid'));
@@ -1355,7 +1354,7 @@ function coronerProjectAccessDetails({argv, model}) {
 /**
  * @brief Implements the limit command.
  */
-function coronerAccessControl(argv, config) {
+function coronerAccessControl(argv: any, config: any): any {
   var options = null;
 
   abortIfNotLoggedIn(config);
@@ -1377,7 +1376,7 @@ function coronerAccessControl(argv, config) {
     }
   }
   if (universeId === undefined) {
-    errx("Universe not found".red);
+    errx(red("Universe not found"));
   }
 
   /* The sub-command. */
@@ -1413,13 +1412,13 @@ function coronerAccessControl(argv, config) {
       team: (suppliedName) => {
         const t = model.team.find(t => t.get('name') == suppliedName);
         if (t === undefined)
-          errx(`team not found: ${suppliedName}`.red);
+          errx(red(`team not found: ${suppliedName}`));
         return t.get('id');
       },
       user: (suppliedName) => {
         const u = model.users.find(u => u.get('username') == suppliedName);
         if (u === undefined)
-          errx(`user not found: ${suppliedName}`.red);
+          errx(red(`user not found: ${suppliedName}`));
         return u.get('uid');
       }
     };
@@ -1456,7 +1455,7 @@ function coronerAccessControl(argv, config) {
 /**
  * @brief Implements the limit command.
  */
-function coronerLimit(argv, config) {
+function coronerLimit(argv: any, config: any): any {
   var options = null;
   var project, universe, pid, un, target;
 
@@ -1565,7 +1564,7 @@ function coronerLimit(argv, config) {
     }
 
     if (action === 'create') {
-      var definition = {};
+      var definition: any = {};
 
       if (!un)
         errx('Must specify a universe');
@@ -1603,7 +1602,7 @@ function coronerLimit(argv, config) {
   }
 }
 
-function tenantURL(config, tn) {
+function tenantURL(config: any, tn: any): string {
   /*
    * If there is no current universe, return the URL unchanged.
    * If this were just a split on ., it'd probably change the root domain
@@ -1632,7 +1631,7 @@ function tenantURL(config, tn) {
   return config.endpoint.replace(pattern, replacement);
 }
 
-function coronerInvite(argv, config) {
+function coronerInvite(argv: any, config: any): any {
   var options = null;
 
   abortIfNotLoggedIn(config);
@@ -1774,7 +1773,7 @@ function coronerInvite(argv, config) {
   }
 }
 
-function coronerSession(argv, config) {
+function coronerSession(argv: any, config: any): any {
   var options = null;
   var universe;
 
@@ -1814,7 +1813,7 @@ function coronerSession(argv, config) {
 
   /* The sub-command. */
   var action = argv._[1];
-  var qs = { token: argv.token || coroner.config.token };
+  var qs: any = { token: argv.token || coroner.config.token };
 
   if (action === 'list') {
     if (argv.g)
@@ -1961,7 +1960,7 @@ function coronerSession(argv, config) {
   }
 }
 
-function coronerTenant(argv, config) {
+function coronerTenant(argv: any, config: any): any {
   var options = null;
   var universe;
 
@@ -2054,7 +2053,7 @@ function coronerTenant(argv, config) {
   errx(usageText);
 }
 
-function coronerToken(argv, config) {
+function coronerToken(argv: any, config: any): any {
   var options = null;
   var project, universe, pid, un, target;
 
@@ -2080,7 +2079,7 @@ function coronerToken(argv, config) {
     }
   }
 
-  var pm = {};
+  var pm: any = {};
 
   for (var i = 0; i < model.project.length; i++) {
     pm[model.project[i].get('pid')] = model.project[i].get('name');
@@ -2103,10 +2102,10 @@ function coronerToken(argv, config) {
 
     if (model.api_token) {
       model.api_token.sort(function(a, b) {
-        var a_d = a.get('id');
-        var b_d = b.get('id');
+        var a_d = Number(a.get('id'));
+        var b_d = Number(b.get('id'));
   
-        return (a_d > b_d) - (a_d < b_d);
+        return +(a_d > b_d) - +(a_d < b_d);
       });
   
       for (var i = 0; i < model.api_token.length; i++) {
@@ -2228,7 +2227,7 @@ function coronerToken(argv, config) {
   }
 }
 
-function coronerAudit(argv, config) {
+function coronerAudit(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
@@ -2250,7 +2249,7 @@ function coronerAudit(argv, config) {
         if (argv.json) {
           console.log(JSON.stringify(rp, null, 2));
         } else if (argv.table) {
-          const tableFormat = {
+          const tableFormat: TableUserConfig = {
             columns: {
               2: {
                 'alignment': 'right'
@@ -2262,6 +2261,7 @@ function coronerAudit(argv, config) {
             drawHorizontalLine : function(i, s) {
               if (i === 0 || i === 1 || i === s)
                 return true;
+              return false;
             }
           };
           var m = rp.response.log;
@@ -2313,7 +2313,7 @@ function coronerAudit(argv, config) {
   return;
 }
 
-function coronerLog(argv, config) {
+function coronerLog(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
@@ -2363,7 +2363,7 @@ function coronerLog(argv, config) {
         console.log(success_color((argv._[2] + ' is activated.')));
     });
   } else if (action === 'extract') {
-    var q = {
+    var q: any = {
         'action': 'extract',
         'form': {
           'name' : argv._[2]
@@ -2382,7 +2382,7 @@ function coronerLog(argv, config) {
           console.log(JSON.stringify(rp, null, 2));
         } else if (argv.table) {
           for (let log in rp.response) {
-            const tableFormat = {
+            const tableFormat: TableUserConfig = {
               columns: {
                 1: {
                   'alignment': 'right'
@@ -2394,6 +2394,7 @@ function coronerLog(argv, config) {
               drawHorizontalLine : function(i, s) {
                 if (i === 0 || i === 1 || i === s)
                   return true;
+                return false;
               }
             };
             var m = rp.response[log];
@@ -2447,7 +2448,7 @@ function coronerLog(argv, config) {
   return;
 }
 
-function coronerLatency(argv, config) {
+function coronerLatency(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
@@ -2581,7 +2582,7 @@ function coronerLatency(argv, config) {
   }
 }
 
-function coronerReport(argv, config) {
+function coronerReport(argv: any, config: any): any {
   var options = null;
   var project, universe, pid, un, target;
 
@@ -2623,10 +2624,10 @@ function coronerReport(argv, config) {
     }
 
     model.report.sort(function(a, b) {
-      var a_d = a.get('id');
-      var b_d = b.get('id');
+      var a_d = Number(a.get('id'));
+      var b_d = Number(b.get('id'));
 
-      return (a_d > b_d) - (a_d < b_d);
+      return +(a_d > b_d) - +(a_d < b_d);
     });
 
     for (var i = 0; i < model.report.length; i++) {
@@ -2686,7 +2687,7 @@ function coronerReport(argv, config) {
     if (!id || !rcpt)
       errx('Usage: morgue report send <id> <e-mail>');
 
-    coroner.reportSend(p.universe, p.project,
+    coroner.reportSend(universe, project,
       {
         'action': 'send',
         'form': {
@@ -2710,10 +2711,10 @@ function coronerReport(argv, config) {
     var timezone = argv.timezone;
     var hour = argv.hour;
     var histogram = argv.histogram;
-    var widgets = {};
+    widgets = {};
     var limit = argv.limit;
     var aq = queryCli.argvQuery(argv);
-    var rcpt = '';
+    let reportRcpt = '';
     var include_users = false;
 
     if (!universe || !project)
@@ -2786,7 +2787,7 @@ function coronerReport(argv, config) {
     report.set('project', pid);
     report.set('owner', config.config.uid);
     report.set('title', title);
-    report.set('rcpt', rcpt); /* XXX */
+    report.set('rcpt', reportRcpt); /* XXX */
     report.set('day', day);
     report.set('include_users', include_users ? 1 : 0);
     report.set('period', period);
@@ -2804,7 +2805,7 @@ function coronerReport(argv, config) {
   }
 }
 
-function coronerControl(argv, config) {
+function coronerControl(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner = coronerClientArgv(config, argv);
 
@@ -2824,7 +2825,7 @@ function coronerControl(argv, config) {
   }
 }
 
-function mkdir_p(path) {
+function mkdir_p(path: any): any {
   try {
     fs.mkdirSync(path);
   } catch (e) {
@@ -2833,8 +2834,8 @@ function mkdir_p(path) {
   }
 }
 
-function contentDisposition(http_result) {
-  var cd = {};
+function contentDisposition(http_result: any): any {
+  var cd: any = {};
 
   if (!http_result || typeof http_result !== 'object' ||
       !http_result.headers || typeof http_result.headers !== 'object') {
@@ -2882,7 +2883,7 @@ function getFname(http_result, outpath, outdir, n_objects, oid, resource) {
   return fname;
 }
 
-function objectRangeOk(first, last) {
+function objectRangeOk(first: any, last: any): any {
   var f = oidFromString(first);
   var l = oidFromString(last);
 
@@ -2903,11 +2904,11 @@ function pushFirstToLast(objects, first, last) {
   }
 }
 
-function argvPushObjectRanges(objects, argv) {
+function argvPushObjectRanges(objects: any, argv: any): any {
   var i, f, l, r;
 
   if (argv.first && argv.last) {
-    if (Array.isArray(argv.first) ^ Array.isArray(argv.last))
+    if (Array.isArray(argv.first) !== Array.isArray(argv.last))
       return err("first and last must be specified the same number of times");
 
     if (Array.isArray(argv.first) === true) {
@@ -2933,7 +2934,9 @@ function argvPushObjectRanges(objects, argv) {
       r = [argv.objrange];
 
     for (i = 0; i < r.length; i++) {
-      f, l = r[i].split(",");
+      var parts = r[i].split(",");
+      f = parts[0];
+      l = parts[1];
       if (objectRangeOk(f, l) === false)
         return false;
       pushFirstToLast(objects, f, l);
@@ -2942,7 +2945,7 @@ function argvPushObjectRanges(objects, argv) {
   return true;
 }
 
-function outpathCheck(argv, n_objects) {
+function outpathCheck(argv: any, n_objects: any): Promise<any> {
   var r, st;
 
   r = {};
@@ -2975,7 +2978,7 @@ function outpathCheck(argv, n_objects) {
   return r;
 }
 
-function coronerGet(argv, config) {
+function coronerGet(argv: any, config: any): any {
   var coroner, objects, out, p, params, tasks, st, success;
 
   abortIfNotLoggedIn(config);
@@ -3033,11 +3036,11 @@ function coronerGet(argv, config) {
   });
 }
 
-function coronerDescribe(argv, config) {
+function coronerDescribe(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
 
-  var options = {};
-  var query = {};
+  var options: any = {};
+  var query: any = {};
   var p;
   var filter = null;
 
@@ -3169,7 +3172,7 @@ function coronerDescribe(argv, config) {
   });
 }
 
-function attachmentUsage(error_str) {
+function attachmentUsage(error_str?: any): never {
   if (typeof error_str === 'string')
     err(error_str + '\n');
   console.log("Usage: morgue attachment <add|get|list|delete> ...");
@@ -3198,7 +3201,7 @@ function attachmentUsage(error_str) {
   process.exit(1);
 }
 
-function attachmentAdd(argv, config, params) {
+function attachmentAdd(argv, config, params): any {
   var body, coroner, fname, name, object, p, u;
   var opts = {
     /* Data is user-provided, and must be passed through as is. */
@@ -3214,9 +3217,9 @@ function attachmentAdd(argv, config, params) {
 
   if (argv._.length < 2) {
     if (argv._.length < 1) {
-      attachUsage('Must specify object ID to attach to.');
+      attachmentUsage('Must specify object ID to attach to.');
     } else {
-      attachUsage('Must specify file name to attach.');
+      attachmentUsage('Must specify file name to attach.');
     }
   }
 
@@ -3302,8 +3305,8 @@ function attachmentList(argv, config, params) {
 
 function attachmentDelete(argv, config, params) {
   var coroner, p, u;
-  var delparams = {};
-  var req = [{}];
+  var delparams: any = {};
+  var req: any[] = [{}];
 
   coroner = coronerClientArgv(config, argv);
   if (argv.sync) {
@@ -3328,7 +3331,7 @@ function attachmentDelete(argv, config, params) {
     then(std_success_cb).catch(std_failure_cb);
 }
 
-function coronerAttachment(argv, config) {
+function coronerAttachment(argv: any, config: any) {
   abortIfNotLoggedIn(config);
   var fn, object, params, subcmd;
   var coroner = coronerClientArgv(config, argv);
@@ -3351,13 +3354,13 @@ function coronerAttachment(argv, config) {
     attachmentUsage("No such subcommand " + subcmd);
 
   if (typeof params.universe !== 'string' || typeof params.project !== 'string')
-    attachmentUsage();
+    attachmentUsage("Missing universe or project parameters");
 
   argv._.shift();
-  fn(argv, config, params);
+  return fn(argv, config, params);
 }
 
-function put_benchmark(coroner, argv, files, p) {
+function put_benchmark(coroner, argv, files, p): Promise<any> {
   var tasks = [];
   var samples = [];
   var objects = [];
@@ -3416,7 +3419,7 @@ function put_benchmark(coroner, argv, files, p) {
     tasks.push(submit_cb(i));
   }
 
-  Promise.all(tasks).then((r) => {
+  return Promise.all(tasks).then((r) => {
     var failed = n_samples - success;
     console.log('\n');
     printSamples(submitted, samples, start, process.hrtime(), concurrency);
@@ -3430,7 +3433,7 @@ function put_benchmark(coroner, argv, files, p) {
   });
 }
 
-function coronerPut(argv, config) {
+function coronerPut(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
   const form = argv.form_data;
   var formats = {
@@ -3554,7 +3557,7 @@ console.log(p)
     }
   }
 
-  Promise.all(tasks).then((r) => {
+  return Promise.all(tasks).then((r) => {
     var failed = tasks.length - success;
     if (failed === 0) {
       console.log(success_color('Success.'));
@@ -3593,11 +3596,11 @@ function samplingParams(coroner, action, argv, config) {
   return params;
 }
 
-function samplingPost(coroner, params) {
+function samplingPost(coroner: any, params: any): Promise<any> {
   return coroner.promise('post', '/api/sampling', null, params, null);
 }
 
-function samplingBucketFor(buckets, count) {
+function samplingBucketFor(buckets: any, count: any): Promise<any> {
   var b, i;
   var total = 0;
 
@@ -3613,7 +3616,7 @@ function samplingBucketFor(buckets, count) {
   return b;
 }
 
-function strHashCode(str) {
+function strHashCode(str: string): number {
   var hash = 0, i, chr;
   if (str.length === 0) return hash;
   for (i = 0; i < str.length; i++) {
@@ -3640,7 +3643,7 @@ function samplingStatusProject(argv, config, universe, project) {
   var i;
 
   if (project.error) {
-    console.log(sprintf("%s: %s", name, project.error).error);
+    console.log(error_color(sprintf("%s: %s", name, project.error)));
     return;
   }
 
@@ -3752,7 +3755,7 @@ function samplingReset(coroner, argv, config) {
   samplingPost(coroner, params).then(std_success_cb).catch(std_failure_cb);
 }
 
-function samplingUsage(str) {
+function samplingUsage(str?: string): Promise<any> {
   if (str)
     err(str + "\n");
   console.error("Usage: morgue sampling <status|reset> [options]");
@@ -3771,7 +3774,7 @@ function samplingUsage(str) {
   process.exit(1);
 }
 
-function parseBool(value) {
+function parseBool(value: any): boolean {
   if (typeof value === 'boolean') {
     return value;
   }
@@ -3782,7 +3785,7 @@ function parseBool(value) {
   return recognized_bools.has(value);
 }
 
-function samplingConfigFromArgv(argv) {
+function samplingConfigFromArgv(argv: any): any {
   /*
    * For now all we support is backoff; don't expose as an arg.
    */
@@ -3823,7 +3826,7 @@ function samplingConfigFromArgv(argv) {
   }
 
   /* Set the non-optional fields. */
-  let config = {
+  let config: any = {
     type,
     backoffs,
     object_attributes: attributes,
@@ -3923,7 +3926,7 @@ function samplingConfigure(coroner, argv, config) {
     return;
   }
 
-  let configurationObj = {};
+  let configurationObj: any = {};
   if (projectSampling) {
     configurationObj = JSON.parse(projectSampling.get("configuration"));
   }
@@ -3959,7 +3962,7 @@ Changes in coronerd.conf will not enable sampling for this project.`);
 /**
  * @brief Implements the sampling command.
  */
-function coronerSampling(argv, config) {
+function coronerSampling(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner;
   var fn;
@@ -3991,24 +3994,24 @@ function coronerSampling(argv, config) {
   samplingUsage("Invalid sampling subcommand '" + subcmd + "'.");
 }
 
-function serviceUsageFn(str) {
+function serviceUsageFn(str: any): any {
   if (str)
     err(str + "\n");
   console.error("Usage: morgue service <list|status>");
 }
 
-function serviceList(argv, config, opts) {
-  opts.state.coroner.promise('svclayer', 'list', null, null)
+function serviceList(argv, config, opts): Promise<any> {
+  return opts.state.coroner.promise('svclayer', 'list', null, null)
     .then(std_json_cb).catch(std_failure_cb);
 }
 
-function serviceTokenCommand(argv, config, opts) {
+function serviceTokenCommand(argv, config, opts): Promise<any> {
   const p = {token: opts.state.coroner.config.token};
-  opts.state.coroner.promise('svclayer', opts.state.subcmd, p, null)
+  return opts.state.coroner.promise('svclayer', opts.state.subcmd, p, null)
     .then(std_json_cb).catch(std_failure_cb);
 }
 
-function coronerService(argv, config) {
+function coronerService(argv: any, config: any) {
   subcmdProcess(argv, config, {
     usageFn: serviceUsageFn,
     subcmds: {
@@ -4019,10 +4022,10 @@ function coronerService(argv, config) {
   });
 }
 
-function statusUsage(error_str) {
+function statusUsage(error_str: any): never {
   if (typeof error_str === 'string')
     err(error_str + '\n');
-  console.log("Usage: morgue status <type> ...".error);
+  console.log(red("Usage: morgue status <type> ..."));
   process.exit(1);
 }
 
@@ -4040,7 +4043,7 @@ function statusReload(argv, config, params, coroner) {
 /**
  * @brief Implements the status command.
  */
-function coronerStatus(argv, config) {
+function coronerStatus(argv: any, config: any) {
   abortIfNotLoggedIn(config);
   var fn, object, params, subcmd;
   var coroner = coronerClientArgv(config, argv);
@@ -4066,10 +4069,10 @@ function coronerStatus(argv, config) {
 /**
  * @brief: Implements the symbol list command.
  */
-function coronerSymbol(argv, config) {
+function coronerSymbol(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
 
-  const query = { 'form' : {} };
+  const query: any = { 'form' : {} };
   var action = argv._[2];
   var filter;
 
@@ -4144,7 +4147,7 @@ function coronerSymbol(argv, config) {
     }
 
     if (action === 'summary') {
-      const tableFormat = {
+      const tableFormat: TableUserConfig = {
         columns: {
           2: {
             'alignment': 'right'
@@ -4196,7 +4199,7 @@ function coronerSymbol(argv, config) {
     }
 
     if (action === 'archives') {
-      const tableFormat = {
+      const tableFormat: TableUserConfig = {
         drawHorizontalLine: (index, size) => {
           return index === 0 || index === 1 || index === size - 1 || index === size;
         },
@@ -4237,7 +4240,7 @@ function coronerSymbol(argv, config) {
         var data = [title];
 
         files.sort(function(a, b) {
-          return (a.upload_time > b.upload_time) - (b.upload_time > a.upload_time);
+          return +(Number(a.upload_time) > Number(b.upload_time)) - +(Number(b.upload_time) > Number(a.upload_time));
         });
 
         for (var j = 0; j < files.length; j++) {
@@ -4246,7 +4249,7 @@ function coronerSymbol(argv, config) {
           var dt;
 
           if (!argv.a) {
-            dt = ta.ago(file.upload_time * 1000);
+            dt = timeago(file.upload_time * 1000);
           } else {
             dt = new Date(file.upload_time * 1000);
           }
@@ -4276,7 +4279,7 @@ function coronerSymbol(argv, config) {
     }
 
     if (action === 'missing') {
-      const tableFormat = {
+      const tableFormat: TableUserConfig = {
         drawHorizontalLine: (index, size) => {
           return index === 0 || index === 1 || index === size - 1 || index === size;
         },
@@ -4299,7 +4302,7 @@ function coronerSymbol(argv, config) {
         var data = [title];
 
         files.sort(function(a, b) {
-          return (a.timestamp > b.timestamp) - (b.timestamp > a.timestamp);
+          return +(a.timestamp > b.timestamp) - +(b.timestamp > a.timestamp);
         });
 
         for (var j = 0; j < files.length; j++) {
@@ -4307,7 +4310,7 @@ function coronerSymbol(argv, config) {
           var dt;
 
           if (!argv.a) {
-            dt = ta.ago(file.timestamp * 1000);
+            dt = timeago(file.timestamp * 1000);
           } else {
             dt = new Date(file.timestamp * 1000);
           }
@@ -4322,7 +4325,7 @@ function coronerSymbol(argv, config) {
     }
 
     if (action === 'list') {
-      const tableFormat = {
+      const tableFormat: TableUserConfig = {
         drawHorizontalLine: (index, size) => {
           return index === 0 || index === 1 || index === size - 1 || index === size;
         },
@@ -4354,7 +4357,7 @@ function coronerSymbol(argv, config) {
         var data = [ title ];
 
         tags[i].files.sort(function(a, b) {
-          return (a.upload_time > b.upload_time) - (b.upload_time > a.upload_time);
+          return +(Number(a.upload_time) > Number(b.upload_time)) - +(Number(b.upload_time) > Number(a.upload_time));
         });
 
         for (var j = 0; j < tags[i].files.length; j++) {
@@ -4368,7 +4371,7 @@ function coronerSymbol(argv, config) {
           }
 
           if (!argv.a) {
-            dt = ta.ago(file.upload_time * 1000);
+            dt = timeago(file.upload_time * 1000);
           } else {
             dt = new Date(file.upload_time * 1000);
           }
@@ -4395,7 +4398,7 @@ function coronerSymbol(argv, config) {
   });
 }
 
-function coronerScrubber(argv, config) {
+function coronerScrubber(argv: any, config: any): any {
   var options = null;
   var project, universe, pid, un, target;
 
@@ -4590,7 +4593,7 @@ function coronerScrubber(argv, config) {
     if (!scrubber)
       errx('Scrubber not found');
 
-    var delta = {};
+    var delta: any = {};
     if (argv.name)
       delta.name = argv.name;
     if (argv.regexp)
@@ -4631,7 +4634,7 @@ function bpgPost(bpg, request, callback) {
   }
 }
 
-function bpgPostAsync(bpg, request) {
+function bpgPostAsync(bpg: any, request: any): Promise<any> {
   return new Promise((resolve, reject) => {
     var json, msg, response;
 
@@ -4655,7 +4658,7 @@ function bpgPostAsync(bpg, request) {
  * This is meant primarily for debugging & testing; it could be extended to
  * offer a CLI-structured way to represent BPG commands.
  */
-function coronerBpg(argv, config) {
+function coronerBpg(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var json, request, response;
   var coroner = coronerClientArgv(config, argv);
@@ -4781,7 +4784,7 @@ function viewSetupFn(config, argv, opts, subcmd) {
   }
 }
 
-function attributeUsageFn(str) {
+function attributeUsageFn(str: any): never {
   const formats = [
     'none',
     'commit',
@@ -4833,7 +4836,7 @@ function attributeUsageFn(str) {
   process.exit(1);
 }
 
-function attributeSetupFn(config, argv, opts, subcmd) {
+function attributeSetupFn(config, argv, opts, subcmd): any {
   if (argv.length < 3) {
     return attributeUsageFn("Incomplete command.");
   }
@@ -4875,7 +4878,7 @@ function attributeSetupFn(config, argv, opts, subcmd) {
   }
 }
 
-function bpgCbFn(name, type) {
+function bpgCbFn(name: any, type: any): (e: any, r: any) => void {
   return (e, r) => {
     if (e) {
       err(`${name} ${type} failed: ${e}`);
@@ -4885,11 +4888,11 @@ function bpgCbFn(name, type) {
   };
 }
 
-function bpgSingleRequest(request) {
+function bpgSingleRequest(request: any): string {
   return JSON.stringify({ actions: [ request ] });
 }
 
-function attributeSet(argv, config, opts) {
+function attributeSet(argv, config, opts): any {
   const state = opts.state;
   if (!argv.description) {
     return attributeUsageFn("Must specify new description.");
@@ -4956,7 +4959,7 @@ function attributeDelete(argv, config, opts) {
   bpgPost(state.bpg, request, bpgCbFn('Attribute', 'delete'));
 }
 
-function attributeCreate(argv, config, opts) {
+function attributeCreate(argv, config, opts): any {
   const state = opts.state;
 
   if (!argv.type) return attributeUsageFn("Must specify type.");
@@ -4977,7 +4980,7 @@ function attributeCreate(argv, config, opts) {
   bpgPost(state.bpg, request, bpgCbFn('Attribute', 'create'));
 }
 
-function coronerAttribute(argv, config) {
+function coronerAttribute(argv: any, config: any) {
   subcmdProcess(argv, config, {
     usageFn: attributeUsageFn,
     setupFn: attributeSetupFn,
@@ -4989,7 +4992,7 @@ function coronerAttribute(argv, config) {
   });
 }
 
-function coronerView(argv, config) {
+function coronerView(argv: any, config: any) {
   subcmdProcess(argv, config, {
     usageFn: viewUsageFn,
     setupFn: viewSetupFn,
@@ -5004,7 +5007,7 @@ function coronerView(argv, config) {
  * Print frames in j, relative to availability in k. Different functions
  * are bolded accordingly.
  */
-function printFrame(fr_a, fr_b) {
+function printFrame(fr_a: any, fr_b: any): string {
   var pcs = '';
   var ln = 0;
 
@@ -5042,7 +5045,7 @@ function printFrame(fr_a, fr_b) {
 
 const similarityParams = ['threshold', 'intersection', 'distance', 'truncate'];
 const similarityDefaultFilter = [{ timestamp: [['at-least', '1.']] }];
-async function coronerSimilarity(argv, config) {
+async function coronerSimilarity(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const similarityService = config.config.services.find(service => {
@@ -5213,7 +5216,7 @@ async function coronerSimilarity(argv, config) {
    }
 }
 
-function coronerFlamegraph(argv, config) {
+function coronerFlamegraph(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var query, p;
   var unique = argv.unique;
@@ -5242,8 +5245,8 @@ function coronerFlamegraph(argv, config) {
     }
 
     var child = spawn(flamegraph);
-    var rp = new crdb.Response(result.response);
-    rp = rp.unpack();
+    var response = new crdb.Response(result.response);
+    var rp: any = response.unpack();
 
     if (!rp['*']) {
       errx("No results found.");
@@ -5308,7 +5311,7 @@ function coronerFlamegraph(argv, config) {
   });
 }
 
-function coronerNuke(argv, config) {
+function coronerNuke(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
 
   var coroner = coronerClientArgv(config, argv);
@@ -5319,8 +5322,8 @@ function coronerNuke(argv, config) {
     url: coroner.endpoint,
     session: { token: '000000000' }
   };
-  var opts = {};
-  var bpg = {};
+  var opts: any = {};
+  var bpg: any = {};
 
   if (coroner.config && coroner.config.token)
     coronerd.session.token = coroner.config.token;
@@ -5377,7 +5380,7 @@ function coronerNuke(argv, config) {
   return;
 }
 
-function coronerSet(argv, config) {
+function coronerSet(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var query;
   var p;
@@ -5406,7 +5409,7 @@ function coronerSet(argv, config) {
     }
   }
 
-  var set = {};
+  var set: any = {};
   for (var i = 0; i < argv._.length; i++) {
     if (argv._[i].indexOf('=') === -1)
       continue;
@@ -5459,8 +5462,8 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
     for (;;) {
       let lowest_id = 2**32;
       const result = await coroner.query(p.universe, p.project, query);
-      let rp = new crdb.Response(result.response);
-      rp = rp.unpack();
+      let response = new crdb.Response(result.response);
+      let rp: any = response.unpack();
 
       let objects = rp['*'];
       if (objects.length === 0)
@@ -5529,7 +5532,7 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
     `${Math.floor(saved / 1024 / 1024)}MB.\n`);
 }
 
-async function coronerCleanAsync(argv, config) {
+async function coronerCleanAsync(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
   var query;
   var p;
@@ -5598,8 +5601,8 @@ async function coronerCleanAsync(argv, config) {
 /**
  * @brief: Implements the clean command.
  */
-function coronerClean(argv, config) {
-  coronerCleanAsync(argv, config).catch((err) => {
+async function coronerClean(argv: any, config: any): Promise<any> {
+  await coronerCleanAsync(argv, config).catch((err) => {
     console.error(err);
   });
 }
@@ -5607,7 +5610,7 @@ function coronerClean(argv, config) {
 /**
  * @brief: Implements the list command.
  */
-function coronerList(argv, config) {
+function coronerList(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var query;
   var p;
@@ -5687,7 +5690,7 @@ function coronerList(argv, config) {
     if (argv.samples)
       n_samples = argv.samples;
 
-    var start = process.hrtime();
+    start = process.hrtime();
 
     for (i = 0; i < concurrency; i++) {
       (function queryPr() {
@@ -5795,7 +5798,7 @@ function coronerList(argv, config) {
   }
 }
 
-function uint128ToUuid(uint128) {
+function uint128ToUuid(uint128: any): string {
   const uuid_sizes = [8, 4, 4, 4, 12];
   const uint128_pattern = /^[0-9a-f]{32,32}$/;
   var parts = [];
@@ -5811,7 +5814,7 @@ function uint128ToUuid(uint128) {
   return parts.join("-");
 }
 
-function uint128ToIpv6(uint128) {
+function uint128ToIpv6(uint128: any): string {
   // already an ipv6 address
   if (typeof uint128 === 'string' && uint128.includes(':')) {
     return ipv6.parse(uint128).toString()
@@ -5828,7 +5831,7 @@ function uint128ToIpv6(uint128) {
   return ipv6.parse(ipv6Str).toString()
 }
 
-function fieldFormat(st, format) {
+function fieldFormat(st: any, format: any): string {
   switch (format) {
     case 'memory_address':
       return printf("%#lx", st);
@@ -5863,13 +5866,13 @@ function fieldFormat(st, format) {
   }
 }
 
-function rangePrint(field, factor) {
+function rangePrint(field: any, factor: any): void {
   console.log(field[0] + " - " + field[1] + " (" +
       (field[1] - field[0]) + ")");
 }
 
 function binPrint(field, factor, ff) {
-  var data = {};
+  var data: any = {};
   var j = 0;
   var i;
   var format = "%20s %20s";
@@ -5903,7 +5906,7 @@ function binPrint(field, factor, ff) {
 }
 
 function histogramPrint(field, unused, format) {
-  var data = {};
+  var data: any = {};
   var j = 0;
   var i;
 
@@ -5948,7 +5951,7 @@ function noFormatPrint(field, unused, format) {
   return true;
 }
 
-function callstackPrint(cs) {
+function callstackPrint(cs: any): void {
   var callstack;
   var frames, i, length;
 
@@ -5980,13 +5983,13 @@ function callstackPrint(cs) {
   length = 4;
 
   if (!ARGV.verbose && !ARGV.l) {
-    var options = { dynamic: true };
+    var options: CallstackOptions = { };
     var label = new Callstack(frames);
 
     if (ARGV.collapse)
       options.dynamic = true;
     if (ARGV.suffix) {
-      options.suffix = ARGV.suffix;
+      options.suffix = parseInt(ARGV.suffix);
       options.dynamic = false;
     }
 
@@ -6038,7 +6041,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
 
       if (ob.timestamp) {
         process.stdout.write(new Date(ob.timestamp * 1000) + '     ' +
-            bold(ta.ago(ob.timestamp * 1000)) + '\n');
+            bold(timeago(ob.timestamp * 1000)) + '\n');
       } else {
         process.stdout.write('\n');
       }
@@ -6078,7 +6081,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
   if (timestamp_range) {
     start = new Date(timestamp_range[0] * 1000);
     stop = new Date(timestamp_range[1] * 1000);
-    sa = ta.ago(stop) + '\n';
+    sa = timeago(stop) + '\n';
 
     process.stdout.write(success_color(sa));
   }
@@ -6267,9 +6270,9 @@ function coronerLogin(argv, config, cb) {
   });
 }
 
-function unpackQueryObjects(objects, qresult) {
-  var rp = new crdb.Response(qresult.response);
-  rp = rp.unpack();
+function unpackQueryObjects(objects: any, qresult: any): void {
+  var response = new crdb.Response(qresult.response);
+  var rp: any = response.unpack();
 
   if (rp['*']) {
     rp['*'].forEach(function(o) {
@@ -6278,7 +6281,7 @@ function unpackQueryObjects(objects, qresult) {
   }
 }
 
-function symboldClient(argv, config) {
+function symboldClient(argv: any, config: any): any {
   const coroner = coronerClientArgv(config, argv);
   const symboldClient = new symbold.SymboldClient(coroner);
   argv._.shift();
@@ -6286,7 +6289,7 @@ function symboldClient(argv, config) {
 }
 
 
-function callstackUsage(str) {
+function callstackUsage(str?: any): never {
   if (str)
     err(str + "\n");
   console.error("Usage: morgue callstack <subcommand>:");
@@ -6313,7 +6316,7 @@ function coronerCallstackParams(argv, p, action) {
   return csparams;
 }
 
-function coronerCallstackEval(argv, coroner, p) {
+async function coronerCallstackEval(argv, coroner, p): Promise<any> {
   const csparams = coronerCallstackParams(argv, p, "evaluate");
   var data, params, obj;
 
@@ -6337,14 +6340,14 @@ function coronerCallstackEval(argv, coroner, p) {
    */
   params = {resource: "json.gz"};
 
-  coroner.promise('http_fetch', p.universe, p.project, obj, params).then((hr) => {
+  await coroner.promise('http_fetch', p.universe, p.project, obj, params).then(async (hr) => {
     try {
       data = JSON.parse(zlib.gunzipSync(hr.bodyData).toString("utf8"));
     } catch (e) {
       data = JSON.parse(hr.bodyData);
     }
 
-    return coroner.promise('post', '/api/callstack', csparams, data, null).then((csr) => {
+    await coroner.promise('post', '/api/callstack', csparams, data, null).then((csr) => {
         console.log(JSON.stringify(csr, null, 4));
       }).catch(std_failure_cb);
   }).catch(std_failure_cb);
@@ -6362,7 +6365,7 @@ function coronerCallstackGet(argv, coroner, p) {
 /**
  * @brief Implements the callstack command.
  */
-function coronerCallstack(argv, config) {
+function coronerCallstack(argv: any, config: any): any {
   var coroner, fn, p, subcmd;
 
   const subcmd_map = {
@@ -6393,7 +6396,7 @@ function coronerCallstack(argv, config) {
   callstackUsage("Invalid callstack subcommand '" + subcmd + "'.");
 }
 
-function deduplicationUsage(str) {
+function deduplicationUsage(str?: any): never {
   if (str)
     err(str + "\n");
   console.error("Usage: morgue deduplication <subcommand>:");
@@ -6409,7 +6412,7 @@ function deduplicationUsage(str) {
   process.exit(1);
 }
 
-function coronerDeduplicationAdd(argv, coroner, p, bpg, rules) {
+function coronerDeduplicationAdd(argv, coroner, p, bpg, rules): any {
   if (fs.existsSync(argv.rules)) {
     const data = JSON.parse(fs.readFileSync(argv.rules, 'utf8'));
     rules.set('rules', JSON.stringify(data));
@@ -6433,7 +6436,7 @@ function coronerDeduplicationDelete(argv, coroner, p, bpg, rules) {
 }
 
 function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
-  var delta = {};
+  var delta: any = {};
 
   if (argv.priority && parseInt(argv.priority) != 0)
     delta.priority = parseInt(argv.priority);
@@ -6529,7 +6532,7 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
 /**
  * @brief Implements the deduplication command.
  */
-function coronerDeduplication(argv, config) {
+function coronerDeduplication(argv: any, config: any): any {
   var coroner, fn, p, subcmd;
 
   const subcmd_map = {
@@ -6604,11 +6607,11 @@ function coronerDeduplication(argv, config) {
 /**
  * @brief Implements the delete command.
  */
-function coronerDelete(argv, config) {
+async function coronerDelete(argv: any, config: any): Promise<any> {
   var aq, coroner, o, p;
   var tasks = [];
   var chunklen = argv.chunklen || 16384;
-  var params = {};
+  var params: any = {};
   var physical_only = argv["physical-only"];
   var crdb_only = argv["crdb-only"];
 
@@ -6656,14 +6659,14 @@ function coronerDelete(argv, config) {
   }
 
   if (aq && aq.query) {
-    coroner.promise('delete_by_query', p.universe, p.project, aq.query, params)
+    await coroner.promise('delete_by_query', p.universe, p.project, aq.query, params)
       .then(std_success_cb).catch(std_failure_cb);
   } else {
-    delete_fn().then(std_success_cb).catch(std_failure_cb);
+    await delete_fn().then(std_success_cb).catch(std_failure_cb);
   }
 }
 
-function coronerRepair(argv, config) {
+function coronerRepair(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var params = coronerParams(argv, config);
   var coroner = coronerClientArgv(config, argv);
@@ -6686,12 +6689,12 @@ function coronerRepair(argv, config) {
 /**
  * @brief Implements the reprocess command.
  */
-function coronerReprocess(argv, config) {
+function coronerReprocess(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var params = coronerParams(argv, config);
   var coroner;
   var n_objects;
-  var aq = {};
+  var aq: any = {};
 
   if (argv._.length < 2) {
     return usage("Missing universe, project arguments.");
@@ -6735,7 +6738,7 @@ function coronerReprocess(argv, config) {
   }
 }
 
-function retentionUsage(str) {
+function retentionUsage(str?: string): never {
   if (str)
     err(str + "\n");
   console.error("Usage: morgue retention <list|set|status|clear> <name> [options]");
@@ -6773,7 +6776,7 @@ function retentionUsage(str) {
   process.exit(1);
 }
 
-function bpgObjectFind(objects, type, vals, fields) {
+function bpgObjectFind(objects, type, vals, fields?) {
   if (!objects[type])
     return null;
 
@@ -6810,7 +6813,7 @@ function bpgObjectFind(objects, type, vals, fields) {
   });
 }
 
-function retentionTypeFor(parent_type) {
+function retentionTypeFor(parent_type: any): string {
   if (parent_type === "universe")
     return "universe_retention";
   if (parent_type === "project")
@@ -6849,13 +6852,13 @@ function addCriterion(rule, type, params) {
   }, params || {}));
 }
 
-function addAction(rule, type, params) {
+function addAction(rule, type, params?) {
   rule.actions.push(Object.assign({
     type
   }, params || {}));
 }
 
-function getRuleId(str) {
+function getRuleId(str: any): number {
   const fields = str.split(",");
   return parseInt(fields[0]);
 }
@@ -6871,7 +6874,7 @@ function checkRuleId(n_rules, field, str) {
   return [ruleId, fields];
 }
 
-function normalizeRetentionParam(param) {
+function normalizeRetentionParam(param: any): string[] {
   if (param === undefined)
     return [];
   if (Number.isInteger(param))
@@ -6884,8 +6887,8 @@ function normalizeRetentionParam(param) {
   return param;
 }
 
-function retentionSet(bpg, objects, argv, config) {
-  var act_obj = {};
+function retentionSet(bpg, objects, argv, config): any {
+  var act_obj: any = {};
   var rules = [{
     criteria: [{type: "object-age", op: "at-least"}],
     actions: [{type: "delete-all"}],
@@ -6942,7 +6945,7 @@ function retentionSet(bpg, objects, argv, config) {
   for (const a of argv.age) {
     const [ruleId, fields] = checkRuleId(argv.rules, "age", a);
     const [op, time, time_end] = fields;
-    let params = { op, time: timeCli.timespecToSeconds(time).toString() };
+    let params: any = { op, time: timeCli.timespecToSeconds(time).toString() };
     if (time_end)
       params.time_end = timeCli.timespecToSeconds(time_end).toString();
     addCriterion(rules[ruleId], "object-age", params);
@@ -6950,7 +6953,7 @@ function retentionSet(bpg, objects, argv, config) {
   for (const d of argv.delete) {
     const [ruleId, fields] = checkRuleId(argv.rules, "delete", d);
     const [subset] = fields;
-    let params = {};
+    let params: any = {};
     if (subset)
       params.subsets = [subset];
     addAction(rules[ruleId], "delete-all", params);
@@ -7035,34 +7038,34 @@ function retentionClear(bpg, objects, argv, config) {
   return retentionSet(bpg, objects, argv, config);
 }
 
-function retentionNoString(reason, argv) {
+function retentionNoString(reason: any, argv: any): string {
   if (!argv || !argv.debug)
     return null;
   return "max age: unspecified (" + reason + ")";
 }
 
-function ageCritToString(crit) {
+function ageCritToString(crit: any): string {
   const max_age = timeCli.secondsToTimespec(crit.value || crit.time);
   return `object-age ${crit.op} ${max_age}`;
 }
 
-function deleteActToString(act) {
+function deleteActToString(act: any): string {
   let actstr = "delete-all";
   if (act.subsets && act.subsets.indexOf("physical") != -1)
     actstr += "(physical-only)";
   return actstr;
 }
 
-function compressActToString(act) {
+function compressActToString(act: any): string {
   let actstr = "compress";
   return actstr;
 }
 
-function ruleString(num, s) {
+function ruleString(num: any, s: any): string {
   return `rule #${num}: ${s}`;
 }
 
-function ruleToString(rule) {
+function ruleToString(rule: any): string {
   let s = "";
 
   if (Array.isArray(rule.criteria) === false || rule.criteria.length === 0)
@@ -7092,7 +7095,7 @@ function ruleToString(rule) {
   return s;
 }
 
-function retentionToStrings(r_obj, argv) {
+function retentionToStrings(r_obj: any, argv: any): string[] {
   const rules = JSON.parse(r_obj.get("rules"));
   var rule;
   var s;
@@ -7103,7 +7106,7 @@ function retentionToStrings(r_obj, argv) {
   return rules.map(ruleToString);
 }
 
-function retentionListRules(spaces, rules) {
+function retentionListRules(spaces: any, rules: any): string {
   if (rules.length === 1) {
     /* If only one rule, just list it directly inline. */
     return ` ${rules[0]}`;
@@ -7112,13 +7115,13 @@ function retentionListRules(spaces, rules) {
   return `\n${spaces}${rules_annotated.join(`\n${spaces}`)}`;
 }
 
-function retentionListNamespaceRules(ns_obj, rules) {
+function retentionListNamespaceRules(ns_obj: any, rules: any): string {
   let s = `${ns_obj.get("name")}:`;
 
   return `  ${ns_obj.get("name")}:${retentionListRules("    ", rules)}`;
 }
 
-function retentionList(bpg, objects, argv, config) {
+function retentionList(bpg, objects, argv, config): any {
   var r;
   var count = 0;
   var before = 0;
@@ -7167,15 +7170,15 @@ function retentionList(bpg, objects, argv, config) {
   }
 }
 
-function usageRetentionStatus(str) {
+function usageRetentionStatus(str?: string): any {
   if (str)
-    console.log(str.error);
-  console.log("Usage: retention status [--type universe|project] [name]".error);
+    console.log(error_color(str));
+  console.log(error_color("Usage: retention status [--type universe|project] [name]"));
   console.log("Specifying a type requires a name without a slash.");
   return;
 }
 
-function epochsec_to_datestr(sec) {
+function epochsec_to_datestr(sec: any): string {
   return (new Date(sec * 1000)).toUTCString();
 }
 
@@ -7187,7 +7190,7 @@ function shouldExpireStr(expiry_ts, recvtime, toff) {
   return `should expire at ${epochsec_to_datestr(calc_expiry)}`;
 }
 
-function oiiToString(exp_data, verbosity) {
+function oiiToString(exp_data: any, verbosity: any): string {
   const oii = exp_data.next_object;
   const toff = parseInt(exp_data.off);
   const recvtime = parseInt(oii.recvtime);
@@ -7232,7 +7235,7 @@ function retentionSkip(obj, level, name) {
   return false;
 }
 
-function retentionSublevel(level) {
+function retentionSublevel(level: any): string | null {
   if (level === "instance")
     return "universe";
   else if (level === "universe")
@@ -7241,22 +7244,22 @@ function retentionSublevel(level) {
     return null;
 }
 
-function ageCritStatus(crit) {
+function ageCritStatus(crit: any): string {
   return ageCritToString(crit);
 }
 
-function deleteActStatus(act) {
+function deleteActStatus(act: any): string {
   return deleteActToString(act);
 }
 
-function compressStats(statobj) {
+function compressStats(statobj: any): string {
   let s = `${statobj.n_compressed}/${statobj.n_consumed} compressed`;
   s += ` ${statobj.n_input_bytes} to ${statobj.n_compressed_bytes} bytes`;
   s += ` (ratio ${(100 * statobj.n_compressed_bytes / statobj.n_input_bytes).toFixed(2)}%)`;
   return s;
 }
 
-function compressActStatus(act) {
+function compressActStatus(act: any): string {
   let s = "";
   if (act.last_id === 0) {
     s += "not yet run";
@@ -7284,7 +7287,7 @@ function compressActStatus(act) {
   return `compress(${s})`;
 }
 
-function ruleTaskStatus(rule) {
+function ruleTaskStatus(rule: any): string {
   let items = [];
   let str = "";
   if (rule.enabled !== undefined)
@@ -7380,7 +7383,7 @@ function ruleStatus(rule, argv, spaces) {
   const exp_data = rule.criteria.reduce((exp_data, crit) => {
     if (exp_data.off === 0) {
       exp_data.off = crit.value;
-    } else if (exp_off > crit.value) {
+    } else if (exp_data.off > crit.value) {
       exp_data.off = crit.value;
     }
     if (crit.next_object)
@@ -7457,7 +7460,7 @@ function retentionStatusDump(argv, obj, name, level, indent) {
  * -> api/control?action=rpstatus, parse response JSON
  */
 function retentionStatus(coroner, argv, config) {
-  var params = { action: 'rpstatus' };
+  var params: any = { action: 'rpstatus' };
   var name = argv._[0];
   var type = argv.type;
   var level = "instance";
@@ -7505,7 +7508,7 @@ function retentionStatus(coroner, argv, config) {
 /**
  * @brief Implements the retention command.
  */
-function coronerRetention(argv, config) {
+function coronerRetention(argv: any, config: any): any {
   abortIfNotLoggedIn(config);
   var coroner;
   var bpg;
@@ -7541,7 +7544,7 @@ function coronerRetention(argv, config) {
   retentionUsage("Invalid retention subcommand '" + subcmd + "'.");
 }
 
-async function metricsImporterCmd(argv, config) {
+async function metricsImporterCmd(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientArgv(config, argv);
   const cli = await metricsImporterCli.metricsImporterCliFromCoroner(coroner);
@@ -7636,7 +7639,7 @@ function stabilityCreateMetric(coroner, argv, config) {
     errx("Metric group not found");
   }
 
-  let attributesObj = {};
+  let attributesObj: any = {};
   for (let a of attributes) {
     const parts = a.split(",");
     if (parts.length != 2) {
@@ -7663,7 +7666,7 @@ function stabilityCreateMetric(coroner, argv, config) {
   console.log("Metric created");
 }
 
-function coronerStability(argv, config) {
+function coronerStability(argv: any, config: any): any {
   const coroner = coronerClientArgv(config, argv);
 
   argv._.shift();
@@ -7683,7 +7686,7 @@ function coronerStability(argv, config) {
   return fn(coroner, argv, config);
 }
 
-async function alertsCmd(argv, config) {
+async function alertsCmd(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientArgv(config, argv);
   const cli = await alertsCli.alertsCliFromCoroner(coroner, argv, config);
@@ -7691,7 +7694,7 @@ async function alertsCmd(argv, config) {
   await cli.routeMethod(argv);
 }
 
-async function workflowsCmd(argv, config) {
+async function workflowsCmd(argv: any, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientArgv(config, argv);
   const cli = await WorkflowsCli.fromCoroner(coroner, argv, config);
@@ -7810,7 +7813,7 @@ function actionsGet(bpg, pid, ssa) {
   console.log(ssa.get("configuration"));
 }
 
-function coronerActions(argv, config) {
+function coronerActions(argv: any, config: any): any {
   const coroner = coronerClientArgv(config, argv);
   let bpg = coronerBpgSetup(coroner, argv);
   let model = bpg.get();
@@ -7845,7 +7848,7 @@ function coronerActions(argv, config) {
 }
 
 
-function main() {
+function main(): any {
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
     /* Don't convert arguments that are often hex strings. */

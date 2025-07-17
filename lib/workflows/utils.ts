@@ -1,5 +1,5 @@
-const fs = require("fs");
-const cliOptions = require("../cli/options");
+import * as fs from 'fs';
+import * as cliOptions from '../cli/options';
 
 /**
  * If `--raw` is specified, raw JSON is printed.
@@ -7,7 +7,7 @@ const cliOptions = require("../cli/options");
  * Otherwise, `pretty` is executed on `obj`.
  * If `obj` is an array, `pretty` is executed on each element separately.
  */
-function output(obj, argv, pretty) {
+export function output(obj, argv, pretty) {
   if (cliOptions.convertBool("raw", argv.raw, false)) {
     console.log(JSON.stringify(obj, null, "  "));
   } else if (Array.isArray(obj)) {
@@ -20,7 +20,7 @@ function output(obj, argv, pretty) {
 /**
  * Loads initial config from file if `--from-file` is specified, or from stdin.
  */
-function loadInit(argv) {
+export function loadInit(argv) {
   const filePath = cliOptions.convertAtMostOne("from-file", argv["from-file"]);
   if (filePath) {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -33,7 +33,7 @@ function loadInit(argv) {
   return {};
 }
 
-function getPluginId(argv, init) {
+export function getPluginId(argv, init) {
   return cliOptions.convertOne(
     "plugin",
     argv.plugin || argv.pluginId || init.pluginId
@@ -43,7 +43,7 @@ function getPluginId(argv, init) {
 /**
  * Returns objects without keys that have undefined or null value.
  */
-function skipNotDefinedKeys(obj) {
+export function skipNotDefinedKeys(obj) {
   const result = {};
   for (const key in obj) {
     if (obj[key] == undefined) {
@@ -54,10 +54,3 @@ function skipNotDefinedKeys(obj) {
   }
   return result;
 }
-
-module.exports = {
-  output,
-  loadInit,
-  skipNotDefinedKeys,
-  getPluginId,
-};

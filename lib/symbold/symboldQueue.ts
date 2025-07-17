@@ -1,4 +1,6 @@
-class SymboldQueue {
+export class SymboldQueue {
+  symboldClient: any;
+
   constructor(client) {
     this.symboldClient = client;
   }
@@ -98,7 +100,7 @@ class SymboldQueue {
     });
   }
 
-  showQueueUsage(err) {
+  showQueueUsage(err?: any) {
     if (err) {
       console.warn(`
         ${err} \n
@@ -123,5 +125,3 @@ class SymboldQueue {
       `);
   }
 }
-
-module.exports.SymboldQueue = SymboldQueue;

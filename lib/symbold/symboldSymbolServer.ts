@@ -1,4 +1,6 @@
-class SymboldSymbolServer {
+export class SymboldSymbolServer {
+  symboldClient: any;
+
   constructor(client) {
     this.symboldClient = client;
   }
@@ -130,8 +132,8 @@ class SymboldSymbolServer {
   createSymbolServer(universeProject, symbolServerUrl, argv) {
     if (this.symboldClient.debug) {
       console.log(`Method parameters:`);
-      console.Console;
-      log({ universeProject, symbolServerUrl, argv });
+      console.Console; // cstrahan: is this intentional?
+      console.log({ universeProject, symbolServerUrl, argv });
     }
     if (!universeProject) {
       return this.showSymbolServerUsage("Missing universe name");
@@ -238,7 +240,7 @@ class SymboldSymbolServer {
     this.symboldClient.get(url);
   }
 
-  showSymbolServerUsage(err) {
+  showSymbolServerUsage(err?: any) {
     if (err) {
       console.warn(`${err} \n`);
     }
@@ -316,7 +318,7 @@ class SymboldSymbolServer {
     return serverCredentials;
   }
 
-  getProxy(argv) {
+  getProxy(argv?: any) {
     return argv && argv.proxy
       ? {
           host: argv.proxy.host,
@@ -327,5 +329,3 @@ class SymboldSymbolServer {
       : undefined;
   }
 }
-
-module.exports.SymboldSymbolServer = SymboldSymbolServer;

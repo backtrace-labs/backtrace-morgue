@@ -8,7 +8,7 @@
 /*
  * Takes a time specifier and returns the number of seconds.
  */
-function timespecToSeconds(age_val) {
+export function timespecToSeconds(age_val) {
   var unit = {
     'y' : 3600 * 24 * 365,
     'M' : 3600 * 24 * 30,
@@ -31,13 +31,13 @@ function timespecToSeconds(age_val) {
     iu = 's';
   if (!unit[iu])
     throw new Error("Unknown interval unit '" + iu + "'");
-  return parseInt(age * unit[iu]);
+  return age * unit[iu];
 }
 
 /*
  * Takes a value in seconds and returns a time specifier.
  */
-function secondsToTimespec(age_val) {
+export function secondsToTimespec(age_val) {
   var age = parseInt(age_val);
   var ts = {};
 
@@ -66,16 +66,10 @@ function secondsToTimespec(age_val) {
   }, "");
 }
 
-function parseTimeInt(x) {
+export function parseTimeInt(x) {
   let i = parseInt(x);
-  if (i === NaN || String(i) !== x) {
+  if (isNaN(i) || String(i) !== x) {
     i = timespecToSeconds(x);
   }
   return i;
 }
-
-module.exports = {
-  parseTimeInt,
-  timespecToSeconds,
-  secondsToTimespec
-};

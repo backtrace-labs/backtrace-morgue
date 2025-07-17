@@ -1,15 +1,21 @@
-const cliOptions = require("../../cli/options");
-const assignDeep = require("assign-deep");
-const { skipNotDefinedKeys } = require("../utils");
+import * as cliOptions from '../../cli/options';
+import assignDeep from 'assign-deep';
+import { skipNotDefinedKeys } from '../utils';
 
-class UpdateIntegration {
+export class UpdateIntegration {
+  state: any;
+  synchronizeIssues: any;
+  synchronizeIssuesOnAdd: any;
+  options: any;
+  connectionId: any;
+
   constructor({
     state,
     synchronizeIssues,
     synchronizeIssuesOnAdd,
     options,
     connectionId,
-  }) {
+  }: any) {
     this.state = state;
     this.synchronizeIssues = synchronizeIssues;
     this.synchronizeIssuesOnAdd = synchronizeIssuesOnAdd;
@@ -43,5 +49,3 @@ class UpdateIntegration {
     );
   }
 }
-
-module.exports = UpdateIntegration;

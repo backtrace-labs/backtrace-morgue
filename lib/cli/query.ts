@@ -1,10 +1,10 @@
 /*
  * Helper functions for building queries from CLI args.
  */
-const chrono = require("chrono-node");
+import * as chrono from 'chrono-node';
 
-const timeCli = require('./time');
-const { err, errx } = require('./errors');
+import * as timeCli from './time';
+import { err, error_color, errx } from './errors';
 
 function argvQuantizeUint(argv) {
   let q = argv["quantize-uint"];
@@ -47,7 +47,7 @@ function argvVcols(args) {
 }
 
 /* Some subcommands don't make sense with folds etc. */
-function argvQueryFilterOnly(argv) {
+export function argvQueryFilterOnly(argv) {
   if (argv.select || argv.filter || argv.fingerprint || argv.age || argv.time || argv['select-wildcard']) {
     /* Object must be returned for query to be chainable. */
     if (!argv.select && !argv['select-wildcard'] && !argv.template) {
@@ -90,7 +90,7 @@ function parseFilterFlags(filter) {
   return flags;
 }
 
-function parseFilter(input) {
+export function parseFilter(input) {
   let [attribute, op, value, flags] = input.split(",");
   if (!attribute || !op) {
     errx("Filter must be of form <column>,<operation>[,<value>].");
@@ -124,7 +124,7 @@ function parseFilter(input) {
 }
 
 function argvQueryPrefold(argv, implicitTimestampOps) {
-  var query = {};
+  var query: any = {};
   var d_age = null;
   let ts_attr = 'timestamp';
 
@@ -141,6 +141,8 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
   if (argv["timestamp-attribute"] && argv["timestamp-attribute"].length > 0)
     ts_attr = argv["timestamp-attribute"];
 
+  // TODO(cstrahan): actually reverse the results?
+  let reverse = 1;
   if (argv.reverse)
     reverse = -1;
 
@@ -185,7 +187,8 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
       errx('Cannot mix --time and timestamp filters');
 
     var tm = chrono.parse(argv.time);
-    var ts_s, ts_e;
+    var ts_s: number;
+    var ts_e: number;
 
     if (argv.debug)
       console.log('tm = ', JSON.stringify(tm, null, 4));
@@ -197,28 +200,28 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
       if (tm.length === 2) {
         /* See whether it parsed as two starts and no ends. */
         if (tm[0].start && tm[1].start && !tm[0].end && !tm[1].end) {
-          ts_s = tm[0].start.date();
-          ts_e = tm[1].start.date();
+          ts_s = tm[0].start.date().getTime();
+          ts_e = tm[1].start.date().getTime();
         }
       }
       if (!ts_s)
-        errx('only a single date or range is permitted.'.error);
+        errx(error_color('only a single date or range is permitted.'));
     } else {
       if (!tm[0].start)
-        errx('date specification lacks start date'.error);
+        errx(error_color('date specification lacks start date'));
 
       if (!tm[0].end)
-        errx('date specification lacks end date'.error);
+        errx(error_color('date specification lacks end date'));
 
-      ts_s = tm[0].start.date();
-      ts_e = tm[0].end.date();
+      ts_s = tm[0].start.date().getTime();
+      ts_e = tm[0].end.date().getTime();
     }
 
     /* Treat zero start time as greater than zero to exclude unset values. */
-    ts_s = parseInt(ts_s / 1000);
+    ts_s = Math.floor(ts_s / 1000);;
     if (ts_s === 0)
       ts_s = 1;
-    ts_e = parseInt(ts_e / 1000);
+    ts_e = Math.floor(ts_e / 1000);
 
     query.filter[0][ts_attr] = [
       [ 'at-least', ts_s ],
@@ -301,15 +304,15 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
 
   if (d_age && implicitTimestampOps) {
     var now = Date.now();
-    var target = parseInt(now / 1000) - timeCli.timespecToSeconds(d_age);
+    var target = now / 1000 - timeCli.timespecToSeconds(d_age);
     var oldest = Math.floor(target);
 
     query.filter[0][ts_attr] = [
       [ 'at-least', oldest ]
     ];
 
-    range_start = oldest;
-    range_stop = Math.floor(now / 1000);
+    const range_start = oldest;
+    const range_stop = Math.floor(now / 1000);
 
     if (query.fold && query.fold[ts_attr] && implicitTimestampOps) {
       var ft = query.fold[ts_attr];
@@ -343,7 +346,7 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
  * this is used by alerts among other things to allow for the user to enter
  * queries without having to know the JSON syntax.
  */
-function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
+export function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
   const { query, age } = argvQueryPrefold(argv, implicitTimeOps);
 
   if (!doFolds) {
@@ -413,13 +416,5 @@ function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
 
   return { query, age };
 }
-
-
-
-module.exports = {
-  argvQuery,
-  argvQueryFilterOnly,
-  parseFilter,
-};
 
 //-- vim:ts=2:et:sw=2

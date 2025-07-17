@@ -1,15 +1,24 @@
-
 /**
  * Module dependencies.
  */
 
-var fmt = require('printf');
+import fmt from 'printf';
 
 /**
  * Expose `histogram()`.
  */
 
-module.exports = histogram;
+interface DataItem {
+  key: string;
+  val: number;
+}
+
+interface HistogramOptions {
+  width?: number;
+  bar?: string;
+  map?: (val: number) => any;
+  sort?: boolean;
+}
 
 /**
  * Return ascii histogram of `data`.
@@ -20,34 +29,34 @@ module.exports = histogram;
  * @api public
  */
 
-function histogram(data, opts) {
+export function histogram(data: Record<string, number> | DataItem[], opts?: HistogramOptions): string {
   opts = opts || {};
 
   // options
 
-  var width = opts.width || 60;
-  var barc = opts.bar || '#';
-  var map = opts.map || noop;
+  const width = opts.width || 60;
+  const barc = opts.bar || '#';
+  const map = opts.map || noop;
 
   // normalize data
 
-  var data = toArray(data);
-  if (opts.sort) data = data.sort(descending);
+  let dataArray = toArray(data);
+  if (opts.sort) dataArray = dataArray.sort(descending);
 
-  var maxKey = max(data.map(function(d){ return d.key.length }));
-  var maxVal = max(data.map(function(d){ return d.val }));
-  var str = '';
+  const maxKey = max(dataArray.map(function(d){ return d.key.length }));
+  const maxVal = max(dataArray.map(function(d){ return d.val }));
+  let str = '';
 
   // blah blah histo
 
-  for (var i = 0; i < data.length; i++) {
-    var d = data[i];
+  for (let i = 0; i < dataArray.length; i++) {
+    const d = dataArray[i];
     if (d.key === '')
       d.key = '--';
-    var p = (d.val / maxVal) || 1;
-    var shown = Math.round(width * p);
-    var blank = width - shown
-    var bar = Array(shown + 1).join(barc);
+    const p = (d.val / maxVal) || 1;
+    const shown = Math.round(width * p);
+    const blank = width - shown
+    let bar = Array(shown + 1).join(barc);
     bar += Array(blank + 1).join(' ');
     if (i > 0)
         str += '\n';
@@ -62,7 +71,7 @@ function histogram(data, opts) {
  * Sort descending.
  */
 
-function descending(a, b) {
+function descending(a: DataItem, b: DataItem): number {
   return b.val - a.val;
 }
 
@@ -70,10 +79,10 @@ function descending(a, b) {
  * Return max in array.
  */
 
-function max(data) {
-  var n = data[0];
+function max(data: number[]): number {
+  let n = data[0];
 
-  for (var i = 1; i < data.length; i++) {
+  for (let i = 1; i < data.length; i++) {
     n = data[i] > n ? data[i] : n;
   }
 
@@ -84,7 +93,10 @@ function max(data) {
  * Turn object into an array.
  */
 
-function toArray(obj) {
+function toArray(obj: Record<string, number> | DataItem[]): DataItem[] {
+  if (Array.isArray(obj)) {
+    return obj;
+  }
   return Object.keys(obj).map(function(key){
     return {
       key: key,
@@ -97,7 +109,7 @@ function toArray(obj) {
  * Noop map function.
  */
 
-function noop(val) {
+function noop(val: number): number {
   return val;
 }
 //-- vim:ts=2:et:sw=2

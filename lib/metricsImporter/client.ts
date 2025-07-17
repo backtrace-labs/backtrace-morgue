@@ -1,7 +1,11 @@
-const request = require('@cypress/request');
-const urlJoin = require('url-join');
+import * as request from '@cypress/request';
+import urlJoin from 'url-join';
 
-class MetricsImporterClient {
+export class MetricsImporterClient {
+  url: any;
+  coronerLocation: any;
+  coronerToken: any;
+
   constructor(url, coronerLocation, coronerToken) {
     this.url = url;
     this.coronerLocation = coronerLocation;
@@ -21,7 +25,7 @@ class MetricsImporterClient {
   request(method, path, body = null, qs = {}) {
     return new Promise((resolve, reject) => {
       const url = urlJoin(this.url, path);
-      let options = {
+      let options: any = {
         url,
         method: method.toUpperCase(),
         headers: {
@@ -79,7 +83,7 @@ class MetricsImporterClient {
   }
 
   async logs({ project, sourceId = null, importerId = null, limit = 1000 }) {
-    let params = { limit };
+    let params: any = { limit };
     if (sourceId) {
       params.sourceId = sourceId;
     }
@@ -94,13 +98,8 @@ class MetricsImporterClient {
 /*
  * Make a MetricsImporterClient from a CoronerClient.
  */
-async function metricsImporterClientFromCoroner(coroner) {
+export async function metricsImporterClientFromCoroner(coroner) {
   const serviceUrl = await coroner.find_service("metrics-importer");
   return new MetricsImporterClient(serviceUrl,
     coroner.endpoint, coroner.config.token);
 }
-
-module.exports = {
-  MetricsImporterClient,
-  metricsImporterClientFromCoroner
-};
