@@ -82,7 +82,7 @@
     "compile": "tsc && npm run copy-assets",
     "copy-assets": "cp -r assets dist/",
     "lint": "eslint",
-    "prepare": "node hack/workaround-broken-npm-prepack-behavior prepack",
+    "prepare": "npm run build",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch"
