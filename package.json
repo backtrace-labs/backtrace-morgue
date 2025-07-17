@@ -82,7 +82,7 @@
     "compile": "tsc && npm run copy-assets",
     "copy-assets": "cp -r assets dist/",
     "lint": "eslint",
-    "prepare": "npm run build",
+    "prepare": "tsc && npm run copy-assets",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch"
