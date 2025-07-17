@@ -79,9 +79,10 @@
     "compile": "tsc && npm run copy-assets",
     "copy-assets": "cp -r assets dist/",
     "lint": "eslint",
-    "prepare": "workaround-broken-npm-prepack-behavior prepack",
+    "prepare": "node hack/workaround-broken-npm-prepack-behavior prepack",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch"
+
   }
 }
