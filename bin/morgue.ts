@@ -14,7 +14,7 @@ import minimist from 'minimist';
 import * as os from 'os';
 import ipv6 from 'ip6addr';
 import { bar } from './bar';
-import timeago from 'time-ago';
+import * as ta from 'time-ago';
 import { histogram } from './histogram';
 import printf from 'printf';
 import moment from 'moment';
@@ -4249,7 +4249,7 @@ function coronerSymbol(argv: any, config: any): any {
           var dt;
 
           if (!argv.a) {
-            dt = timeago(file.upload_time * 1000);
+            dt = ta.ago(file.upload_time * 1000);
           } else {
             dt = new Date(file.upload_time * 1000);
           }
@@ -4310,7 +4310,7 @@ function coronerSymbol(argv: any, config: any): any {
           var dt;
 
           if (!argv.a) {
-            dt = timeago(file.timestamp * 1000);
+            dt = ta.ago(file.timestamp * 1000);
           } else {
             dt = new Date(file.timestamp * 1000);
           }
@@ -4371,7 +4371,7 @@ function coronerSymbol(argv: any, config: any): any {
           }
 
           if (!argv.a) {
-            dt = timeago(file.upload_time * 1000);
+            dt = ta.ago(file.upload_time * 1000);
           } else {
             dt = new Date(file.upload_time * 1000);
           }
@@ -6041,7 +6041,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
 
       if (ob.timestamp) {
         process.stdout.write(new Date(ob.timestamp * 1000) + '     ' +
-            bold(timeago(ob.timestamp * 1000)) + '\n');
+            bold(ta.ago(ob.timestamp * 1000)) + '\n');
       } else {
         process.stdout.write('\n');
       }
@@ -6081,7 +6081,7 @@ function objectPrint(g, object, renderer, fields, runtime) {
   if (timestamp_range) {
     start = new Date(timestamp_range[0] * 1000);
     stop = new Date(timestamp_range[1] * 1000);
-    sa = timeago(stop) + '\n';
+    sa = ta.ago(stop) + '\n';
 
     process.stdout.write(success_color(sa));
   }
@@ -7849,6 +7849,7 @@ function coronerActions(argv: any, config: any): any {
 
 
 function main(): any {
+  console.log("TA: ", ta.ago(1000));
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
     /* Don't convert arguments that are often hex strings. */
