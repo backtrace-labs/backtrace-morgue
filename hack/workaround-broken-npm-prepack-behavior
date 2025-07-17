@@ -5,6 +5,8 @@
 import {spawnSync} from 'child_process';
 import {isAbsolute, normalize, relative} from 'path';
 
+import process from 'node:process';
+
 const scriptName = process.argv[2];
 const {
     npm_config_local_prefix,
@@ -40,9 +42,10 @@ function isInstallingAsGitDepInNpm() {
 }
 
 function npmRun(scriptName) {
-    spawnSync(npm_node_execpath, [npm_execpath, 'run', scriptName], {
+    let res = spawnSync(npm_node_execpath, [npm_execpath, 'run', scriptName], {
         stdio: 'inherit',
     });
+    process.exit(res.status || 1);
 }
 
 main();
