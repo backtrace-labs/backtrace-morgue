@@ -7849,7 +7849,6 @@ function coronerActions(argv: any, config: any): any {
 
 
 function main(): any {
-  console.log("TA: ", ta.ago(1000));
   var argv = minimist(process.argv.slice(2), {
     "boolean": ['k', 'debug', 'v', 'version'],
     /* Don't convert arguments that are often hex strings. */
