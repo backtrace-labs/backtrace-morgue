@@ -87,6 +87,7 @@ export class BaseServiceClient {
       if (body) {
         options.body = body;
       }
+
       request(options, (err, resp, body) => {
         if (err) {
           reject(err);

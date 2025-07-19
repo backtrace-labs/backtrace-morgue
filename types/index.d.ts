@@ -1,6 +1,6 @@
 // Type declarations for modules without @types packages
 
-declare module "time-ago" {
+declare module 'time-ago' {
   /**
    * Converts a timestamp into a human-readable relative time string
    * @param timestamp - Unix timestamp in milliseconds or Date object
@@ -10,7 +10,7 @@ declare module "time-ago" {
 }
 
 // Use type defs from @types/request for @cypress/request.
-declare module "@cypress/request" {
-  import request = require("request");
+declare module '@cypress/request' {
+  import request = require('request');
   export = request;
 }

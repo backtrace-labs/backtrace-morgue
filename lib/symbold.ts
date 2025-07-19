@@ -86,7 +86,7 @@ export class SymboldClient {
       (err, res) => {
         if (this.debug) {
           console.log(
-            `Received status code: ${res.status} with message ${res.statusMessage}`,
+            `Received status code: ${res.statusCode} with message ${res.statusMessage}`,
           );
         }
         if (callback) {

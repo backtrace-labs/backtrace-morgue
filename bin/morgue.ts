@@ -49,6 +49,7 @@ import {
 import {WorkflowsCli} from '../lib/workflows/cli';
 import {WorkflowsClient} from '../lib/workflows/client';
 import {eHasCode, eMsg} from '../lib/util';
+import * as config from '../lib/config';
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
@@ -365,7 +366,7 @@ function coronerProject(argv: any, config: any): any {
   bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
-async function coronerProjects(argv: any, config: any): Promise<any> {
+async function coronerProjects(argv: any, config: config.Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const subcommand = argv._[1];
@@ -472,7 +473,9 @@ function saveConfig(coroner: any, callback: (err?: any) => void): void {
   });
 }
 
-function loadConfig(callback: any): any {
+function loadConfig(
+  callback: (error: Error | null, result?: config.ConfigFile) => void,
+): any {
   makeConfigDir(err => {
     if (err) return callback(err);
     fs.readFile(configFile, {encoding: 'utf8'}, (err, text) => {
@@ -496,16 +499,15 @@ function makeConfigDir(callback: any): any {
   mkdirp(configDir, {mode: '0700'}, callback);
 }
 
-function abortIfNotLoggedIn(config: any): void {
-  if (config && config.config && config.config.token) return;
+function abortIfNotLoggedIn(config?: config.Config): void {
+  if (config?.config?.token) return;
 
   /* If an endpoint is specified, then synthensize aa configuration structure. */
   if (endpoint) {
-    config.config = {};
+    config.config = {} as any;
 
     /* We rely on host-based authentication if no token is specified. */
-    config.config.token = endpointToken;
-    if (!config.config.token) config.config.token = '00000';
+    config.config.token = endpointToken ?? '00000';
 
     config.endpoint = endpoint;
     return;
@@ -701,7 +703,7 @@ function coronerClient(config, insecure, debug, endpoint, timeout) {
   });
 }
 
-function coronerClientArgv(config: any, argv: any): any {
+function coronerClientArgv(config: config.Config, argv: any): any {
   if (argv.token && argv.endpoint) {
     config.config.token = argv.token;
     config.endpoint = argv.endpoint;
@@ -714,7 +716,7 @@ function coronerClientArgv(config: any, argv: any): any {
     argv.timeout,
   );
 }
-function coronerClientArgvSubmit(config: any, argv: any): any {
+function coronerClientArgvSubmit(config: config.Config, argv: any): any {
   return coronerClient(
     config,
     !!argv.k,
@@ -8250,7 +8252,7 @@ function main(): any {
   promptLib.start();
 
   loadConfig((err, config) => {
-    if (err && err.code !== 'ENOENT') {
+    if (err && !eHasCode(err, 'ENOENT')) {
       errx('Unable to read configuration: ' + err.message + '.');
     }
 

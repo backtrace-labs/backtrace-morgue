@@ -10,7 +10,7 @@ import {eMsg} from './util';
 interface CoronerConfig {
   endpoint: string;
   insecure?: boolean;
-  config?: any;
+  config?: {token?: string};
   debug?: boolean;
   timeout?: number;
 }
@@ -27,6 +27,13 @@ interface ResponseObject {
   bodyData?: any;
   response_obj?: any;
 }
+
+const Compression = {
+  DEFLATE: 'deflate',
+  GZIP: 'gzip',
+} as const;
+type CompressionKey = keyof typeof Compression;
+type CompressionValue = (typeof Compression)[keyof typeof Compression];
 
 function check_uri_supported(endpoint: string) {
   const uri = url.parse(endpoint);
@@ -80,7 +87,7 @@ function onResponse(
   resp: any,
   body: any,
 ) {
-  var json, msg, text;
+  var json, msg, text: string;
 
   /*
    * Traditional error callbacks don't allow for additional context to be
@@ -96,7 +103,7 @@ function onResponse(
   resp.debug = coroner.debug;
   resp.bodyData = body;
 
-  if (coroner.debug || (opts && opts.json)) text = body.toString('utf8');
+  if (coroner.debug || opts?.json) text = body.toString('utf8');
 
   if (coroner.debug) {
     debug_response(resp, text);
@@ -180,7 +187,7 @@ function extend(o: any, src: any) {
 export class CoronerClient {
   endpoint: string;
   insecure: boolean;
-  config: any;
+  config: {token?: string};
   debug: boolean;
   timeout: number;
   _cached_config?: any;
@@ -414,19 +421,30 @@ export class CoronerClient {
 
   post(
     path: string,
-    params: any,
+    params: {
+      kvs?: string[] | {};
+      http_opts?: request.Options;
+      token?: string;
+      username?: string;
+      password?: string;
+      universe?: string;
+    },
     body: any,
-    opt: any,
+    opt: {
+      compression?: CompressionValue;
+      binary?: boolean;
+      http_opts?: request.Options;
+    },
     callback: RequestCallback,
   ): void {
     const self = this;
-    let contentType, fullParams, kvs, payload;
+    params = {...params};
+    let fullParams, kvs;
     const uri = check_uri_supported(this.endpoint);
-    let http_opts;
 
     if (!opt) opt = {};
 
-    http_opts = opt.http_opts;
+    let http_opts = opt.http_opts;
 
     if (params) {
       if (typeof params.kvs === 'string') {
@@ -439,7 +457,7 @@ export class CoronerClient {
         });
         delete params.kvs;
       } else if (typeof params.kvs === 'object') {
-        params = Object.assign(params, params.kvs);
+        params = {...params, ...params.kvs};
         delete params.kvs;
       }
 
@@ -448,8 +466,8 @@ export class CoronerClient {
         delete params.http_opts;
       }
 
-      if (path !== '/api/login' && this.config && this.config.token) {
-        fullParams = extend({token: this.config.token}, params);
+      if (path !== '/api/login' && this.config?.token) {
+        fullParams = {token: this.config.token, ...params};
       } else {
         fullParams = params;
       }
@@ -457,16 +475,14 @@ export class CoronerClient {
       fullParams = null;
     }
 
-    const options = Object.assign(
-      {
-        uri: uri.protocol + '//' + uri.host + path,
-        strictSSL: !this.insecure,
-        timeout: this.timeout,
-        encoding: null,
-        headers: {},
-      },
-      http_opts || {},
-    );
+    const options: request.Options = {
+      uri: uri.protocol + '//' + uri.host + path,
+      strictSSL: !this.insecure,
+      timeout: this.timeout,
+      encoding: null,
+      headers: {},
+      ...http_opts,
+    };
 
     if (opt.compression) {
       options.headers['Content-Encoding'] = opt.compression;
