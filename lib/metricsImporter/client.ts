@@ -1,4 +1,4 @@
-import * as request from '@cypress/request';
+import request from '@cypress/request';
 import urlJoin from 'url-join';
 
 export class MetricsImporterClient {

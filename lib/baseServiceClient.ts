@@ -13,7 +13,7 @@
  * functions to aid in pagination which we will extend on a case-by-case basis
  * as we need them.
  */
-import * as request from '@cypress/request';
+import request from '@cypress/request';
 import urlJoin from 'url-join';
 
 export class BaseServiceClient {

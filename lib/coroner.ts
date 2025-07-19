@@ -4,7 +4,7 @@ import urlJoin from 'url-join';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import * as fs from 'fs';
-import * as request from '@cypress/request';
+import request from '@cypress/request';
 
 interface CoronerConfig {
   endpoint: string;

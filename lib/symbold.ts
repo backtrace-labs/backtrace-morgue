@@ -1,4 +1,4 @@
-import * as request from '@cypress/request';
+import request from '@cypress/request';
 import * as symbolServer from './symbold/symboldSymbolServer';
 import * as symbolItem from './symbold/symboldSymbolItem';
 import * as queue from './symbold/symboldQueue';
@@ -86,7 +86,7 @@ export class SymboldClient {
       (err, res) => {
         if (this.debug) {
           console.log(
-            `Received status code: ${res.status} with message ${res.statusMessage}`
+            `Received status code: ${res.statusCode} with message ${res.statusMessage}`
           );
         }
         if (callback) {
