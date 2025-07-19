@@ -41,6 +41,7 @@ import * as queryCli from '../lib/cli/query';
 import { chalk, err, error_color, errx, success_color, warn } from '../lib/cli/errors';
 import { WorkflowsCli } from '../lib/workflows/cli';
 import { WorkflowsClient } from '../lib/workflows/client';
+import { eHasCode, eMsg } from "../lib/util";
 const bold = chalk.bold;
 const cyan = chalk.cyan;
 const grey = chalk.grey;
@@ -427,7 +428,7 @@ function loadConfig(callback: any): any {
         try {
           json = JSON.parse(text);
         } catch (err) {
-          return callback(new Error(err.message));
+          return callback(new Error(eMsg(err)));
         }
       } else {
         json = {};
@@ -957,7 +958,7 @@ async function _workflowsMerge(coroner, universe, project, fingerprints) {
     await client.mergeFingerprints(universe, project, fingerprints)
     console.log(success_color('Success.'));
   } catch (err) {
-    errx(err.message);
+    errx(eMsg(err));
   }
 }
 
@@ -2829,7 +2830,7 @@ function mkdir_p(path: any): any {
   try {
     fs.mkdirSync(path);
   } catch (e) {
-    if (e.code !== 'EEXIST')
+    if (!eHasCode(e, 'EEXISST'))
       throw e;
   }
 }
@@ -5964,7 +5965,7 @@ function callstackPrint(cs: any): void {
     callstack = JSON.parse(cs);
   } catch (error) {
     if (callstackError === false) {
-      client.send(error);
+      client.send(error as Error);
       callstackError = true;
     }
 
@@ -7905,7 +7906,7 @@ function main(): any {
          * the promise again. Move the error out to the event loop, instead.
          *
          */
-        await client.send(e);
+        await client.send(e as Error);
         abortController.abort();
         client.dispose();
         setTimeout(() => {

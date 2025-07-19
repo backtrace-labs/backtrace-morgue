@@ -15,7 +15,7 @@
     "allowSyntheticDefaultImports": true,
     
     // Type checking - very permissive for initial migration
-    "strict": false,
+    "strict": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
     "strictFunctionTypes": false,
