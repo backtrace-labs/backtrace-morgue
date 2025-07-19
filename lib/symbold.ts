@@ -23,20 +23,20 @@ export class SymboldClient {
       symbolserver: argv =>
         new symbolServer.SymboldSymbolServer(this).routeMethod(argv),
       whitelist: argv =>
-        new symbolItem.SymboldSymbolItem("whitelist", this).routeMethod(argv),
+        new symbolItem.SymboldSymbolItem('whitelist', this).routeMethod(argv),
       blacklist: argv =>
-        new symbolItem.SymboldSymbolItem("blacklist", this).routeMethod(argv),
+        new symbolItem.SymboldSymbolItem('blacklist', this).routeMethod(argv),
       skiplist: argv =>
-        new symbolItem.SymboldSymbolItem("skiplist", this).routeMethod(argv),
+        new symbolItem.SymboldSymbolItem('skiplist', this).routeMethod(argv),
       status: argv => this.status(argv),
       queue: argv => new queue.SymboldQueue(this).routeMethod(argv),
-      help: () => this.showSymbolServerUsage()
+      help: () => this.showSymbolServerUsage(),
     };
   }
 
   routeMethod(argv) {
     if (!this.coronerdClient || !this.coronerdClient.endpoint) {
-      return this.showSymbolServerUsage("To use symbold command please login");
+      return this.showSymbolServerUsage('To use symbold command please login');
     }
     const handlerName = argv._.shift();
     if (!handlerName) {
@@ -52,7 +52,7 @@ export class SymboldClient {
 
   status(argv) {
     const universeProject = argv._.shift();
-    if (universeProject === "help") {
+    if (universeProject === 'help') {
       this.showStatusHelp();
       return;
     }
@@ -60,12 +60,12 @@ export class SymboldClient {
       this.showSymbolServerUsage();
       return;
     }
-    const [universe, project] = universeProject.split("/");
+    const [universe, project] = universeProject.split('/');
     if (!universe) {
-      return this.showSymbolServerUsage("Missing universe name");
+      return this.showSymbolServerUsage('Missing universe name');
     }
     const url = `/status/universe/${universe}${
-      project ? `/project/${project}` : ""
+      project ? `/project/${project}` : ''
     }`;
 
     this.get(url);
@@ -81,12 +81,12 @@ export class SymboldClient {
       {
         headers: this.getCoronerdHeaders(),
         strictSSL: !this.coronerdClient.insecure,
-        timeout: this.coronerdClient.timeout
+        timeout: this.coronerdClient.timeout,
       },
       (err, res) => {
         if (this.debug) {
           console.log(
-            `Received status code: ${res.statusCode} with message ${res.statusMessage}`
+            `Received status code: ${res.status} with message ${res.statusMessage}`,
           );
         }
         if (callback) {
@@ -99,20 +99,20 @@ export class SymboldClient {
           console.warn(res.body);
           return;
         }
-        console.log("Successfully deleted data");
-      }
+        console.log('Successfully deleted data');
+      },
     );
   }
 
   put(url, data, callback) {
     const requestHeaders = this.getCoronerdHeaders();
-    requestHeaders["Content-Type"] = "application/json";
+    requestHeaders['Content-Type'] = 'application/json';
     request.put(
       `${this.symboldEndpoint}${url}`,
       {
         body: JSON.stringify(data),
         headers: requestHeaders,
-        strictSSL: !this.coronerdClient.insecure
+        strictSSL: !this.coronerdClient.insecure,
       },
       (err, res) => {
         if (callback) {
@@ -129,18 +129,18 @@ export class SymboldClient {
         if (result.length !== 0) {
           console.log(`Success. Response data: ${result}`);
         }
-      }
+      },
     );
   }
   post(url, data, callback) {
     const requestHeaders = this.getCoronerdHeaders();
-    requestHeaders["Content-Type"] = "application/json";
+    requestHeaders['Content-Type'] = 'application/json';
     request.post(
       `${this.symboldEndpoint}${url}`,
       {
         body: JSON.stringify(data),
         headers: requestHeaders,
-        strictSSL: !this.coronerdClient.insecure
+        strictSSL: !this.coronerdClient.insecure,
       },
       (err, res) => {
         if (callback) {
@@ -154,9 +154,9 @@ export class SymboldClient {
           return;
         }
         console.log(
-          `Success. Response data: ${JSON.stringify(res.body, null, 2)}`
+          `Success. Response data: ${JSON.stringify(res.body, null, 2)}`,
         );
-      }
+      },
     );
   }
 
@@ -165,7 +165,7 @@ export class SymboldClient {
       `${this.symboldEndpoint}${url}`,
       {
         headers: this.getCoronerdHeaders(),
-        strictSSL: !this.coronerdClient.insecure
+        strictSSL: !this.coronerdClient.insecure,
       },
       (err, res) => {
         if (callback) {
@@ -185,16 +185,16 @@ export class SymboldClient {
           const data = JSON.parse(res.body);
           console.log(JSON.stringify(data, null, 4));
         } catch (err) {
-          console.log("Cannot display response.");
+          console.log('Cannot display response.');
         }
-      }
+      },
     );
   }
 
   getCoronerdHeaders() {
     return {
-      "X-Coroner-Token": this.coronerdClient.config.token,
-      "X-Coroner-Location": this.coronerdClient.endpoint
+      'X-Coroner-Token': this.coronerdClient.config.token,
+      'X-Coroner-Location': this.coronerdClient.endpoint,
     };
   }
 
@@ -223,4 +223,3 @@ export class SymboldClient {
   `);
   }
 }
-

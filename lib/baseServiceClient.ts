@@ -31,7 +31,7 @@ export class BaseServiceClient {
    * @param insecure: set to true if the user passed `-k` or otherwise
    *        requested that SSL certs not be verified.
    */
-  constructor(url, coronerLocation, coronerToken, insecure=false) {
+  constructor(url, coronerLocation, coronerToken, insecure = false) {
     this.url = url;
     this.coronerLocation = coronerLocation;
     this.coronerToken = coronerToken;
@@ -63,9 +63,9 @@ export class BaseServiceClient {
    * through the trouble of making sure they aren't included, since minimist is
    * too minimal to provide defaults and other validation.
    */
-  request({ method, path, body = null, qs = {} }) {
-    let actualQs = {};
-    for (const [k, v] of Object.entries({ ...qs, ... this.defaultQs })) {
+  request({method, path, body = null, qs = {}}) {
+    const actualQs = {};
+    for (const [k, v] of Object.entries({...qs, ...this.defaultQs})) {
       if (v === undefined || v == null) {
         continue;
       }
@@ -73,12 +73,12 @@ export class BaseServiceClient {
     }
     return new Promise((resolve, reject) => {
       const url = urlJoin(this.url, path);
-      let options: any = {
+      const options: any = {
         url,
         method: method.toUpperCase(),
         headers: {
-          "X-Coroner-Location": this.coronerLocation,
-          "X-Coroner-Token": this.coronerToken,
+          'X-Coroner-Location': this.coronerLocation,
+          'X-Coroner-Token': this.coronerToken,
         },
         qs: actualQs,
         json: true,
@@ -104,13 +104,13 @@ export class BaseServiceClient {
    * This scheme is used by Rust services which have additional requirements
    * that make limit-offset pagination unsuitable.
    */
-  async *tokenPager({ method, path, body=null, qs: any = {} }) {
+  async *tokenPager({method, path, body = null, qs: any = {}}) {
     /*
      * Clone this so that if we passed something the caller will still use, we
      * won't corrupt their state.
      */
-    var qs = { ... qs };
-    let batch: any = await this.request({ method, path, body, qs });
+    var qs = {...qs};
+    let batch: any = await this.request({method, path, body, qs});
     let token;
     while (batch.values.length > 0) {
       for (const i of batch.values) {
@@ -121,7 +121,7 @@ export class BaseServiceClient {
         break;
       }
       qs.page_token = token;
-      batch = await this.request({ method, path, body, qs });
+      batch = await this.request({method, path, body, qs});
     }
   }
 
@@ -129,7 +129,7 @@ export class BaseServiceClient {
     if (resp.statusCode >= 400) {
       if (body && body.error && body.error.message) {
         throw new Error(
-          `HTTP status ${resp.statusCode}: ${body.error.message}`
+          `HTTP status ${resp.statusCode}: ${body.error.message}`,
         );
       } else {
         throw new Error(`HTTP status ${resp.statusCode}`);

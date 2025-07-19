@@ -6,18 +6,18 @@
  *
  * validateZeroOrOne("--alert-name", argv['alert-name'])
  */
-import { err, errx } from './errors';
+import {err, errx} from './errors';
 
 /*
  * validates that the specified option was specified exactly once.
  */
 export function validateOne(option, value) {
   if (value === null || value === undefined) {
-    err(`--${ option } is required`);
+    err(`--${option} is required`);
     return false;
   }
   if (Array.isArray(value)) {
-    err(`--${ option } must have exactly one value`);
+    err(`--${option} must have exactly one value`);
     return false;
   }
   return true;
@@ -28,7 +28,7 @@ export function validateOne(option, value) {
  */
 export function validateAtMostOne(option, value) {
   if (Array.isArray(value)) {
-    err(`--${ option } must have at most one value`);
+    err(`--${option} must have at most one value`);
     return false;
   }
   return true;
@@ -38,7 +38,7 @@ export function validateAtMostOne(option, value) {
  * validates that the specified option is an object
  */
 export function validateObject(option, value) {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     err(`--${option} must be specified as an object, e.g. --${option}.prop`);
     return false;
   }
@@ -94,14 +94,14 @@ export function convertMany(option, value, allowEmpty = false) {
   }
 
   if (!Array.isArray(value)) {
-    return [ value ];
+    return [value];
   }
 
   return value;
 }
 
-const TRUTH_STRINGS = new Set([ 'yes', 'true', 'on', '1' ]);
-const FALSE_STRINGS = new Set([ 'no', 'false', 'off', '0' ]);
+const TRUTH_STRINGS = new Set(['yes', 'true', 'on', '1']);
+const FALSE_STRINGS = new Set(['no', 'false', 'off', '0']);
 
 export function convertBool(name, value, defaultValue = undefined) {
   let v;

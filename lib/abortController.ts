@@ -2,7 +2,7 @@
 
 interface EventListener {
   callback: Function;
-  options?: { once?: boolean };
+  options?: {once?: boolean};
 }
 
 interface EventListeners {
@@ -20,18 +20,22 @@ class Emitter {
   listeners: EventListeners;
 
   constructor() {
-    Object.defineProperty(this, "listeners", {
+    Object.defineProperty(this, 'listeners', {
       value: {},
       writable: true,
       configurable: true,
     });
   }
 
-  addEventListener(type: string, callback: Function, options?: { once?: boolean }): void {
+  addEventListener(
+    type: string,
+    callback: Function,
+    options?: {once?: boolean},
+  ): void {
     if (!(type in this.listeners)) {
       this.listeners[type] = [];
     }
-    this.listeners[type].push({ callback, options });
+    this.listeners[type].push({callback, options});
   }
 
   removeEventListener(type: string, callback: Function): void {
@@ -89,17 +93,17 @@ class AbortSignalPolyfill extends Emitter {
 
     // Compared to assignment, Object.defineProperty makes properties non-enumerable by default and
     // we want Object.keys(new AbortController().signal) to be [] for compat with the native impl
-    Object.defineProperty(this, "aborted", {
+    Object.defineProperty(this, 'aborted', {
       value: false,
       writable: true,
       configurable: true,
     });
-    Object.defineProperty(this, "onabort", {
+    Object.defineProperty(this, 'onabort', {
       value: null,
       writable: true,
       configurable: true,
     });
-    Object.defineProperty(this, "reason", {
+    Object.defineProperty(this, 'reason', {
       value: undefined,
       writable: true,
       configurable: true,
@@ -107,13 +111,13 @@ class AbortSignalPolyfill extends Emitter {
   }
 
   toString(): string {
-    return "[object AbortSignal]";
+    return '[object AbortSignal]';
   }
 
   dispatchEvent(event: AbortEvent): boolean {
-    if (event.type === "abort") {
+    if (event.type === 'abort') {
       this.aborted = true;
-      if (typeof this.onabort === "function") {
+      if (typeof this.onabort === 'function') {
         this.onabort.call(this, event);
       }
     }
@@ -128,7 +132,7 @@ class AbortControllerPolyfill {
   constructor() {
     // Compared to assignment, Object.defineProperty makes properties non-enumerable by default and
     // we want Object.keys(new AbortController()) to be [] for compat with the native impl
-    Object.defineProperty(this, "signal", {
+    Object.defineProperty(this, 'signal', {
       value: new AbortSignalPolyfill(),
       writable: true,
       configurable: true,
@@ -137,15 +141,15 @@ class AbortControllerPolyfill {
 
   abort(reason?: any): void {
     const event: AbortEvent = {
-      type: "abort",
+      type: 'abort',
       bubbles: false,
       cancelable: false,
     };
 
     let signalReason = reason;
     if (signalReason === undefined) {
-      signalReason = new Error("This operation was aborted");
-      signalReason.name = "AbortError";
+      signalReason = new Error('This operation was aborted');
+      signalReason.name = 'AbortError';
     }
     this.signal.reason = signalReason;
 
@@ -153,7 +157,7 @@ class AbortControllerPolyfill {
   }
 
   toString(): string {
-    return "[object AbortController]";
+    return '[object AbortController]';
   }
 }
 

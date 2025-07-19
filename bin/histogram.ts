@@ -29,7 +29,10 @@ interface HistogramOptions {
  * @api public
  */
 
-export function histogram(data: Record<string, number> | DataItem[], opts?: HistogramOptions): string {
+export function histogram(
+  data: Record<string, number> | DataItem[],
+  opts?: HistogramOptions,
+): string {
   opts = opts || {};
 
   // options
@@ -43,23 +46,29 @@ export function histogram(data: Record<string, number> | DataItem[], opts?: Hist
   let dataArray = toArray(data);
   if (opts.sort) dataArray = dataArray.sort(descending);
 
-  const maxKey = max(dataArray.map(function(d){ return d.key.length }));
-  const maxVal = max(dataArray.map(function(d){ return d.val }));
+  const maxKey = max(
+    dataArray.map(d => {
+      return d.key.length;
+    }),
+  );
+  const maxVal = max(
+    dataArray.map(d => {
+      return d.val;
+    }),
+  );
   let str = '';
 
   // blah blah histo
 
   for (let i = 0; i < dataArray.length; i++) {
     const d = dataArray[i];
-    if (d.key === '')
-      d.key = '--';
-    const p = (d.val / maxVal) || 1;
+    if (d.key === '') d.key = '--';
+    const p = d.val / maxVal || 1;
     const shown = Math.round(width * p);
-    const blank = width - shown
+    const blank = width - shown;
     let bar = Array(shown + 1).join(barc);
     bar += Array(blank + 1).join(' ');
-    if (i > 0)
-        str += '\n';
+    if (i > 0) str += '\n';
 
     str += fmt('  %*s %s %s', d.key, maxKey, bar, map(d.val));
   }
@@ -97,12 +106,12 @@ function toArray(obj: Record<string, number> | DataItem[]): DataItem[] {
   if (Array.isArray(obj)) {
     return obj;
   }
-  return Object.keys(obj).map(function(key){
+  return Object.keys(obj).map(key => {
     return {
       key: key,
-      val: obj[key]
-    }
-  })
+      val: obj[key],
+    };
+  });
 }
 
 /**

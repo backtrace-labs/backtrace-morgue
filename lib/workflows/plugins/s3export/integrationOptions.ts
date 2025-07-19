@@ -1,6 +1,6 @@
 import * as cliOptions from '../../../cli/options';
 import assignDeep from 'assign-deep';
-import { skipNotDefinedKeys } from '../../utils';
+import {skipNotDefinedKeys} from '../../utils';
 
 /**
  * Schema:
@@ -25,12 +25,11 @@ export function integrationOptions(options) {
     options,
     skipNotDefinedKeys({
       attributeList: cliOptions.convertMany(
-        "options.attributeList",
+        'options.attributeList',
         options.attributeList,
-        true
+        true,
       ),
-      header: cliOptions.convertBool("options.header", options.header, null),
-    })
+      header: cliOptions.convertBool('options.header', options.header, null),
+    }),
   );
 }
-

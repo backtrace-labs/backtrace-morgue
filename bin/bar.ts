@@ -21,14 +21,13 @@ function remap(data: DataPoint[], start: number, stop: number): DataPoint[] {
   step = (stop - start) / 32;
 
   for (i = 0; i < 32; i++) {
-    r.push([start, start + (i * step), 0]);
+    r.push([start, start + i * step, 0]);
   }
 
   for (i = 0; i < data.length; i++) {
     let middle: number, offset: number;
 
-    if (data[i][0] < start)
-      continue;
+    if (data[i][0] < start) continue;
 
     middle = (data[i][0] + data[i][1]) / 2;
     offset = Math.floor((middle - start) / step);
@@ -40,9 +39,17 @@ function remap(data: DataPoint[], start: number, stop: number): DataPoint[] {
 
 export function bar(data: DataPoint[], start?: number, stop?: number): void {
   let i: number;
-  const glyph = [grey('\u2581'), blue('\u2581'), blue('\u2582'), blue('\u2583'),
-    yellow('\u2584'), yellow('\u2585'), yellow('\u2586'),
-    red('\u2587'), red('\u2588') ];
+  const glyph = [
+    grey('\u2581'),
+    blue('\u2581'),
+    blue('\u2582'),
+    blue('\u2583'),
+    yellow('\u2584'),
+    yellow('\u2585'),
+    yellow('\u2586'),
+    red('\u2587'),
+    red('\u2588'),
+  ];
   let ceiling = 0;
   let output = '';
   let step: number;
@@ -50,15 +57,14 @@ export function bar(data: DataPoint[], start?: number, stop?: number): void {
   /*
    * If a custom time range has been provided, then data may require
    * a remap.
-    */
+   */
   if (start) {
     data = remap(data, start, stop);
   }
 
   step = data[0][1] - data[0][0];
   for (i = 0; i < data.length; i++) {
-    if (data[i][2] > ceiling)
-      ceiling = data[i][2];
+    if (data[i][2] > ceiling) ceiling = data[i][2];
   }
 
   for (i = 0; i < data.length; i++) {
@@ -69,8 +75,7 @@ export function bar(data: DataPoint[], start?: number, stop?: number): void {
     } else {
       offset = data[i][2] / ceiling;
       offset = Math.floor(offset * (glyph.length - 1));
-      if (offset == 0 && data[i][2] > 0)
-        offset = 1;
+      if (offset == 0 && data[i][2] > 0) offset = 1;
     }
 
     output += glyph[offset];

@@ -25,12 +25,12 @@ export class MetricsImporterClient {
   request(method, path, body = null, qs = {}) {
     return new Promise((resolve, reject) => {
       const url = urlJoin(this.url, path);
-      let options: any = {
+      const options: any = {
         url,
         method: method.toUpperCase(),
         headers: {
-          "X-Coroner-Location": this.coronerLocation,
-          "X-Coroner-Token": this.coronerToken,
+          'X-Coroner-Location': this.coronerLocation,
+          'X-Coroner-Token': this.coronerToken,
         },
         qs,
         json: true,
@@ -46,7 +46,7 @@ export class MetricsImporterClient {
             if (body && body.error && body.error.message) {
               reject(`HTTP status ${resp.statusCode}: ${body.error.message}`);
             } else {
-              reject(`HTTP status ${ resp.statusCode }`);
+              reject(`HTTP status ${resp.statusCode}`);
             }
           } else {
             resolve(body);
@@ -56,17 +56,27 @@ export class MetricsImporterClient {
     });
   }
 
-  async checkSource({ project, sourceId, query }) {
-    return await this.request("get",
-      `/projects/${ project }/sources/${ sourceId}/check`,
+  async checkSource({project, sourceId, query}) {
+    return await this.request(
+      'get',
+      `/projects/${project}/sources/${sourceId}/check`,
       /* No body. */
       null,
-      { query },
+      {query},
     );
   }
 
-  async createImporter({ project, sourceId, name, query, metric, metricGroup,
-    startAt, delay, enabled = true }) {
+  async createImporter({
+    project,
+    sourceId,
+    name,
+    query,
+    metric,
+    metricGroup,
+    startAt,
+    delay,
+    enabled = true,
+  }) {
     const body = {
       project,
       sourceId,
@@ -78,19 +88,19 @@ export class MetricsImporterClient {
       delay,
       enabled,
     };
-    const url = `/projects/${ project }/importers`;
-    return await this.request("post", url, body);
+    const url = `/projects/${project}/importers`;
+    return await this.request('post', url, body);
   }
 
-  async logs({ project, sourceId = null, importerId = null, limit = 1000 }) {
-    let params: any = { limit };
+  async logs({project, sourceId = null, importerId = null, limit = 1000}) {
+    const params: any = {limit};
     if (sourceId) {
       params.sourceId = sourceId;
     }
     if (importerId) {
       params.importerId = importerId;
     }
-    const url = `/projects/${ project }/logs`;
+    const url = `/projects/${project}/logs`;
     return await this.request('get', url, null, params);
   }
 }
@@ -99,7 +109,10 @@ export class MetricsImporterClient {
  * Make a MetricsImporterClient from a CoronerClient.
  */
 export async function metricsImporterClientFromCoroner(coroner) {
-  const serviceUrl = await coroner.find_service("metrics-importer");
-  return new MetricsImporterClient(serviceUrl,
-    coroner.endpoint, coroner.config.token);
+  const serviceUrl = await coroner.find_service('metrics-importer');
+  return new MetricsImporterClient(
+    serviceUrl,
+    coroner.endpoint,
+    coroner.config.token,
+  );
 }

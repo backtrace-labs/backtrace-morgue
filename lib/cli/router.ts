@@ -22,7 +22,7 @@ export async function route(commands, usage, args) {
   let route = commands;
   let next;
 
-  while (typeof route == 'object') {
+  while (typeof route === 'object') {
     next = args._[0];
     args._.shift();
     if (!next) {

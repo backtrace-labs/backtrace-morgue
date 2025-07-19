@@ -1,10 +1,10 @@
-import { CreateIntegration } from './models/createIntegration';
+import {CreateIntegration} from './models/createIntegration';
 import * as cliOptions from '../cli/options';
 import * as router from '../cli/router';
-import { UpdateIntegration } from './models/updateIntegration';
-import { output, loadInit, getPluginId } from './utils';
-import { errx } from '../cli/errors';
-import { integrationOptions } from './plugins/plugins';
+import {UpdateIntegration} from './models/updateIntegration';
+import {output, loadInit, getPluginId} from './utils';
+import {errx} from '../cli/errors';
+import {integrationOptions} from './plugins/plugins';
 
 const HELP_MESSAGE = `
 Usage:
@@ -27,7 +27,7 @@ export class WorkflowsIntegrationsCli {
 
   async routeMethod(argv) {
     if (!this.project) {
-      errx("--project is required");
+      errx('--project is required');
     }
 
     const routes = {
@@ -42,11 +42,11 @@ export class WorkflowsIntegrationsCli {
   }
 
   async getIntegration(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const integration = await this.client.getIntegration(
       this.universe,
       this.project,
-      id
+      id,
     );
 
     output(integration, argv, printIntegration);
@@ -55,12 +55,12 @@ export class WorkflowsIntegrationsCli {
   async getIntegrations(argv) {
     const integrations = await this.client.getIntegrations(
       this.universe,
-      this.project
+      this.project,
     );
 
     integrations
       .sort((i1, i2) => i1.watcherName.localeCompare(i2.watcherName))
-      .forEach((i) => output(i, argv, printIntegration));
+      .forEach(i => output(i, argv, printIntegration));
   }
 
   async createIntegration(argv) {
@@ -71,24 +71,24 @@ export class WorkflowsIntegrationsCli {
     const body = CreateIntegration.fromArgv(
       argv,
       init,
-      optionsInitFn(argv, init)
+      optionsInitFn(argv, init),
     );
 
     const integration = await this.client.createIntegration(
       this.universe,
       this.project,
-      body
+      body,
     );
 
     output(integration, argv, printIntegration);
   }
 
   async updateIntegration(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const integration = await this.client.getIntegration(
       this.universe,
       this.project,
-      id
+      id,
     );
 
     const init = loadInit(argv);
@@ -98,25 +98,25 @@ export class WorkflowsIntegrationsCli {
     const body = UpdateIntegration.fromArgv(
       argv,
       init,
-      optionsInitFn(argv, init)
+      optionsInitFn(argv, init),
     );
 
     const updated = await this.client.updateIntegration(
       this.universe,
       this.project,
       id,
-      body
+      body,
     );
 
     output(updated, argv, printIntegration);
   }
 
   async deleteIntegration(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const integration = await this.client.deleteIntegration(
       this.universe,
       this.project,
-      id
+      id,
     );
 
     output(integration, argv, printIntegration);
@@ -126,6 +126,6 @@ export class WorkflowsIntegrationsCli {
 function printIntegration(integration) {
   console.log(`Integration ID=${integration.id}`);
   console.log(
-    `  name=${integration.watcherName} plugin=${integration.pluginId} state=${integration.state}`
+    `  name=${integration.watcherName} plugin=${integration.pluginId} state=${integration.state}`,
   );
 }

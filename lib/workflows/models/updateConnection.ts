@@ -1,12 +1,12 @@
 import * as cliOptions from '../../cli/options';
 import assignDeep from 'assign-deep';
-import { skipNotDefinedKeys } from '../utils';
+import {skipNotDefinedKeys} from '../utils';
 
 export class UpdateConnection {
   name: any;
   options: any;
 
-  constructor({ name, options }: any) {
+  constructor({name, options}: any) {
     this.name = name;
     this.options = options;
   }
@@ -16,10 +16,10 @@ export class UpdateConnection {
       assignDeep(
         init,
         skipNotDefinedKeys({
-          name: cliOptions.convertAtMostOne("name", argv.name || init.name),
+          name: cliOptions.convertAtMostOne('name', argv.name || init.name),
           options,
-        })
-      )
+        }),
+      ),
     );
   }
 }

@@ -1,27 +1,27 @@
-import { BaseServiceClient } from '../baseServiceClient';
-import { err } from '../cli/errors';
+import {BaseServiceClient} from '../baseServiceClient';
+import {err} from '../cli/errors';
 
 const urlBuilder = (...parts) => {
-  return "/" + parts.filter((p) => p !== undefined).join("/");
+  return '/' + parts.filter(p => p !== undefined).join('/');
 };
 
 const integrationsApiPath = (universe, project, id?: any) => {
   return urlBuilder(
-    "universes",
+    'universes',
     universe,
-    "projects",
+    'projects',
     project,
-    "integrations",
-    id
+    'integrations',
+    id,
   );
 };
 
 const alertsApiPath = (universe, project, id?: any) => {
-  return urlBuilder("universes", universe, "projects", project, "alerts", id);
+  return urlBuilder('universes', universe, 'projects', project, 'alerts', id);
 };
 
 const connectionsApiPath = (universe, id?: any) => {
-  return urlBuilder("universes", universe, "connections", id);
+  return urlBuilder('universes', universe, 'connections', id);
 };
 
 export class WorkflowsClient extends BaseServiceClient {
@@ -30,36 +30,36 @@ export class WorkflowsClient extends BaseServiceClient {
   }
 
   static async fromCoroner(coroner) {
-    const serviceUrl = await coroner.find_service("workflows");
+    const serviceUrl = await coroner.find_service('workflows');
     return new WorkflowsClient(
       serviceUrl,
       coroner.endpoint,
       coroner.config.token,
-      coroner.insecure
+      coroner.insecure,
     );
   }
 
   static isAvailable(coroner) {
-    return coroner.has_service("workflows")
+    return coroner.has_service('workflows');
   }
 
   getIntegration(universe, project, id) {
     return this.request({
-      method: "GET",
+      method: 'GET',
       path: integrationsApiPath(universe, project, id),
     });
   }
 
   getIntegrations(universe, project) {
     return this.request({
-      method: "GET",
+      method: 'GET',
       path: integrationsApiPath(universe, project),
     });
   }
 
   createIntegration(universe, project, integration) {
     return this.request({
-      method: "POST",
+      method: 'POST',
       path: integrationsApiPath(universe, project),
       body: integration,
     });
@@ -67,7 +67,7 @@ export class WorkflowsClient extends BaseServiceClient {
 
   updateIntegration(universe, project, id, integration) {
     return this.request({
-      method: "PUT",
+      method: 'PUT',
       path: integrationsApiPath(universe, project, id),
       body: integration,
     });
@@ -75,28 +75,28 @@ export class WorkflowsClient extends BaseServiceClient {
 
   deleteIntegration(universe, project, id) {
     return this.request({
-      method: "DELETE",
+      method: 'DELETE',
       path: integrationsApiPath(universe, project, id),
     });
   }
 
   getAlert(universe, project, id) {
     return this.request({
-      method: "GET",
+      method: 'GET',
       path: alertsApiPath(universe, project, id),
     });
   }
 
   getAlerts(universe, project) {
     return this.request({
-      method: "GET",
+      method: 'GET',
       path: alertsApiPath(universe, project),
     });
   }
 
   createAlert(universe, project, alert) {
     return this.request({
-      method: "POST",
+      method: 'POST',
       path: alertsApiPath(universe, project),
       body: alert,
     });
@@ -104,7 +104,7 @@ export class WorkflowsClient extends BaseServiceClient {
 
   updateAlert(universe, project, id, alert) {
     return this.request({
-      method: "PUT",
+      method: 'PUT',
       path: alertsApiPath(universe, project, id),
       body: alert,
     });
@@ -112,28 +112,28 @@ export class WorkflowsClient extends BaseServiceClient {
 
   deleteAlert(universe, project, id) {
     return this.request({
-      method: "DELETE",
+      method: 'DELETE',
       path: alertsApiPath(universe, project, id),
     });
   }
 
   getConnection(universe, id) {
     return this.request({
-      method: "GET",
+      method: 'GET',
       path: connectionsApiPath(universe, id),
     });
   }
 
   getConnections(universe) {
     return this.request({
-      method: "GET",
+      method: 'GET',
       path: connectionsApiPath(universe),
     });
   }
 
   createConnection(universe, connection) {
     return this.request({
-      method: "POST",
+      method: 'POST',
       path: connectionsApiPath(universe),
       body: connection,
     });
@@ -141,7 +141,7 @@ export class WorkflowsClient extends BaseServiceClient {
 
   updateConnection(universe, id, connection) {
     return this.request({
-      method: "PUT",
+      method: 'PUT',
       path: connectionsApiPath(universe, id),
       body: connection,
     });
@@ -149,24 +149,24 @@ export class WorkflowsClient extends BaseServiceClient {
 
   deleteConnection(universe, id) {
     return this.request({
-      method: "DELETE",
+      method: 'DELETE',
       path: connectionsApiPath(universe, id),
     });
   }
 
   mergeFingerprints(universe, project, fingerprints) {
     return this.request({
-      method: "POST",
+      method: 'POST',
       path: urlBuilder(
-        "issue",
-        "merge",
-        `?universe=${universe}&project=${project}`
+        'issue',
+        'merge',
+        `?universe=${universe}&project=${project}`,
       ),
       body: {
         actions: {
           fingerprint: [
             {
-              type: "merge",
+              type: 'merge',
               source: fingerprints[0],
               arguments: fingerprints,
             },
@@ -180,7 +180,7 @@ export class WorkflowsClient extends BaseServiceClient {
     if (body.error) {
       err(body.error);
       if (body.errorData) {
-        err(JSON.stringify(body.errorData, null, "\t"));
+        err(JSON.stringify(body.errorData, null, '\t'));
       }
 
       process.exit(1);

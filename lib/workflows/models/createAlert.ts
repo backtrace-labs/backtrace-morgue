@@ -1,7 +1,7 @@
 import * as cliOptions from '../../cli/options';
 import assignDeep from 'assign-deep';
-import { parseFilter } from '../../cli/query';
-import { skipNotDefinedKeys } from '../utils';
+import {parseFilter} from '../../cli/query';
+import {skipNotDefinedKeys} from '../utils';
 
 export class CreateAlert {
   name: any;
@@ -38,37 +38,37 @@ export class CreateAlert {
       assignDeep(
         init,
         skipNotDefinedKeys({
-          name: cliOptions.convertOne("name", argv.name || init.name),
+          name: cliOptions.convertOne('name', argv.name || init.name),
           condition: cliOptions.convertObject(
-            "condition",
-            argv.condition || init.condition
+            'condition',
+            argv.condition || init.condition,
           ),
-          state: cliOptions.convertAtMostOne("state", argv.state || init.state),
+          state: cliOptions.convertAtMostOne('state', argv.state || init.state),
           filters: argv.filter
             ? cliOptions
-                .convertMany("filter", argv.filter, true)
+                .convertMany('filter', argv.filter, true)
                 .map(parseFilter)
-                .map((filter) => ({ type: "attribute", ...filter }))
-            : cliOptions.convertMany("filter", init.filters, true),
+                .map(filter => ({type: 'attribute', ...filter}))
+            : cliOptions.convertMany('filter', init.filters, true),
           threshold: cliOptions.convertAtMostOne(
-            "threshold",
-            argv.threshold ?? init.threshold
+            'threshold',
+            argv.threshold ?? init.threshold,
           ),
           frequency: cliOptions.convertOne(
-            "frequency",
-            argv.frequency ?? init.frequency
+            'frequency',
+            argv.frequency ?? init.frequency,
           ),
           integrations: cliOptions.convertMany(
-            "integration",
+            'integration',
             argv.integration ?? init.integrations,
-            true
+            true,
           ),
           executionDelay: cliOptions.convertAtMostOne(
-            "execution-delay",
-            argv["execution-delay"] || init.executionDelay
+            'execution-delay',
+            argv['execution-delay'] || init.executionDelay,
           ),
-        })
-      )
+        }),
+      ),
     );
   }
 }
