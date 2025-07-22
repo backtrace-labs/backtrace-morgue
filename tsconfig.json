@@ -45,6 +45,7 @@
     // Advanced
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "isolatedModules": true,
 
     "types": ["node"]
   },

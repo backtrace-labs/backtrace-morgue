@@ -169,7 +169,7 @@ export class SymboldClient {
       },
       (err, res) => {
         if (callback) {
-          callback(err, res)``;
+          callback(err, res);
           return;
         }
         if (err) {
