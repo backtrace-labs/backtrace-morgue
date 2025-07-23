@@ -13,7 +13,7 @@
  * functions to aid in pagination which we will extend on a case-by-case basis
  * as we need them.
  */
-import request from '@cypress/request';
+import axios from 'axios';
 import urlJoin from 'url-join';
 
 export class BaseServiceClient {
@@ -63,7 +63,7 @@ export class BaseServiceClient {
    * through the trouble of making sure they aren't included, since minimist is
    * too minimal to provide defaults and other validation.
    */
-  request({method, path, body = null, qs = {}}) {
+  async request({method, path, body = null, qs = {}}) {
     const actualQs = {};
     for (const [k, v] of Object.entries({...qs, ...this.defaultQs})) {
       if (v === undefined || v == null) {
@@ -71,31 +71,32 @@ export class BaseServiceClient {
       }
       actualQs[k] = v;
     }
-    return new Promise((resolve, reject) => {
-      const url = urlJoin(this.url, path);
-      const options: any = {
-        url,
-        method: method.toUpperCase(),
-        headers: {
-          'X-Coroner-Location': this.coronerLocation,
-          'X-Coroner-Token': this.coronerToken,
-        },
-        qs: actualQs,
-        json: true,
-        strictSSL: !this.insecure,
-      };
-      if (body) {
-        options.body = body;
-      }
 
-      request(options, (err, resp, body) => {
-        if (err) {
-          reject(err);
-        } else {
-          this.handleResponse(resp, body).then(resolve).catch(reject);
-        }
-      });
-    });
+    const url = urlJoin(this.url, path);
+    const options: any = {
+      url,
+      method: method.toUpperCase(),
+      headers: {
+        'X-Coroner-Location': this.coronerLocation,
+        'X-Coroner-Token': this.coronerToken,
+      },
+      params: actualQs,
+      data: body,
+      httpsAgent: this.insecure
+        ? new (require('https').Agent)({rejectUnauthorized: false})
+        : undefined,
+      decompress: false, // backwards compat with request (pre axios port)
+    };
+
+    try {
+      const response = await axios(options);
+      return await this.handleResponse(response, response.data);
+    } catch (error: any) {
+      if (error.response) {
+        return await this.handleResponse(error.response, error.response.data);
+      }
+      throw error;
+    }
   }
 
   /*
@@ -127,13 +128,11 @@ export class BaseServiceClient {
   }
 
   async handleResponse(resp, body) {
-    if (resp.statusCode >= 400) {
+    if (resp.status >= 400) {
       if (body && body.error && body.error.message) {
-        throw new Error(
-          `HTTP status ${resp.statusCode}: ${body.error.message}`,
-        );
+        throw new Error(`HTTP status ${resp.status}: ${body.error.message}`);
       } else {
-        throw new Error(`HTTP status ${resp.statusCode}`);
+        throw new Error(`HTTP status ${resp.status}`);
       }
     } else {
       return body;

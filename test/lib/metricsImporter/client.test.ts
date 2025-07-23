@@ -1,11 +1,11 @@
-import request from '@cypress/request';
+import axios from 'axios';
 import {
   MetricsImporterClient,
   metricsImporterClientFromCoroner,
 } from '../../../lib/metricsImporter/client';
 
-jest.mock('@cypress/request');
-const mockedRequest = request as jest.Mocked<typeof request>;
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('MetricsImporterClient', () => {
   let client: MetricsImporterClient;
@@ -26,74 +26,94 @@ describe('MetricsImporterClient', () => {
     it('should make a request with proper headers', async () => {
       const mockResponse = {data: 'test'};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options).toMatchObject({
-          url: `${mockUrl}/test/path`,
-          method: 'GET',
-          headers: {
-            'X-Coroner-Location': mockCoronerLocation,
-            'X-Coroner-Token': mockCoronerToken,
-          },
-          qs: {param: 'value'},
-          json: true,
-        });
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.request('get', '/test/path', null, {
         param: 'value',
       });
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/test/path`,
+        method: 'GET',
+        headers: {
+          'X-Coroner-Location': mockCoronerLocation,
+          'X-Coroner-Token': mockCoronerToken,
+        },
+        params: {param: 'value'},
+        data: null,
+      });
     });
 
     it('should handle POST requests with body', async () => {
       const mockBody = {key: 'value'};
       const mockResponse = {success: true};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options).toMatchObject({
-          url: `${mockUrl}/create`,
-          method: 'POST',
-          body: mockBody,
-          headers: {
-            'X-Coroner-Location': mockCoronerLocation,
-            'X-Coroner-Token': mockCoronerToken,
-          },
-          json: true,
-        });
-        callback(null, {statusCode: 201}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.request('post', '/create', mockBody);
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/create`,
+        method: 'POST',
+        data: mockBody,
+        headers: {
+          'X-Coroner-Location': mockCoronerLocation,
+          'X-Coroner-Token': mockCoronerToken,
+        },
+        params: {},
+      });
     });
 
     it('should reject on request error', async () => {
       const mockError = new Error('Network error');
 
-      mockedRequest.mockImplementation((options, callback) => {
-        callback(mockError, null, null);
-      });
+      mockedAxios.mockRejectedValue(mockError);
 
       await expect(client.request('get', '/test')).rejects.toEqual(mockError);
     });
 
     it('should reject on HTTP error status', async () => {
-      mockedRequest.mockImplementation((options, callback) => {
-        callback(null, {statusCode: 404}, {error: {message: 'Not found'}});
+      mockedAxios.mockRejectedValue({
+        response: {
+          status: 404,
+          statusText: 'Not Found',
+          headers: {},
+          data: {error: {message: 'Not found'}},
+        },
       });
 
-      await expect(client.request('get', '/test')).rejects.toBe(
+      await expect(client.request('get', '/test')).rejects.toThrow(
         'HTTP status 404: Not found',
       );
     });
 
     it('should reject with generic message on HTTP error without error body', async () => {
-      mockedRequest.mockImplementation((options, callback) => {
-        callback(null, {statusCode: 500}, null);
+      mockedAxios.mockRejectedValue({
+        response: {
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: {},
+          data: null,
+        },
       });
 
-      await expect(client.request('get', '/test')).rejects.toBe(
+      await expect(client.request('get', '/test')).rejects.toThrow(
         'HTTP status 500',
       );
     });
@@ -108,16 +128,25 @@ describe('MetricsImporterClient', () => {
         query: 'SELECT * FROM metrics',
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.url).toBe(
-          `${mockUrl}/projects/test-project/sources/source-123/check`,
-        );
-        expect(options.qs).toEqual({query: params.query});
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.checkSource(params);
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/projects/test-project/sources/source-123/check`,
+        method: 'GET',
+        params: {query: params.query},
+        data: null,
+        headers: expect.any(Object),
+      });
     });
   });
 
@@ -136,15 +165,25 @@ describe('MetricsImporterClient', () => {
         enabled: true,
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.url).toBe(`${mockUrl}/projects/test-project/importers`);
-        expect(options.method).toBe('POST');
-        expect(options.body).toEqual(params);
-        callback(null, {statusCode: 201}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.createImporter(params);
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/projects/test-project/importers`,
+        method: 'POST',
+        data: expect.objectContaining(params),
+        params: {},
+        headers: expect.any(Object),
+      });
     });
 
     it('should create an importer with enabled defaulting to true', async () => {
@@ -160,12 +199,22 @@ describe('MetricsImporterClient', () => {
         delay: 3600,
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.body.enabled).toBe(true);
-        callback(null, {statusCode: 201}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       await client.createImporter(params);
+
+      expect(mockedAxios).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({enabled: true}),
+        }),
+      );
     });
   });
 
@@ -176,14 +225,25 @@ describe('MetricsImporterClient', () => {
         project: 'test-project',
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.url).toBe(`${mockUrl}/projects/test-project/logs`);
-        expect(options.qs).toEqual({limit: 1000});
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.logs(params);
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/projects/test-project/logs`,
+        method: 'GET',
+        params: {limit: 1000},
+        data: null,
+        headers: expect.any(Object),
+      });
     });
 
     it('should fetch logs with custom parameters', async () => {
@@ -195,18 +255,29 @@ describe('MetricsImporterClient', () => {
         limit: 500,
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.url).toBe(`${mockUrl}/projects/test-project/logs`);
-        expect(options.qs).toEqual({
-          limit: 500,
-          sourceId: 'source-123',
-          importerId: 'importer-456',
-        });
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.logs(params);
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/projects/test-project/logs`,
+        method: 'GET',
+        params: {
+          limit: 500,
+          sourceId: 'source-123',
+          importerId: 'importer-456',
+        },
+        data: null,
+        headers: expect.any(Object),
+      });
     });
   });
 });

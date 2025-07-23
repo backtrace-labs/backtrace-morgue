@@ -1,8 +1,8 @@
-import request from '@cypress/request';
+import axios from 'axios';
 import {BaseServiceClient} from '../../lib/baseServiceClient';
 
-jest.mock('@cypress/request');
-const mockedRequest = request as jest.Mocked<typeof request>;
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('BaseServiceClient', () => {
   let client: BaseServiceClient;
@@ -52,26 +52,35 @@ describe('BaseServiceClient', () => {
     it('should make a GET request with proper configuration', async () => {
       const mockResponse = {data: 'test'};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options).toMatchObject({
-          url: `${mockUrl}/api/test`,
-          method: 'GET',
-          headers: {
-            'X-Coroner-Location': mockCoronerLocation,
-            'X-Coroner-Token': mockCoronerToken,
-          },
-          qs: {param: 'value'},
-          json: true,
-          strictSSL: true,
-        });
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
+      // We need to check the call parameters after the request
       const result = await client.request({
         method: 'get',
         path: '/api/test',
         qs: {param: 'value'},
       });
+
+      expect(mockedAxios).toHaveBeenCalledWith({
+        url: `${mockUrl}/api/test`,
+        method: 'GET',
+        headers: {
+          'X-Coroner-Location': mockCoronerLocation,
+          'X-Coroner-Token': mockCoronerToken,
+        },
+        params: {param: 'value'},
+        data: null,
+        httpsAgent: undefined,
+        decompress: false,
+      });
+
       expect(result).toEqual(mockResponse);
     });
 
@@ -79,13 +88,13 @@ describe('BaseServiceClient', () => {
       client.setDefaultQs({universe: 'test', project: 'demo'});
       const mockResponse = {data: 'test'};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.qs).toEqual({
-          universe: 'test',
-          project: 'demo',
-          param: 'value',
-        });
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       await client.request({
@@ -93,14 +102,28 @@ describe('BaseServiceClient', () => {
         path: '/api/test',
         qs: {param: 'value'},
       });
+
+      expect(mockedAxios).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: {
+            universe: 'test',
+            project: 'demo',
+            param: 'value',
+          },
+        }),
+      );
     });
 
     it('should filter out undefined and null query parameters', async () => {
       const mockResponse = {data: 'test'};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.qs).toEqual({valid: 'value'});
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       await client.request({
@@ -112,18 +135,25 @@ describe('BaseServiceClient', () => {
           null: null,
         },
       });
+
+      expect(mockedAxios).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: {valid: 'value'},
+        }),
+      );
     });
 
     it('should handle POST requests with body', async () => {
       const mockBody = {key: 'value'};
       const mockResponse = {success: true};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options).toMatchObject({
-          method: 'POST',
-          body: mockBody,
-        });
-        callback(null, {statusCode: 201}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       const result = await client.request({
@@ -132,6 +162,13 @@ describe('BaseServiceClient', () => {
         body: mockBody,
       });
       expect(result).toEqual(mockResponse);
+
+      expect(mockedAxios).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          data: mockBody,
+        }),
+      );
     });
 
     it('should respect insecure mode', async () => {
@@ -143,23 +180,35 @@ describe('BaseServiceClient', () => {
       );
       const mockResponse = {data: 'test'};
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.strictSSL).toBe(false);
-        callback(null, {statusCode: 200}, mockResponse);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: mockResponse,
+        config: {},
+        request: {},
       });
 
       await insecureClient.request({
         method: 'get',
         path: '/api/test',
       });
+
+      expect(mockedAxios).toHaveBeenCalledWith(
+        expect.objectContaining({
+          httpsAgent: expect.objectContaining({
+            options: expect.objectContaining({
+              rejectUnauthorized: false,
+            }),
+          }),
+        }),
+      );
     });
 
     it('should reject on request error', async () => {
       const mockError = new Error('Network error');
 
-      mockedRequest.mockImplementation((options, callback) => {
-        callback(mockError, null, null);
-      });
+      mockedAxios.mockRejectedValue(mockError);
 
       await expect(
         client.request({method: 'get', path: '/test'}),
@@ -170,21 +219,21 @@ describe('BaseServiceClient', () => {
   describe('handleResponse', () => {
     it('should handle successful responses', async () => {
       const mockBody = {data: 'test'};
-      const result = await client.handleResponse({statusCode: 200}, mockBody);
+      const result = await client.handleResponse({status: 200}, mockBody);
       expect(result).toEqual(mockBody);
     });
 
     it('should throw error on HTTP 4xx/5xx with error message', async () => {
       const mockBody = {error: {message: 'Bad request'}};
       await expect(
-        client.handleResponse({statusCode: 400}, mockBody),
+        client.handleResponse({status: 400}, mockBody),
       ).rejects.toThrow('HTTP status 400: Bad request');
     });
 
     it('should throw error on HTTP 4xx/5xx without error message', async () => {
-      await expect(
-        client.handleResponse({statusCode: 500}, null),
-      ).rejects.toThrow('HTTP status 500');
+      await expect(client.handleResponse({status: 500}, null)).rejects.toThrow(
+        'HTTP status 500',
+      );
     });
   });
 
@@ -204,20 +253,42 @@ describe('BaseServiceClient', () => {
       };
 
       let callCount = 0;
-      mockedRequest.mockImplementation((options, callback) => {
+      mockedAxios.mockImplementation(config => {
         callCount++;
         if (callCount === 1) {
           // First call - initial request
-          callback(null, {statusCode: 200}, page1);
+          return Promise.resolve({
+            status: 200,
+            data: page1,
+            statusText: 'OK',
+            headers: {},
+            config: {},
+            request: {},
+          });
         } else if (callCount === 2) {
           // Second call should have page_token added
-          expect(options.qs).toHaveProperty('page_token', 'token-2');
-          callback(null, {statusCode: 200}, page2);
+          expect(config.params).toHaveProperty('page_token', 'token-2');
+          return Promise.resolve({
+            status: 200,
+            data: page2,
+            statusText: 'OK',
+            headers: {},
+            config: {},
+            request: {},
+          });
         } else if (callCount === 3) {
           // Third call should have updated page_token
-          expect(options.qs).toHaveProperty('page_token', 'token-3');
-          callback(null, {statusCode: 200}, page3);
+          expect(config.params).toHaveProperty('page_token', 'token-3');
+          return Promise.resolve({
+            status: 200,
+            data: page3,
+            statusText: 'OK',
+            headers: {},
+            config: {},
+            request: {},
+          });
         }
+        return Promise.reject(new Error('Unexpected call'));
       });
 
       const results = [];
@@ -238,8 +309,13 @@ describe('BaseServiceClient', () => {
         next_page_token: 'should-not-be-used',
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        callback(null, {statusCode: 200}, emptyPage);
+      mockedAxios.mockResolvedValue({
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: emptyPage,
+        config: {},
+        request: {},
       });
 
       const results = [];
@@ -251,7 +327,7 @@ describe('BaseServiceClient', () => {
       }
 
       expect(results).toEqual([]);
-      expect(mockedRequest).toHaveBeenCalledTimes(1);
+      expect(mockedAxios).toHaveBeenCalledTimes(1);
     });
 
     it('should handle POST requests in pagination', async () => {
@@ -261,10 +337,17 @@ describe('BaseServiceClient', () => {
         next_page_token: null,
       };
 
-      mockedRequest.mockImplementation((options, callback) => {
-        expect(options.method).toBe('POST');
-        expect(options.body).toEqual(mockBody);
-        callback(null, {statusCode: 200}, page1);
+      mockedAxios.mockImplementation(config => {
+        expect(config.method).toBe('POST');
+        expect(config.data).toEqual(mockBody);
+        return Promise.resolve({
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          data: page1,
+          config: {},
+          request: {},
+        });
       });
 
       const results = [];

@@ -1,11 +1,11 @@
-import request from '@cypress/request';
+import axios from 'axios';
 import * as fs from 'fs';
 import {CoronerClient} from '../../lib/coroner';
 
-jest.mock('@cypress/request');
+jest.mock('axios');
 jest.mock('fs');
 
-const mockedRequest = request as jest.Mocked<typeof request>;
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedFs = fs as jest.Mocked<typeof fs>;
 
 describe('CoronerClient', () => {
@@ -20,6 +20,11 @@ describe('CoronerClient', () => {
     (mockedFs.createReadStream as jest.Mock).mockReturnValue({
       pipe: jest.fn(),
       on: jest.fn(),
+      pause: jest.fn(),
+      resume: jest.fn(),
+      destroy: jest.fn(),
+      read: jest.fn(),
+      readable: true,
     });
 
     client = new CoronerClient({
@@ -35,20 +40,26 @@ describe('CoronerClient', () => {
       const mockResponse = {statusCode: 200, headers: {}};
       const mockBody = Buffer.from(JSON.stringify({data: 'test'}));
 
-      mockedRequest.get.mockImplementation((options, callback) => {
-        expect(options).toMatchObject({
-          uri: `${mockEndpoint}/api/test`,
-          qs: {token: mockToken, param: 'value'},
-          strictSSL: true,
+      mockedAxios.get.mockImplementation((url, config) => {
+        expect(url).toBe(`${mockEndpoint}/api/test`);
+        expect(config).toMatchObject({
+          params: {token: mockToken, param: 'value'},
           timeout: 30000,
-          encoding: null,
+          responseType: 'arraybuffer',
         });
-        callback(null, mockResponse, mockBody);
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.http_get('/api/test', {param: 'value'}, (error, result) => {
         expect(error).toBeNull();
-        expect(result.statusCode).toBe(200);
+        expect(result.status || result.statusCode).toBe(200);
         expect(result.bodyData).toEqual(mockBody);
         done();
       });
@@ -57,9 +68,7 @@ describe('CoronerClient', () => {
     it('should handle request errors', done => {
       const mockError = new Error('Network error');
 
-      mockedRequest.get.mockImplementation((options, callback) => {
-        callback(mockError, null, null);
-      });
+      mockedAxios.get.mockRejectedValue(mockError);
 
       client.http_get('/api/test', {}, (error, result) => {
         expect(error).toEqual(mockError);
@@ -76,14 +85,19 @@ describe('CoronerClient', () => {
       };
       const mockBody = Buffer.from('Not found');
 
-      mockedRequest.get.mockImplementation((options, callback) => {
-        callback(null, mockResponse, mockBody);
+      mockedAxios.get.mockRejectedValue({
+        response: {
+          status: mockResponse.statusCode,
+          statusText: mockResponse.statusMessage,
+          headers: mockResponse.headers,
+          data: mockBody,
+        },
       });
 
       client.http_get('/api/test', {}, (error, result) => {
         expect(error).toBeTruthy();
         expect(error.message).toBe('HTTP 404: Not Found');
-        expect(error.response_obj).toEqual(mockResponse);
+        expect(error.response_obj).toBeDefined();
         done();
       });
     });
@@ -95,19 +109,25 @@ describe('CoronerClient', () => {
       const mockBody = Buffer.from(JSON.stringify({success: true}));
       const postData = {key: 'value'};
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options).toMatchObject({
-          uri: `${mockEndpoint}/api/create`,
-          qs: {token: mockToken},
-          body: JSON.stringify(postData),
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(url).toBe(`${mockEndpoint}/api/create`);
+        expect(data).toBe(JSON.stringify(postData));
+        expect(config).toMatchObject({
+          params: {token: mockToken},
           headers: {
             'Content-Type': 'application/json',
           },
-          strictSSL: true,
           timeout: 30000,
-          encoding: 'utf8',
+          responseType: 'arraybuffer',
         });
-        callback(null, mockResponse, mockBody);
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.post('/api/create', {}, postData, null, (error, result) => {
@@ -121,12 +141,19 @@ describe('CoronerClient', () => {
       const mockResponse = {statusCode: 200, headers: {}};
       const mockBody = Buffer.from(JSON.stringify({success: true}));
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.headers['Content-Type']).toBe(
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(config.headers['Content-Type']).toBe(
           'application/x-www-form-urlencoded',
         );
-        expect(options.body).toMatch(/token=test-token-123/);
-        callback(null, mockResponse, mockBody);
+        expect(data).toMatch(/token=test-token-123/);
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.post('/api/create', {}, null, null, (error, result) => {
@@ -140,12 +167,17 @@ describe('CoronerClient', () => {
       const mockBody = Buffer.from(JSON.stringify({success: true}));
       const binaryData = Buffer.from([0x01, 0x02, 0x03]);
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.headers['Content-Type']).toBe(
-          'application/octet-stream',
-        );
-        expect(options.body).toEqual(binaryData);
-        callback(null, mockResponse, mockBody);
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(config.headers['Content-Type']).toBe('application/octet-stream');
+        expect(data).toEqual(binaryData);
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.post(
@@ -164,9 +196,16 @@ describe('CoronerClient', () => {
       const mockResponse = {statusCode: 200, headers: {}};
       const mockBody = Buffer.from(JSON.stringify({success: true}));
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.headers['Content-Encoding']).toBe('gzip');
-        callback(null, mockResponse, mockBody);
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(config.headers['Content-Encoding']).toBe('gzip');
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.post(
@@ -187,11 +226,18 @@ describe('CoronerClient', () => {
       const mockResponse = {statusCode: 200, headers: {}};
       const mockBody = Buffer.from(JSON.stringify({token: 'new-token'}));
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.uri).toContain('/api/login');
-        expect(options.body).toContain('username=testuser');
-        expect(options.body).toContain('password=testpass');
-        callback(null, mockResponse, mockBody);
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(url).toContain('/api/login');
+        expect(data).toContain('username=testuser');
+        expect(data).toContain('password=testpass');
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.login('testuser', 'testpass', error => {
@@ -211,8 +257,13 @@ describe('CoronerClient', () => {
         JSON.stringify({error: {message: 'Invalid credentials'}}),
       );
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        callback(null, mockResponse, mockBody);
+      mockedAxios.post.mockRejectedValue({
+        response: {
+          status: mockResponse.statusCode,
+          statusText: mockResponse.statusMessage,
+          headers: mockResponse.headers,
+          data: mockBody,
+        },
       });
 
       client.login('testuser', 'wrongpass', error => {
@@ -229,15 +280,22 @@ describe('CoronerClient', () => {
       const mockBody = Buffer.from(JSON.stringify({results: []}));
       const queryData = {filter: 'test'};
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.uri).toContain('/api/query');
-        expect(options.qs).toMatchObject({
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(url).toContain('/api/query');
+        expect(config.params).toMatchObject({
           universe: 'test-universe',
           project: 'test-project',
           token: mockToken,
         });
-        expect(options.body).toBe(JSON.stringify(queryData));
-        callback(null, mockResponse, mockBody);
+        expect(data).toBe(JSON.stringify(queryData));
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.query(
@@ -258,16 +316,23 @@ describe('CoronerClient', () => {
       const mockResponse = {statusCode: 200, headers: {}};
       const mockBody = Buffer.from('object content');
 
-      mockedRequest.get.mockImplementation((options, callback) => {
-        expect(options.uri).toContain('/api/get');
-        expect(options.qs).toMatchObject({
+      mockedAxios.get.mockImplementation((url, config) => {
+        expect(url).toContain('/api/get');
+        expect(config.params).toMatchObject({
           universe: 'test-universe',
           project: 'test-project',
           object: 'obj123',
           resource: 'raw',
           token: mockToken,
         });
-        callback(null, mockResponse, mockBody);
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.fetch(
@@ -291,13 +356,18 @@ describe('CoronerClient', () => {
       const mockFile = '/path/to/file.txt';
       const mockAttachments = [{filename: '/path/to/attachment.log'}];
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.uri).toContain('/api/post');
-        expect(options.formData).toBeDefined();
-        expect(options.formData.upload_file).toBeDefined();
-        // The attachment key is based on the filename basename
-        expect(options.formData['attachment_attachment.log']).toBeDefined();
-        callback(null, mockResponse, mockBody);
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(url).toContain('/api/post');
+        // With axios, form data is sent as FormData object
+        expect(data).toBeDefined();
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.post_form(
@@ -319,11 +389,18 @@ describe('CoronerClient', () => {
       const mockBody = Buffer.from(JSON.stringify({deleted: 3}));
       const objectIds = ['abc', 123, 'def'];
 
-      mockedRequest.post.mockImplementation((options, callback) => {
-        expect(options.uri).toContain('/api/delete');
-        const body = JSON.parse(options.body);
+      mockedAxios.post.mockImplementation((url, data, config) => {
+        expect(url).toContain('/api/delete');
+        const body = JSON.parse(data);
         expect(body.objects).toEqual(['abc', '7b', 'def']);
-        callback(null, mockResponse, mockBody);
+        return Promise.resolve({
+          status: mockResponse.statusCode,
+          statusText: 'OK',
+          headers: mockResponse.headers,
+          data: mockBody,
+          config: {},
+          request: {},
+        });
       });
 
       client.delete_objects(

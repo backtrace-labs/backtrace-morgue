@@ -4,7 +4,7 @@ import urlJoin from 'url-join';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import * as fs from 'fs';
-import request from '@cypress/request';
+import axios from 'axios';
 import {eMsg} from './util';
 
 interface CoronerConfig {
@@ -49,9 +49,9 @@ function check_uri_supported(endpoint: string) {
 function debug_response(resp: any, body: any) {
   console.error(
     '\nResponse: HTTP ' +
-      resp.statusCode +
+      (resp.status || resp.statusCode) +
       ' ' +
-      resp.statusMessage +
+      (resp.statusText || resp.statusMessage) +
       '; headers:\n',
     JSON.stringify(resp.headers, null, 4),
   );
@@ -100,6 +100,12 @@ function onResponse(
     callback(err);
     return;
   }
+
+  if (!resp) {
+    callback(new Error('No response received'));
+    return;
+  }
+
   resp.debug = coroner.debug;
   resp.bodyData = body;
 
@@ -109,8 +115,10 @@ function onResponse(
     debug_response(resp, text);
   }
 
-  if (resp.statusCode !== 200) {
-    err = new Error('HTTP ' + resp.statusCode + ': ' + resp.statusMessage);
+  const statusCode = resp.status || resp.statusCode;
+  const statusMessage = resp.statusText || resp.statusMessage;
+  if (statusCode !== 200) {
+    err = new Error('HTTP ' + statusCode + ': ' + statusMessage);
     err.response_obj = resp;
     callback(err);
     return;
@@ -271,9 +279,33 @@ export class CoronerClient {
       console.error('GET ' + options.uri + '?' + qs.stringify(options.qs));
     }
 
-    request.get(options, (err, resp, body) => {
-      return onResponse(self, callback!, null, err, resp, body);
-    });
+    axios
+      .get(options.uri, {
+        params: options.qs,
+        httpsAgent: !options.strictSSL
+          ? new (require('https').Agent)({rejectUnauthorized: false})
+          : undefined,
+        timeout: options.timeout,
+        responseType: 'arraybuffer',
+        decompress: false, // backwards compat with request (pre axios port)
+      })
+      .then(resp => {
+        const body = resp.data;
+        return onResponse(self, callback!, null, null, resp, body);
+      })
+      .catch(err => {
+        if (err.response) {
+          return onResponse(
+            self,
+            callback!,
+            null,
+            null,
+            err.response,
+            err.response.data,
+          );
+        }
+        return onResponse(self, callback!, null, err, null, null);
+      });
   }
 
   get(path: string, params: any, callback: RequestCallback): void {
@@ -419,7 +451,7 @@ export class CoronerClient {
     path: string,
     params: {
       kvs?: string[] | {};
-      http_opts?: request.Options;
+      http_opts?: any;
       token?: string;
       username?: string;
       password?: string;
@@ -429,7 +461,7 @@ export class CoronerClient {
     opt: {
       compression?: CompressionValue;
       binary?: boolean;
-      http_opts?: request.Options;
+      http_opts?: any;
     },
     callback: RequestCallback,
   ): void {
@@ -471,7 +503,7 @@ export class CoronerClient {
       fullParams = null;
     }
 
-    const options: request.Options = {
+    const options: any = {
       uri: uri.protocol + '//' + uri.host + path,
       strictSSL: !this.insecure,
       timeout: this.timeout,
@@ -516,9 +548,34 @@ export class CoronerClient {
       console.error(options.body);
     }
 
-    request.post(options, (err, resp, body) => {
-      return onResponse(self, callback, {json: true}, err, resp, body);
-    });
+    axios
+      .post(options.uri, options.body, {
+        params: options.qs,
+        headers: options.headers,
+        httpsAgent: !options.strictSSL
+          ? new (require('https').Agent)({rejectUnauthorized: false})
+          : undefined,
+        timeout: options.timeout,
+        responseType: 'arraybuffer',
+        decompress: false, // backwards compat with request (pre axios port)
+      })
+      .then(resp => {
+        const body = resp.data;
+        return onResponse(self, callback, {json: true}, null, resp, body);
+      })
+      .catch(err => {
+        if (err.response) {
+          return onResponse(
+            self,
+            callback,
+            {json: true},
+            null,
+            err.response,
+            err.response.data,
+          );
+        }
+        return onResponse(self, callback, {json: true}, err, null, null);
+      });
   }
 
   svclayer(
@@ -604,9 +661,48 @@ export class CoronerClient {
       }
     }
 
-    request.post(options, (err, resp, body) => {
-      return onResponse(self, callback, {json: true}, err, resp, body);
-    });
+    // Convert formData to FormData for axios
+    const FormData = require('form-data');
+    const formData = new FormData();
+
+    for (const key in options.formData) {
+      const value = options.formData[key];
+      if (value && typeof value === 'object' && value.value !== undefined) {
+        // Handle file uploads
+        formData.append(key, value.value, value.options);
+      } else {
+        formData.append(key, value);
+      }
+    }
+
+    axios
+      .post(options.uri, formData, {
+        params: options.qs,
+        headers: {...formData.getHeaders(), ...options.headers},
+        httpsAgent: !options.strictSSL
+          ? new (require('https').Agent)({rejectUnauthorized: false})
+          : undefined,
+        timeout: options.timeout,
+        responseType: 'arraybuffer',
+        decompress: false, // backwards compat with request (pre axios port)
+      })
+      .then(resp => {
+        const body = resp.data;
+        return onResponse(self, callback, {json: true}, null, resp, body);
+      })
+      .catch(err => {
+        if (err.response) {
+          return onResponse(
+            self,
+            callback,
+            {json: true},
+            null,
+            err.response,
+            err.response.data,
+          );
+        }
+        return onResponse(self, callback, {json: true}, err, null, null);
+      });
   }
 
   login_token(token: string, callback: RequestCallback): void {
