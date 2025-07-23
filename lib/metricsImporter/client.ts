@@ -1,4 +1,4 @@
-import request from '@cypress/request';
+import axios from 'axios';
 import urlJoin from 'url-join';
 
 export class MetricsImporterClient {
@@ -22,38 +22,38 @@ export class MetricsImporterClient {
    *
    * Returns a promise that resolves to the JSON-decoded response.
    */
-  request(method, path, body = null, qs = {}) {
-    return new Promise((resolve, reject) => {
-      const url = urlJoin(this.url, path);
-      const options: any = {
-        url,
-        method: method.toUpperCase(),
-        headers: {
-          'X-Coroner-Location': this.coronerLocation,
-          'X-Coroner-Token': this.coronerToken,
-        },
-        qs,
-        json: true,
-      };
-      if (body) {
-        options.body = body;
-      }
-      request(options, (err, resp, body) => {
-        if (err) {
-          reject(err);
-        } else {
-          if (resp.statusCode >= 400) {
-            if (body && body.error && body.error.message) {
-              reject(`HTTP status ${resp.statusCode}: ${body.error.message}`);
-            } else {
-              reject(`HTTP status ${resp.statusCode}`);
-            }
+  async request(method, path, body = null, qs = {}) {
+    const url = urlJoin(this.url, path);
+    const options: any = {
+      url,
+      method: method.toUpperCase(),
+      headers: {
+        'X-Coroner-Location': this.coronerLocation,
+        'X-Coroner-Token': this.coronerToken,
+      },
+      params: qs,
+      data: body,
+    };
+
+    try {
+      const response = await axios(options);
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        const resp = error.response;
+        const body = resp.data;
+        if (resp.status >= 400) {
+          if (body && body.error && body.error.message) {
+            throw new Error(
+              `HTTP status ${resp.status}: ${body.error.message}`,
+            );
           } else {
-            resolve(body);
+            throw new Error(`HTTP status ${resp.status}`);
           }
         }
-      });
-    });
+      }
+      throw error;
+    }
   }
 
   async checkSource({project, sourceId, query}) {

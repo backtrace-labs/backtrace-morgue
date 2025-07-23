@@ -8,9 +8,3 @@ declare module 'time-ago' {
    */
   export function ago(timestamp: number | Date): string;
 }
-
-// Use type defs from @types/request for @cypress/request.
-declare module '@cypress/request' {
-  import request = require('request');
-  export = request;
-}

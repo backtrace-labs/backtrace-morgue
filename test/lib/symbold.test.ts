@@ -1,8 +1,8 @@
-import request from '@cypress/request';
+import axios from 'axios';
 import {SymboldClient} from '../../lib/symbold';
 
-jest.mock('@cypress/request');
-const mockedRequest = request as jest.Mocked<typeof request>;
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('SymboldClient', () => {
   let client: SymboldClient;
@@ -31,22 +31,27 @@ describe('SymboldClient', () => {
         body: JSON.stringify({data: 'test'}),
       };
 
-      mockedRequest.get.mockImplementation((url, options, callback) => {
-        expect(url).toBe(`${mockEndpoint}/api/symbold/test/path`);
-        expect(options).toMatchObject({
-          headers: {
-            'X-Coroner-Token': mockToken,
-            'X-Coroner-Location': mockEndpoint,
-          },
-          strictSSL: true,
-        });
-        callback(null, mockResponse);
+      mockedAxios.get.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'OK',
+        headers: {},
+        data: JSON.parse(mockResponse.body),
+        config: {},
+        request: {},
       });
 
       client.get('/test/path');
 
       setTimeout(() => {
-        expect(mockedRequest.get).toHaveBeenCalled();
+        expect(mockedAxios.get).toHaveBeenCalledWith(
+          `${mockEndpoint}/api/symbold/test/path`,
+          expect.objectContaining({
+            headers: {
+              'X-Coroner-Token': mockToken,
+              'X-Coroner-Location': mockEndpoint,
+            },
+          }),
+        );
         done();
       }, 0);
     });
@@ -57,13 +62,18 @@ describe('SymboldClient', () => {
         body: JSON.stringify({data: 'test'}),
       };
 
-      mockedRequest.get.mockImplementation((url, options, callback) => {
-        callback(null, mockResponse);
+      mockedAxios.get.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'OK',
+        headers: {},
+        data: JSON.parse(mockResponse.body),
+        config: {},
+        request: {},
       });
 
       client.get('/test/path', (err, res) => {
         expect(err).toBeNull();
-        expect(res.statusCode).toBe(200);
+        expect(res.status).toBe(200);
         done();
       });
     });
@@ -71,9 +81,7 @@ describe('SymboldClient', () => {
     it('should handle error responses', done => {
       const mockError = new Error('Network error');
 
-      mockedRequest.get.mockImplementation((url, options, callback) => {
-        callback(mockError, null);
-      });
+      mockedAxios.get.mockRejectedValue(mockError);
 
       client.get('/test/path', (err, res) => {
         expect(err).toEqual(mockError);
@@ -87,8 +95,13 @@ describe('SymboldClient', () => {
         body: 'Not found',
       };
 
-      mockedRequest.get.mockImplementation((url, options, callback) => {
-        callback(null, mockResponse);
+      mockedAxios.get.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'Not Found',
+        headers: {},
+        data: mockResponse.body,
+        config: {},
+        request: {},
       });
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
@@ -110,38 +123,43 @@ describe('SymboldClient', () => {
       };
       const postData = {key: 'value'};
 
-      mockedRequest.post.mockImplementation((url, options, callback) => {
-        expect(url).toBe(`${mockEndpoint}/api/symbold/create`);
-        expect(options).toMatchObject({
-          body: JSON.stringify(postData),
-          headers: {
-            'X-Coroner-Token': mockToken,
-            'X-Coroner-Location': mockEndpoint,
-            'Content-Type': 'application/json',
-          },
-          strictSSL: true,
-        });
-        callback(null, mockResponse);
+      mockedAxios.post.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'OK',
+        headers: {},
+        data: JSON.parse(mockResponse.body),
+        config: {},
+        request: {},
       });
 
       client.post('/create', postData, (err, res) => {
         expect(err).toBeNull();
-        expect(res.statusCode).toBe(200);
+        expect(res.status).toBe(200);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+          `${mockEndpoint}/api/symbold/create`,
+          postData,
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              'X-Coroner-Token': mockToken,
+              'X-Coroner-Location': mockEndpoint,
+              'Content-Type': 'application/json',
+            }),
+          }),
+        );
         done();
       });
     });
 
-    it('should handle POST errors', () => {
+    it('should handle POST errors', async () => {
       const mockError = new Error('Post failed');
       const postData = {key: 'value'};
 
-      mockedRequest.post.mockImplementation((url, options, callback) => {
-        callback(mockError, null);
-      });
+      mockedAxios.post.mockRejectedValue(mockError);
 
-      expect(() => {
-        client.post('/create', postData);
-      }).toThrow('Post failed');
+      await expect(async () => {
+        await client.post('/create', postData);
+      }).rejects.toThrow('Post failed');
     });
   });
 
@@ -153,23 +171,30 @@ describe('SymboldClient', () => {
       };
       const putData = {key: 'updated'};
 
-      mockedRequest.put.mockImplementation((url, options, callback) => {
-        expect(url).toBe(`${mockEndpoint}/api/symbold/update`);
-        expect(options).toMatchObject({
-          body: JSON.stringify(putData),
-          headers: {
-            'X-Coroner-Token': mockToken,
-            'X-Coroner-Location': mockEndpoint,
-            'Content-Type': 'application/json',
-          },
-          strictSSL: true,
-        });
-        callback(null, mockResponse);
+      mockedAxios.put.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'OK',
+        headers: {},
+        data: JSON.parse(mockResponse.body),
+        config: {},
+        request: {},
       });
 
       client.put('/update', putData, (err, res) => {
         expect(err).toBeNull();
-        expect(res.statusCode).toBe(200);
+        expect(res.status).toBe(200);
+
+        expect(mockedAxios.put).toHaveBeenCalledWith(
+          `${mockEndpoint}/api/symbold/update`,
+          putData,
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              'X-Coroner-Token': mockToken,
+              'X-Coroner-Location': mockEndpoint,
+              'Content-Type': 'application/json',
+            }),
+          }),
+        );
         done();
       });
     });
@@ -181,8 +206,13 @@ describe('SymboldClient', () => {
       };
       const putData = {key: 'value'};
 
-      mockedRequest.put.mockImplementation((url, options, callback) => {
-        callback(null, mockResponse);
+      mockedAxios.put.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'Bad Request',
+        headers: {},
+        data: mockResponse.body,
+        config: {},
+        request: {},
       });
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
@@ -204,24 +234,32 @@ describe('SymboldClient', () => {
         body: '',
       };
 
-      mockedRequest.delete.mockImplementation((url, options, callback) => {
-        expect(url).toBe(`${mockEndpoint}/api/symbold/delete/123`);
-        expect(options).toMatchObject({
-          headers: {
-            'X-Coroner-Token': mockToken,
-            'X-Coroner-Location': mockEndpoint,
-          },
-          strictSSL: true,
-          timeout: 30000,
-        });
-        callback(null, mockResponse);
+      mockedAxios.delete.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: mockResponse.statusMessage,
+        headers: {},
+        data: mockResponse.body,
+        config: {},
+        request: {},
       });
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       client.remove('/delete/123', (err, res) => {
         expect(err).toBeNull();
-        expect(res.statusCode).toBe(200);
+        expect(res.status).toBe(200);
+
+        expect(mockedAxios.delete).toHaveBeenCalledWith(
+          `${mockEndpoint}/api/symbold/delete/123`,
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              'X-Coroner-Token': mockToken,
+              'X-Coroner-Location': mockEndpoint,
+            }),
+            timeout: 30000,
+          }),
+        );
+
         // The console.log happens after the callback in the implementation
         setTimeout(() => {
           expect(consoleSpy).toHaveBeenCalledWith('Successfully deleted data');
@@ -231,17 +269,14 @@ describe('SymboldClient', () => {
       });
     });
 
-    it('should handle DELETE errors', done => {
+    it('should handle DELETE errors', async () => {
       const mockError = new Error('Delete failed');
 
-      mockedRequest.delete.mockImplementation((url, options, callback) => {
-        callback(mockError, null);
-      });
+      mockedAxios.delete.mockRejectedValue(mockError);
 
-      expect(() => {
-        client.remove('/delete/123');
-      }).toThrow('Delete failed');
-      done();
+      await expect(async () => {
+        await client.remove('/delete/123');
+      }).rejects.toThrow('Delete failed');
     });
 
     it('should handle non-200 DELETE responses', done => {
@@ -251,8 +286,13 @@ describe('SymboldClient', () => {
         body: 'Resource not found',
       };
 
-      mockedRequest.delete.mockImplementation((url, options, callback) => {
-        callback(null, mockResponse);
+      mockedAxios.delete.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: mockResponse.statusMessage,
+        headers: {},
+        data: mockResponse.body,
+        config: {},
+        request: {},
       });
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
@@ -277,8 +317,13 @@ describe('SymboldClient', () => {
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-      mockedRequest.delete.mockImplementation((url, options, callback) => {
-        callback(null, mockResponse);
+      mockedAxios.delete.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: mockResponse.statusMessage,
+        headers: {},
+        data: mockResponse.body,
+        config: {},
+        request: {},
       });
 
       client.remove('/delete/123', (err, res) => {
@@ -301,17 +346,22 @@ describe('SymboldClient', () => {
         body: JSON.stringify({status: 'ok'}),
       };
 
-      mockedRequest.get.mockImplementation((url, options, callback) => {
-        expect(url).toBe(
-          `${mockEndpoint}/api/symbold/status/universe/test-universe`,
-        );
-        callback(null, mockResponse);
+      mockedAxios.get.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'OK',
+        headers: {},
+        data: JSON.parse(mockResponse.body),
+        config: {},
+        request: {},
       });
 
       const argv = {_: ['test-universe']};
       client.status(argv);
 
-      expect(mockedRequest.get).toHaveBeenCalled();
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        `${mockEndpoint}/api/symbold/status/universe/test-universe`,
+        expect.any(Object),
+      );
     });
 
     it('should make a GET request for project status', () => {
@@ -320,17 +370,22 @@ describe('SymboldClient', () => {
         body: JSON.stringify({status: 'ok'}),
       };
 
-      mockedRequest.get.mockImplementation((url, options, callback) => {
-        expect(url).toBe(
-          `${mockEndpoint}/api/symbold/status/universe/test-universe/project/test-project`,
-        );
-        callback(null, mockResponse);
+      mockedAxios.get.mockResolvedValue({
+        status: mockResponse.statusCode,
+        statusText: 'OK',
+        headers: {},
+        data: JSON.parse(mockResponse.body),
+        config: {},
+        request: {},
       });
 
       const argv = {_: ['test-universe/test-project']};
       client.status(argv);
 
-      expect(mockedRequest.get).toHaveBeenCalled();
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        `${mockEndpoint}/api/symbold/status/universe/test-universe/project/test-project`,
+        expect.any(Object),
+      );
     });
 
     it('should show usage when no arguments provided', () => {

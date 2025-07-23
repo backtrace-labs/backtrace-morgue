@@ -1,4 +1,4 @@
-import request from '@cypress/request';
+import axios from 'axios';
 import * as symbolServer from './symbold/symboldSymbolServer';
 import * as symbolItem from './symbold/symboldSymbolItem';
 import * as queue from './symbold/symboldQueue';
@@ -71,124 +71,137 @@ export class SymboldClient {
     this.get(url);
   }
 
-  remove(url, callback) {
+  async remove(url, callback) {
     if (this.debug) {
       console.log(`Trying to remove resource under url : ${url}`);
     }
 
-    request.delete(
-      `${this.symboldEndpoint}${url}`,
-      {
+    try {
+      const res = await axios.delete(`${this.symboldEndpoint}${url}`, {
         headers: this.getCoronerdHeaders(),
-        strictSSL: !this.coronerdClient.insecure,
+        httpsAgent: !this.coronerdClient.insecure
+          ? undefined
+          : new (require('https').Agent)({rejectUnauthorized: false}),
         timeout: this.coronerdClient.timeout,
-      },
-      (err, res) => {
-        if (this.debug) {
-          console.log(
-            `Received status code: ${res.statusCode} with message ${res.statusMessage}`,
-          );
-        }
-        if (callback) {
-          callback(err, res);
-        }
-        if (err) {
-          throw err;
-        }
-        if (res.statusCode >= 300) {
-          console.warn(res.body);
-          return;
-        }
-        console.log('Successfully deleted data');
-      },
-    );
-  }
+        decompress: false, // backwards compat with request (pre axios port)
+      });
 
-  put(url, data, callback) {
-    const requestHeaders = this.getCoronerdHeaders();
-    requestHeaders['Content-Type'] = 'application/json';
-    request.put(
-      `${this.symboldEndpoint}${url}`,
-      {
-        body: JSON.stringify(data),
-        headers: requestHeaders,
-        strictSSL: !this.coronerdClient.insecure,
-      },
-      (err, res) => {
-        if (callback) {
-          callback(err, res);
-        }
-        if (err) {
-          throw err;
-        }
-        if (res.statusCode >= 300) {
-          console.warn(res.body);
-          return;
-        }
-        const result = JSON.stringify(res.body, null, 2);
-        if (result.length !== 0) {
-          console.log(`Success. Response data: ${result}`);
-        }
-      },
-    );
-  }
-  post(url, data, callback) {
-    const requestHeaders = this.getCoronerdHeaders();
-    requestHeaders['Content-Type'] = 'application/json';
-    request.post(
-      `${this.symboldEndpoint}${url}`,
-      {
-        body: JSON.stringify(data),
-        headers: requestHeaders,
-        strictSSL: !this.coronerdClient.insecure,
-      },
-      (err, res) => {
-        if (callback) {
-          callback(err, res);
-        }
-        if (err) {
-          throw err;
-        }
-        if (res.statusCode >= 300) {
-          console.warn(res.body);
-          return;
-        }
+      if (this.debug) {
         console.log(
-          `Success. Response data: ${JSON.stringify(res.body, null, 2)}`,
+          `Received status code: ${res.status} with message ${res.statusText}`,
         );
-      },
-    );
+      }
+      if (callback) {
+        callback(null, res);
+      }
+      if (res.status >= 300) {
+        console.warn(res.data);
+        return;
+      }
+      console.log('Successfully deleted data');
+    } catch (err: any) {
+      if (callback) {
+        callback(err, err.response);
+      }
+      throw err;
+    }
   }
 
-  get(url, callback?: (err: any, res: any) => any) {
-    request.get(
-      `${this.symboldEndpoint}${url}`,
-      {
-        headers: this.getCoronerdHeaders(),
-        strictSSL: !this.coronerdClient.insecure,
-      },
-      (err, res) => {
-        if (callback) {
-          callback(err, res);
-          return;
-        }
-        if (err) {
-          console.log(`Cannot connect to symbol server : ${err.message}`);
-          return;
-        }
-        if (res.statusCode >= 300) {
-          console.warn(res.body);
-          return;
-        }
+  async put(url, data, callback) {
+    const requestHeaders = this.getCoronerdHeaders();
+    requestHeaders['Content-Type'] = 'application/json';
 
-        try {
-          const data = JSON.parse(res.body);
-          console.log(JSON.stringify(data, null, 4));
-        } catch (err) {
-          console.log('Cannot display response.');
-        }
-      },
-    );
+    try {
+      const res = await axios.put(`${this.symboldEndpoint}${url}`, data, {
+        headers: requestHeaders,
+        httpsAgent: !this.coronerdClient.insecure
+          ? undefined
+          : new (require('https').Agent)({rejectUnauthorized: false}),
+        decompress: false, // backwards compat with request (pre axios port)
+      });
+
+      if (callback) {
+        callback(null, res);
+      }
+      if (res.status >= 300) {
+        console.warn(res.data);
+        return;
+      }
+      const result = JSON.stringify(res.data, null, 2);
+      if (result.length !== 0) {
+        console.log(`Success. Response data: ${result}`);
+      }
+    } catch (err: any) {
+      if (callback) {
+        callback(err, err.response);
+      }
+      throw err;
+    }
+  }
+  async post(url, data, callback) {
+    const requestHeaders = this.getCoronerdHeaders();
+    requestHeaders['Content-Type'] = 'application/json';
+
+    try {
+      const res = await axios.post(`${this.symboldEndpoint}${url}`, data, {
+        headers: requestHeaders,
+        httpsAgent: !this.coronerdClient.insecure
+          ? undefined
+          : new (require('https').Agent)({rejectUnauthorized: false}),
+        decompress: false, // backwards compat with request (pre axios port)
+      });
+
+      if (callback) {
+        callback(null, res);
+      }
+      if (res.status >= 300) {
+        console.warn(res.data);
+        return;
+      }
+      console.log(
+        `Success. Response data: ${JSON.stringify(res.data, null, 2)}`,
+      );
+    } catch (err: any) {
+      if (callback) {
+        callback(err, err.response);
+      }
+      throw err;
+    }
+  }
+
+  async get(url, callback?: (err: any, res: any) => any) {
+    try {
+      const res = await axios.get(`${this.symboldEndpoint}${url}`, {
+        headers: this.getCoronerdHeaders(),
+        httpsAgent: !this.coronerdClient.insecure
+          ? undefined
+          : new (require('https').Agent)({rejectUnauthorized: false}),
+        decompress: false, // backwards compat with request (pre axios port)
+      });
+
+      if (callback) {
+        callback(null, res);
+        return;
+      }
+      if (res.status >= 300) {
+        console.warn(res.data);
+        return;
+      }
+
+      try {
+        const data =
+          typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+        console.log(JSON.stringify(data, null, 4));
+      } catch (err) {
+        console.log('Cannot display response.');
+      }
+    } catch (err: any) {
+      if (callback) {
+        callback(err, err.response);
+        return;
+      }
+      console.log(`Cannot connect to symbol server : ${err.message}`);
+    }
   }
 
   getCoronerdHeaders() {
