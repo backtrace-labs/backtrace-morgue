@@ -206,10 +206,6 @@ export class CoronerClient {
       throw new Error('Invalid or unknown function name');
     const boundfn = fn.bind(this);
 
-    /* Discard the name from the argument vector before passing it on. */
-    const fnArgs = [].slice.call(arguments);
-    args.shift();
-
     return new Promise((resolve, reject) => {
       args.push((error: any, result: any) => {
         if (error) {
@@ -218,7 +214,7 @@ export class CoronerClient {
           resolve(result);
         }
       });
-      boundfn.apply(null, fnArgs);
+      boundfn.apply(null, args);
     });
   }
 
