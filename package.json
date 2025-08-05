@@ -83,7 +83,7 @@
     "copy-assets": "cp -r assets dist/",
     "lint": "eslint",
     "prepack": "npm run build",
-    "prepare": "node hack/workaround-broken-npm-prepack-behavior prepack",
+    "prepare": "node hack/workaround-broken-npm-prepack-behavior.mjs prepack",
     "typecheck": "tsc --noEmit",
     "watch": "tsc --watch"
   }
