@@ -3,13 +3,6 @@ const del = require('del');
 const path = require('path');
 const babel = require('gulp-babel');
 
-gulp.task('compile', [
-  'clean',
-  'copy-package-json',
-  'compile-lib',
-  'copy-assets',
-  'compile-bin',
-]);
 
 gulp.task('compile-lib', function() {
   return gulp
@@ -35,10 +28,18 @@ gulp.task('copy-package-json', function() {
 
 gulp.task('clean', function() {
   const currentPath = path.join(process.cwd(), 'dist');
-  return del.sync([
+  return del([
     //remove all files in dist directory
     `${currentPath}/**/*`,
   ]);
 });
 
-gulp.task('default', ['compile']);
+gulp.task('compile', gulp.series([
+  'clean',
+  'copy-package-json',
+  'compile-lib',
+  'copy-assets',
+  'compile-bin',
+]));
+
+gulp.task('default', gulp.series('compile'));
