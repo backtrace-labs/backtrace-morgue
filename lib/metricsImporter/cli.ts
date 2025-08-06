@@ -2,11 +2,11 @@ import * as client from './client';
 
 function validateOne(option, value) {
   if (!value) {
-    console.error(`--${ option } is required`);
+    console.error(`--${option} is required`);
     return false;
   }
   if (Array.isArray(value)) {
-    console.error(`--${ option } must have exactly one value`);
+    console.error(`--${option} must have exactly one value`);
     return false;
   }
   return true;
@@ -14,7 +14,7 @@ function validateOne(option, value) {
 
 function validateZeroOrOne(option, value) {
   if (Array.isArray(value)) {
-    console.error(`--${ option } must have at most one value`);
+    console.error(`--${option} must have at most one value`);
     return false;
   }
   return true;
@@ -29,13 +29,13 @@ export class MetricsImporterCli {
 
   async routeMethod(args) {
     const routes = {
-      'importer': {
-        create: (args) => this.importerCreate(args),
+      importer: {
+        create: args => this.importerCreate(args),
       },
       source: {
-        'check-query': (args) => this.sourceCheckQuery(args),
+        'check-query': args => this.sourceCheckQuery(args),
       },
-      'logs': (args) => this.logs(args),
+      logs: args => this.logs(args),
     };
 
     let route = routes;
@@ -51,7 +51,9 @@ export class MetricsImporterCli {
     }
 
     if (!route) {
-      console.error("Unrecognized command. See metrics-importer help for usage");
+      console.error(
+        'Unrecognized command. See metrics-importer help for usage',
+      );
       return;
     }
     await (route as any)(args);
@@ -79,31 +81,37 @@ export class MetricsImporterCli {
     let limit = 100;
 
     if (!project) {
-      console.log("Project is required");
+      console.log('Project is required');
       return;
     }
-    if (!validateZeroOrOne('source', sourceId) ||
-      !validateZeroOrOne('importer', importerId)) {
+    if (
+      !validateZeroOrOne('source', sourceId) ||
+      !validateZeroOrOne('importer', importerId)
+    ) {
       return;
     }
     if (!sourceId && !importerId) {
-      console.error("Specify either --source or --importer, not both");
+      console.error('Specify either --source or --importer, not both');
       return;
     }
 
     if ('limit' in args) {
       limit = Number.parseInt(args.limit);
       if (Number.isNaN(limit) || limit <= 0) {
-        console.error("--limit must be a positive integer");
+        console.error('--limit must be a positive integer');
         return;
       }
     }
 
-    const response = await this.client.logs({ project, sourceId,
-      importerId, limit });
+    const response = await this.client.logs({
+      project,
+      sourceId,
+      importerId,
+      limit,
+    });
 
     if (response.messages.length === 0) {
-      console.log("No logs");
+      console.log('No logs');
       return;
     }
 
@@ -112,41 +120,43 @@ export class MetricsImporterCli {
      * most recent last.
      */
     const sorted = response.messages.reverse();
-    for (let m of sorted) {
-      const time = (new Date(m.time * 1000)).toISOString();
+    for (const m of sorted) {
+      const time = new Date(m.time * 1000).toISOString();
       let msg;
       if (importerId) {
-        msg = `${ time } ${ m.message }`;
+        msg = `${time} ${m.message}`;
       } else {
-        msg = `${ time } importer=${ m.sourceId } ${ m.message }`;
+        msg = `${time} importer=${m.sourceId} ${m.message}`;
       }
-      msg = `${ m.level.padEnd(9) }${ msg }`;
+      msg = `${m.level.padEnd(9)}${msg}`;
       console.log(msg);
     }
   }
 
   async importerCreate(args) {
     const project = args.project;
-    const sourceId = args["source"];
+    const sourceId = args['source'];
     const query = args.query;
-    const startAtUnparsed = args["start-at"];
+    const startAtUnparsed = args['start-at'];
     const delay = args.delay;
     const metric = args.metric;
     const metricGroup = args['metric-group'];
     const name = args.name;
 
     if (!project) {
-      console.error("Project is required");
+      console.error('Project is required');
       return;
     }
 
-    if (!validateOne("source", sourceId) ||
-      !validateOne("name", name) ||
-      !validateOne("metric", metric) ||
-      !validateOne("metric-group", metricGroup) ||
-      !validateZeroOrOne("delay", delay) ||
-      !validateZeroOrOne("start-at", startAtUnparsed)) {
-        return;
+    if (
+      !validateOne('source', sourceId) ||
+      !validateOne('name', name) ||
+      !validateOne('metric', metric) ||
+      !validateOne('metric-group', metricGroup) ||
+      !validateZeroOrOne('delay', delay) ||
+      !validateZeroOrOne('start-at', startAtUnparsed)
+    ) {
+      return;
     }
 
     /* By default, scrape the last day. */
@@ -154,7 +164,7 @@ export class MetricsImporterCli {
     if (startAtUnparsed) {
       startAt = new Date(startAtUnparsed);
       if (Number.isNaN(startAt.getTime())) {
-        console.error("Unable to parse --start-at");
+        console.error('Unable to parse --start-at');
         return;
       }
     }
@@ -171,7 +181,7 @@ export class MetricsImporterCli {
     };
 
     const resp = await this.client.createImporter(params);
-    console.log(`Importer id ${ resp.id }`);
+    console.log(`Importer id ${resp.id}`);
   }
 
   async sourceCheckQuery(args) {
@@ -180,29 +190,29 @@ export class MetricsImporterCli {
     const query = args.query;
 
     if (!project) {
-      console.error("Project is required");
-      return;
-    }
-    
-    if (!validateOne("source", sourceId) ||
-      !validateOne("query", query)) {
+      console.error('Project is required');
       return;
     }
 
-    const resp = await this.client.checkSource({ project, sourceId, query });
+    if (!validateOne('source', sourceId) || !validateOne('query', query)) {
+      return;
+    }
+
+    const resp = await this.client.checkSource({project, sourceId, query});
     if (resp.errors.length) {
-      console.log("Errors:");
+      console.log('Errors:');
       resp.errors.map(i => console.log(i));
-      console.log("");
+      console.log('');
     }
     if (resp.warnings.length) {
-      console.log("Warnings:");
+      console.log('Warnings:');
       resp.warnings.map(i => console.log(i));
-      console.log("");
+      console.log('');
     }
     if (resp.success) {
       console.log(
-        "This query can be used as a valid importer query for this source");
+        'This query can be used as a valid importer query for this source',
+      );
     } else {
       console.log(`If used to create an importer, this query will be unable to
 complete scrapes successfully.`);

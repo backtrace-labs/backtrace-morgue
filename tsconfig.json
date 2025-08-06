@@ -4,18 +4,18 @@
     "target": "ES2020",
     "module": "commonjs",
     "lib": ["ES2020"],
-    
+
     // Output configuration
     "outDir": "./dist",
     "rootDir": "./",
-    
+
     // Module resolution
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    
+
     // Type checking - very permissive for initial migration
-    "strict": false,
+    "strict": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
     "strictFunctionTypes": false,
@@ -23,38 +23,32 @@
     "strictPropertyInitialization": false,
     "noImplicitThis": false,
     "alwaysStrict": false,
-    
+
     // Additional checks
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    
+
     // Emit options
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "removeComments": false,
     "preserveConstEnums": true,
-    
+
     // Interop constraints
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
     "checkJs": false,
-    
+
     // Advanced
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    "types": ["node"]
   },
-  "include": [
-    "lib/**/*",
-    "bin/**/*",
-    "types/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.spec.ts",
-    "**/*.test.ts"
-  ]
+  "include": ["lib/**/*", "bin/**/*", "types/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
 }

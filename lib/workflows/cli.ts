@@ -1,10 +1,10 @@
 import * as cliOptions from '../cli/options';
-import { errx } from '../cli/errors';
-import { WorkflowsClient } from './client';
+import {errx} from '../cli/errors';
+import {WorkflowsClient} from './client';
 import * as router from '../cli/router';
-import { WorkflowsIntegrationsCli } from './integrations';
-import { WorkflowsAlertsCli } from './alerts';
-import { WorkflowsConnectionsCli } from './connections';
+import {WorkflowsIntegrationsCli} from './integrations';
+import {WorkflowsAlertsCli} from './alerts';
+import {WorkflowsConnectionsCli} from './connections';
 
 const HELP_MESSAGE = `
 Usage:
@@ -34,8 +34,8 @@ export class WorkflowsCli {
   }
 
   static async fromCoroner(coroner, argv, config) {
-    let universe = cliOptions.convertAtMostOne("universe", argv.universe);
-    const project = cliOptions.convertAtMostOne("project", argv.project);
+    let universe = cliOptions.convertAtMostOne('universe', argv.universe);
+    const project = cliOptions.convertAtMostOne('project', argv.project);
     /*
      * Currently the service infrastructure doesn't support inferring
      * universe, so do it on our end if we can.
@@ -45,7 +45,7 @@ export class WorkflowsCli {
     }
     if (!universe) {
       errx(
-        "Unable to infer universe from config. Please provide --universe to select"
+        'Unable to infer universe from config. Please provide --universe to select',
       );
     }
     const client = await WorkflowsClient.fromCoroner(coroner);

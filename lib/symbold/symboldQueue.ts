@@ -11,92 +11,92 @@ export class SymboldQueue {
       return this.showQueueUsage();
     }
     switch (method) {
-      case "list":
-      case "get": {
+      case 'list':
+      case 'get': {
         this.getAllEvents();
         break;
       }
-      case "create":
-      case "add": {
+      case 'create':
+      case 'add': {
         const universeProject = argv._.shift();
         const missingSymbols = argv._.shift();
         const objectId = argv._.shift();
         this.add(universeProject, objectId, missingSymbols);
         break;
       }
-      case "size": {
+      case 'size': {
         this.getSize();
         break;
       }
-      case "symbols": {
+      case 'symbols': {
         this.getMissingSymbols();
         break;
       }
       default: {
-        this.showQueueUsage(`Cannot find a correct method`);
+        this.showQueueUsage('Cannot find a correct method');
       }
     }
   }
 
   getMissingSymbols() {
     if (this.symboldClient.debug) {
-      console.log(`Trying to fetch missing symbols from queue`);
+      console.log('Trying to fetch missing symbols from queue');
     }
-    this.symboldClient.get("/queue/missingSymbols");
+    this.symboldClient.get('/queue/missingSymbols');
   }
 
   getAllEvents() {
     if (this.symboldClient.debug) {
-      console.log(`Trying to fetch all events in symbold queue`);
+      console.log('Trying to fetch all events in symbold queue');
     }
-    this.symboldClient.get("/queue/events");
+    this.symboldClient.get('/queue/events');
   }
 
   getSize() {
     if (this.symboldClient.debug) {
-      console.log(`Trying to queue size`);
+      console.log('Trying to queue size');
     }
-    this.symboldClient.get("/queue/events/count");
+    this.symboldClient.get('/queue/events/count');
   }
 
   getSymbols() {
     if (this.symboldClient.debug) {
-      console.log(`Trying to fetch symbols`);
+      console.log('Trying to fetch symbols');
     }
-    this.symboldClient.get("/queue/missingSymbols");
+    this.symboldClient.get('/queue/missingSymbols');
   }
 
   add(universeProject, objectId, missingSymbols) {
     if (this.symboldClient.debug) {
-      console.log(`Trying to add new event to symbold queue.`);
+      console.log('Trying to add new event to symbold queue.');
     }
     if (!universeProject) {
       if (this.symboldClient.debug) {
-        console.log(`Missing universe/project name in parameters`);
+        console.log('Missing universe/project name in parameters');
       }
-      return this.showQueueUsage("Missing universe and project name");
+      return this.showQueueUsage('Missing universe and project name');
     }
-    const [universeName, projectName] = universeProject.split("/");
+    const [universeName, projectName] = universeProject.split('/');
     if (!objectId || isNaN(objectId)) {
       if (this.symboldClient.debug) {
-        console.log(`ObjectId is NaN`);
+        console.log('ObjectId is NaN');
       }
-      return this.showQueueUsage("objectId is not defined");
+      return this.showQueueUsage('objectId is not defined');
     }
     if (!missingSymbols) {
       if (this.symboldClient.debug) {
-        console.log(`Missing symbols array is empty`);
+        console.log('Missing symbols array is empty');
       }
-      return this.showQueueUsage("missing symbols are not defined");
+      return this.showQueueUsage('missing symbols are not defined');
     }
 
-    const url = `/queue/add`;
+    const url = '/queue/add';
 
     this.symboldClient.post(url, {
       objectId: parseInt(objectId),
       missingSymbols: [missingSymbols],
       universeName,
-      projectName
+      projectName,
     });
   }
 

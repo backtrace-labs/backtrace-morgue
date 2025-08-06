@@ -1,9 +1,9 @@
-import { output, loadInit, getPluginId } from './utils';
+import {output, loadInit, getPluginId} from './utils';
 import * as cliOptions from '../cli/options';
-import { CreateConnection } from './models/createConnection';
+import {CreateConnection} from './models/createConnection';
 import * as router from '../cli/router';
-import { UpdateConnection } from './models/updateConnection';
-import { connectionOptions } from './plugins/plugins';
+import {UpdateConnection} from './models/updateConnection';
+import {connectionOptions} from './plugins/plugins';
 
 const HELP_MESSAGE = `
 Usage:
@@ -35,7 +35,7 @@ export class WorkflowsConnectionsCli {
   }
 
   async getConnection(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const connection = await this.client.getConnection(this.universe, id);
     output(connection, argv, printConnection);
   }
@@ -46,7 +46,7 @@ export class WorkflowsConnectionsCli {
     output(
       connections.sort((c1, c2) => c1.name.localeCompare(c2.name)),
       argv,
-      printConnection
+      printConnection,
     );
   }
 
@@ -61,7 +61,7 @@ export class WorkflowsConnectionsCli {
   }
 
   async updateConnection(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const connection = await this.client.getConnection(this.universe, id);
 
     const init = loadInit(argv);
@@ -71,7 +71,7 @@ export class WorkflowsConnectionsCli {
     const body = UpdateConnection.fromArgv(
       argv,
       init,
-      optionsInitFn(argv, init)
+      optionsInitFn(argv, init),
     );
 
     const updated = await this.client.updateConnection(this.universe, id, body);
@@ -80,7 +80,7 @@ export class WorkflowsConnectionsCli {
   }
 
   async deleteConnection(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const connection = await this.client.deleteConnection(this.universe, id);
     output(connection, argv, printConnection);
   }

@@ -1,9 +1,9 @@
-import { output, loadInit } from './utils';
+import {output, loadInit} from './utils';
 import * as cliOptions from '../cli/options';
-import { CreateAlert } from './models/createAlert';
+import {CreateAlert} from './models/createAlert';
 import * as router from '../cli/router';
-import { UpdateAlert } from './models/updateAlert';
-import { errx } from '../cli/errors';
+import {UpdateAlert} from './models/updateAlert';
+import {errx} from '../cli/errors';
 
 const HELP_MESSAGE = `
 Usage:
@@ -26,7 +26,7 @@ export class WorkflowsAlertsCli {
 
   async routeMethod(argv) {
     if (!this.project) {
-      errx("--project is required");
+      errx('--project is required');
     }
 
     const routes = {
@@ -41,7 +41,7 @@ export class WorkflowsAlertsCli {
   }
 
   async getAlert(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const alert = await this.client.getAlert(this.universe, this.project, id);
     output(alert, argv, printAlert);
   }
@@ -52,7 +52,7 @@ export class WorkflowsAlertsCli {
     output(
       alerts.sort((a1, a2) => a1.name.localeCompare(a2.name)),
       argv,
-      printAlert
+      printAlert,
     );
   }
 
@@ -62,32 +62,32 @@ export class WorkflowsAlertsCli {
     const alert = await this.client.createAlert(
       this.universe,
       this.project,
-      body
+      body,
     );
 
     output(alert, argv, printAlert);
   }
 
   async updateAlert(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const body = UpdateAlert.fromArgv(argv, loadInit(argv));
 
     const alert = await this.client.updateAlert(
       this.universe,
       this.project,
       id,
-      body
+      body,
     );
 
     output(alert, argv, printAlert);
   }
 
   async deleteAlert(argv) {
-    const id = cliOptions.convertOne("id", argv.id || argv._[0]);
+    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
     const alert = await this.client.deleteAlert(
       this.universe,
       this.project,
-      id
+      id,
     );
 
     output(alert, argv, printAlert);

@@ -4,27 +4,27 @@
 import * as chrono from 'chrono-node';
 
 import * as timeCli from './time';
-import { err, error_color, errx } from './errors';
+import {err, error_color, errx} from './errors';
 
 function argvQuantizeUint(argv) {
-  let q = argv["quantize-uint"];
+  let q = argv['quantize-uint'];
 
-  if (!q)
-    return [];
+  if (!q) return [];
 
-  if (!Array.isArray(q))
-    q = [ q ];
+  if (!Array.isArray(q)) q = [q];
 
   return q.map(a => {
-    let segs = a.split(",");
+    const segs = a.split(',');
 
     if (segs.length < 3) {
-      errx("Quantize column definition is of the form output_name,backing_column,size,[offset]");
+      errx(
+        'Quantize column definition is of the form output_name,backing_column,size,[offset]',
+      );
     }
 
     let [name, backing, size, offset] = segs;
     if (offset === undefined || offset === null) {
-      offset = "0";
+      offset = '0';
     }
 
     size = timeCli.parseTimeInt(size);
@@ -32,12 +32,12 @@ function argvQuantizeUint(argv) {
 
     return {
       name: name,
-      type: "quantize_uint",
+      type: 'quantize_uint',
       quantize_uint: {
         backing_column: backing,
         size: size,
         offset: offset,
-      }
+      },
     };
   });
 }
@@ -48,7 +48,14 @@ function argvVcols(args) {
 
 /* Some subcommands don't make sense with folds etc. */
 export function argvQueryFilterOnly(argv) {
-  if (argv.select || argv.filter || argv.fingerprint || argv.age || argv.time || argv['select-wildcard']) {
+  if (
+    argv.select ||
+    argv.filter ||
+    argv.fingerprint ||
+    argv.age ||
+    argv.time ||
+    argv['select-wildcard']
+  ) {
     /* Object must be returned for query to be chainable. */
     if (!argv.select && !argv['select-wildcard'] && !argv.template) {
       argv.select = 'object';
@@ -59,11 +66,11 @@ export function argvQueryFilterOnly(argv) {
 }
 
 function parseSortTerm(term) {
-  var ordering = "ascending";
-  var name = term;
+  let ordering = 'ascending';
+  let name = term;
 
-  if (term[0] === "-") {
-    ordering = "descending";
+  if (term[0] === '-') {
+    ordering = 'descending';
     name = term.slice(1);
   }
 
@@ -78,12 +85,12 @@ function parseFilterFlags(filter) {
     return {};
   }
 
-  let flags = {};
-  const known_flags = new Set([ 'case_insensitive' ]);
+  const flags = {};
+  const known_flags = new Set(['case_insensitive']);
   for (const f of filter.slice(3)) {
-    const transformed = f.replace("-", "_");
+    const transformed = f.replace('-', '_');
     if (!known_flags.has(transformed)) {
-      errx(`Unknown filter flag ${ f }`);
+      errx(`Unknown filter flag ${f}`);
     }
     flags[transformed] = true;
   }
@@ -91,14 +98,14 @@ function parseFilterFlags(filter) {
 }
 
 export function parseFilter(input) {
-  let [attribute, op, value, flags] = input.split(",");
+  let [attribute, op, value, flags] = input.split(',');
   if (!attribute || !op) {
-    errx("Filter must be of form <column>,<operation>[,<value>].");
+    errx('Filter must be of form <column>,<operation>[,<value>].');
   }
 
-  if (attribute == "_tx" && value && typeof value === "string") {
+  if (attribute == '_tx' && value && typeof value === 'string') {
     // Convert 0x hex values
-    var rr = value.split("x");
+    const rr = value.split('x');
     if (rr.length === 2) {
       value = parseInt(rr[1], 16);
     }
@@ -124,46 +131,43 @@ export function parseFilter(input) {
 }
 
 function argvQueryPrefold(argv, implicitTimestampOps) {
-  var query: any = {};
-  var d_age = null;
+  const query: any = {};
+  let d_age = null;
   let ts_attr = 'timestamp';
 
   if (argv['raw-query']) {
-    return { query: JSON.parse(argv['raw-query']) };
+    return {query: JSON.parse(argv['raw-query'])};
   }
 
-  if (argv.table === 'unique_aggregations' ||
-      argv.table === 'unique_aggregations_coarse') {
+  if (
+    argv.table === 'unique_aggregations' ||
+    argv.table === 'unique_aggregations_coarse'
+  ) {
     ts_attr = '_end_timestamp';
   }
 
   /* If user specifies a timestamp attribute, use it. */
-  if (argv["timestamp-attribute"] && argv["timestamp-attribute"].length > 0)
-    ts_attr = argv["timestamp-attribute"];
+  if (argv['timestamp-attribute'] && argv['timestamp-attribute'].length > 0)
+    ts_attr = argv['timestamp-attribute'];
 
   // TODO(cstrahan): actually reverse the results?
   let reverse = 1;
-  if (argv.reverse)
-    reverse = -1;
+  if (argv.reverse) reverse = -1;
 
-  if (argv.template)
-    query.template = argv.template;
+  if (argv.template) query.template = argv.template;
 
-  if (argv.limit)
-    query.limit = argv.limit;
+  if (argv.limit) query.limit = argv.limit;
 
-  if (argv.offset)
-    query.offset = argv.offset;
+  if (argv.offset) query.offset = argv.offset;
 
   query.filter = [{}];
   if (argv.filter) {
     var i;
 
-    if (Array.isArray(argv.filter) === false)
-      argv.filter = [argv.filter];
+    if (Array.isArray(argv.filter) === false) argv.filter = [argv.filter];
 
     for (i = 0; i < argv.filter.length; i++) {
-      const { attribute, filter } = parseFilter(argv.filter[i]);
+      const {attribute, filter} = parseFilter(argv.filter[i]);
       if (!query.filter[0][attribute]) {
         query.filter[0][attribute] = [];
       }
@@ -173,8 +177,7 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
   }
 
   if (argv.sort) {
-    if (Array.isArray(argv.sort) === false)
-      argv.sort  = [argv.sort];
+    if (Array.isArray(argv.sort) === false) argv.sort = [argv.sort];
 
     query.order = argv.sort.map(parseSortTerm);
   }
@@ -186,15 +189,13 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
     if (query.filter[0][ts_attr] && query.filter[0][ts_attr].length > 0)
       errx('Cannot mix --time and timestamp filters');
 
-    var tm = chrono.parse(argv.time);
-    var ts_s: number;
-    var ts_e: number;
+    const tm = chrono.parse(argv.time);
+    let ts_s: number;
+    let ts_e: number;
 
-    if (argv.debug)
-      console.log('tm = ', JSON.stringify(tm, null, 4));
+    if (argv.debug) console.log('tm = ', JSON.stringify(tm, null, 4));
 
-    if (tm.length === 0)
-      errx('invalid time specifier "' + argv.time + '"');
+    if (tm.length === 0) errx('invalid time specifier "' + argv.time + '"');
 
     if (tm.length > 1) {
       if (tm.length === 2) {
@@ -204,35 +205,32 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
           ts_e = tm[1].start.date().getTime();
         }
       }
-      if (!ts_s)
-        errx(error_color('only a single date or range is permitted.'));
+      if (!ts_s) errx(error_color('only a single date or range is permitted.'));
     } else {
       if (!tm[0].start)
         errx(error_color('date specification lacks start date'));
 
-      if (!tm[0].end)
-        errx(error_color('date specification lacks end date'));
+      if (!tm[0].end) errx(error_color('date specification lacks end date'));
 
       ts_s = tm[0].start.date().getTime();
       ts_e = tm[0].end.date().getTime();
     }
 
     /* Treat zero start time as greater than zero to exclude unset values. */
-    ts_s = Math.floor(ts_s / 1000);;
-    if (ts_s === 0)
-      ts_s = 1;
+    ts_s = Math.floor(ts_s / 1000);
+    if (ts_s === 0) ts_s = 1;
     ts_e = Math.floor(ts_e / 1000);
 
     query.filter[0][ts_attr] = [
-      [ 'at-least', ts_s ],
-      [ 'less-than', ts_e ]
+      ['at-least', ts_s],
+      ['less-than', ts_e],
     ];
 
     d_age = null;
   }
 
   if (argv.factor) {
-    query.group = [ argv.factor ];
+    query.group = [argv.factor];
   }
 
   query.virtual_columns = argvVcols(argv);
@@ -240,8 +238,7 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
   if (argv.template === 'select') {
   } else if (argv.select || argv['select-wildcard']) {
     if (argv.select) {
-      if (!query.select)
-        query.select = [];
+      if (!query.select) query.select = [];
 
       if (Array.isArray(argv.select) === true) {
         for (let i = 0; i < argv.select.length; i++) {
@@ -257,15 +254,16 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
         query.select_wildcard = {};
       }
 
-      var wildcards = Array.isArray(argv['select-wildcard']) ? argv['select-wildcard'] : [argv['select-wildcard']];
+      const wildcards = Array.isArray(argv['select-wildcard'])
+        ? argv['select-wildcard']
+        : [argv['select-wildcard']];
       for (let i = 0; i < wildcards.length; i++) {
         query.select_wildcard[wildcards[i]] = true;
       }
     }
   } else if (argv.table === 'objects' && implicitTimestampOps) {
-    if (!query.fold)
-      query.fold = {}
-    query.fold[ts_attr] = [['range'], ['bin']]
+    if (!query.fold) query.fold = {};
+    query.fold[ts_attr] = [['range'], ['bin']];
   }
 
   /*
@@ -273,7 +271,7 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
    * a group.
    */
   if (argv.fingerprint) {
-    var length, op, ar;
+    let length, op, ar;
 
     if (Array.isArray(argv.fingerprint) === true) {
       errx('Only one fingerprint argument can be specified.');
@@ -288,8 +286,7 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
       ar = '^' + argv.fingerprint;
     }
 
-    if (!query.filter[0].fingerprint)
-      query.filter[0].fingerprint = [];
+    if (!query.filter[0].fingerprint) query.filter[0].fingerprint = [];
     query.filter[0].fingerprint.push([op, ar]);
   }
 
@@ -298,24 +295,25 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
       errx('Cannot mix --age and timestamp filters');
 
     d_age = argv.age;
-  } else if (!query.filter[0][ts_attr] || query.filter[0][ts_attr].length == 0) {
+  } else if (
+    !query.filter[0][ts_attr] ||
+    query.filter[0][ts_attr].length == 0
+  ) {
     d_age = '1M';
   }
 
   if (d_age && implicitTimestampOps) {
-    var now = Date.now();
-    var target = now / 1000 - timeCli.timespecToSeconds(d_age);
-    var oldest = Math.floor(target);
+    const now = Date.now();
+    const target = now / 1000 - timeCli.timespecToSeconds(d_age);
+    const oldest = Math.floor(target);
 
-    query.filter[0][ts_attr] = [
-      [ 'at-least', oldest ]
-    ];
+    query.filter[0][ts_attr] = [['at-least', oldest]];
 
     const range_start = oldest;
     const range_stop = Math.floor(now / 1000);
 
     if (query.fold && query.fold[ts_attr] && implicitTimestampOps) {
-      var ft = query.fold[ts_attr];
+      const ft = query.fold[ts_attr];
       var i;
 
       for (i = 0; i < ft.length; i++) {
@@ -327,16 +325,18 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
   }
 
   if (argv.table === 'objects') {
-    if (!query.filter[0][ts_attr] || query.filter[0][ts_attr].length === 0 &&
-      implicitTimestampOps) {
+    if (
+      !query.filter[0][ts_attr] ||
+      (query.filter[0][ts_attr].length === 0 && implicitTimestampOps)
+    ) {
       if (!query.filter[0][ts_attr]) {
         query.filter[0][ts_attr] = [];
       }
-      query.filter[0][ts_attr].push([ 'greater-than', 0 ]);
+      query.filter[0][ts_attr].push(['greater-than', 0]);
     }
   }
 
-  return { query: query, age: d_age };
+  return {query: query, age: d_age};
 }
 
 /*
@@ -346,11 +346,11 @@ function argvQueryPrefold(argv, implicitTimestampOps) {
  * this is used by alerts among other things to allow for the user to enter
  * queries without having to know the JSON syntax.
  */
-export function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
-  const { query, age } = argvQueryPrefold(argv, implicitTimeOps);
+export function argvQuery(argv, implicitTimeOps = false, doFolds = false) {
+  const {query, age} = argvQueryPrefold(argv, implicitTimeOps);
 
   if (!doFolds) {
-    return { query, age };
+    return {query, age};
   }
 
   /*
@@ -358,13 +358,12 @@ export function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
    * fragile.
    */
   function fold(query, attribute, label) {
-    var argv, i;
+    let argv, i;
 
-    if (!query.fold)
-      query.fold = {};
+    if (!query.fold) query.fold = {};
 
     if (Array.isArray(attribute) === false) {
-      attribute = [ attribute ];
+      attribute = [attribute];
     }
 
     for (i = 0; i < attribute.length; i++) {
@@ -381,8 +380,7 @@ export function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
         }
       }
 
-      if (!query.fold[argv])
-        query.fold[argv] = [];
+      if (!query.fold[argv]) query.fold[argv] = [];
 
       query.fold[argv].push([label].concat(modifiers));
     }
@@ -408,13 +406,12 @@ export function argvQuery(argv, implicitTimeOps=false, doFolds=false) {
   ];
 
   /* Apply requested folds to query */
-  folds.forEach(function(attr_op) {
+  folds.forEach(attr_op => {
     const [attr, op] = attr_op;
-    if (attr)
-      fold(query, attr, op);
+    if (attr) fold(query, attr, op);
   });
 
-  return { query, age };
+  return {query, age};
 }
 
 //-- vim:ts=2:et:sw=2

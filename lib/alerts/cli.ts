@@ -1,7 +1,7 @@
 import * as router from '../cli/router';
 import * as options from '../cli/options';
 import * as time from '../cli/time';
-import { errx } from '../cli/errors';
+import {errx} from '../cli/errors';
 import * as queryCli from '../cli/query';
 
 import * as client from './client';
@@ -19,7 +19,7 @@ export class AlertsCli {
 
   constructor(client, universe, project) {
     this.client = client;
-    this.client.setDefaultQs({ universe, project });
+    this.client.setDefaultQs({universe, project});
   }
 
   async routeMethod(args) {
@@ -37,7 +37,7 @@ export class AlertsCli {
         create: this.createAlert.bind(this),
         update: this.updateAlert.bind(this),
         delete: this.deleteAlert.bind(this),
-      }
+      },
     };
 
     await router.route(routes, HELP_MESSAGE, args);
@@ -53,10 +53,10 @@ export class AlertsCli {
   }
 
   async targetIdFromArgs(argv) {
-    let id = options.convertAtMostOne("id", argv.id);
-    let name = options.convertAtMostOne("name", argv.name);
+    let id = options.convertAtMostOne('id', argv.id);
+    const name = options.convertAtMostOne('name', argv.name);
     if (!id && !name) {
-      errx("One of --id or --name is required");
+      errx('One of --id or --name is required');
     }
     if (!id) {
       id = await this.targetIdFromName(name);
@@ -66,7 +66,9 @@ export class AlertsCli {
 
   printTarget(target) {
     console.log(`${target.id}`);
-    console.log(`  name=${target.name} workflow=${target.workflow1.workflow_name}`);
+    console.log(
+      `  name=${target.name} workflow=${target.workflow1.workflow_name}`,
+    );
   }
 
   async getTarget(argv) {
@@ -82,15 +84,17 @@ export class AlertsCli {
   }
 
   async createTarget(argv) {
-    const name = options.convertOne("name", argv.name);
-    const workflowName =
-      options.convertOne("workflow-name", argv["workflow-name"]);
+    const name = options.convertOne('name', argv.name);
+    const workflowName = options.convertOne(
+      'workflow-name',
+      argv['workflow-name'],
+    );
     const res = await this.client.createTarget({
       name,
-      target_type: "workflow1",
+      target_type: 'workflow1',
       workflow1: {
         workflow_name: workflowName,
-      }
+      },
     });
     console.log(`Created target ${res.id}`);
   }
@@ -103,10 +107,12 @@ export class AlertsCli {
 
   async updateTarget(argv) {
     const id = await this.targetIdFromArgs(argv);
-    const newName = options.convertAtMostOne("rename", argv.rename);
-    const workflowName =
-      options.convertAtMostOne("workflow-name", argv["workflow-name"]);
-    let target = await this.client.getTarget(id);
+    const newName = options.convertAtMostOne('rename', argv.rename);
+    const workflowName = options.convertAtMostOne(
+      'workflow-name',
+      argv['workflow-name'],
+    );
+    const target = await this.client.getTarget(id);
     if (newName) {
       target.name = newName;
     }
@@ -127,10 +133,10 @@ export class AlertsCli {
   }
 
   async alertIdFromArgs(argv) {
-    let id = options.convertAtMostOne("id", argv.id);
-    let name = options.convertAtMostOne("name", argv.name);
+    let id = options.convertAtMostOne('id', argv.id);
+    const name = options.convertAtMostOne('name', argv.name);
     if (!id && !name) {
-      errx("One of --id or --name is required");
+      errx('One of --id or --name is required');
     }
     if (!id) {
       id = await this.alertIdFromName(name);
@@ -146,15 +152,17 @@ export class AlertsCli {
   async generateAlertSpec(argv, isCreate) {
     const convertOne = isCreate ? options.convertOne : options.convertAtMostOne;
     const partial: any = {
-      name: convertOne("name", argv.name),
+      name: convertOne('name', argv.name),
       /* This is always optional, defaults true below if in create. */
-      enabled: options.convertAtMostOne("enabled", argv.enabled),
-      query_period: convertOne("query-period", argv['query-period']),
-      min_notification_interval: convertOne("min-notification-interval",
-        argv['min-notification-interval']),
+      enabled: options.convertAtMostOne('enabled', argv.enabled),
+      query_period: convertOne('query-period', argv['query-period']),
+      min_notification_interval: convertOne(
+        'min-notification-interval',
+        argv['min-notification-interval'],
+      ),
       /* Also always optional; defaults to 0 if in create. */
-      mute_until: options.convertAtMostOne("mute-until", argv['mute-until']),
-      triggers: options.convertMany("trigger", argv.trigger, true),
+      mute_until: options.convertAtMostOne('mute-until', argv['mute-until']),
+      triggers: options.convertMany('trigger', argv.trigger, true),
     };
 
     if (partial.enabled === undefined || partial.enabled === null) {
@@ -162,7 +170,7 @@ export class AlertsCli {
         partial.enabled = true;
       }
     } else {
-      partial.enabled = options.convertBool("enabled", partial.enabled);
+      partial.enabled = options.convertBool('enabled', partial.enabled);
     }
     if (partial.mute_until === undefined || partial.mute_until === null) {
       if (isCreate) {
@@ -173,9 +181,12 @@ export class AlertsCli {
     /*
      * targets are always optional, even on create.
      */
-    let targetIds = options.convertMany("target-id", argv['target-id'], true);
-    const targetNames = options.convertMany("target-name",
-      argv['target-name'], true);
+    const targetIds = options.convertMany('target-id', argv['target-id'], true);
+    const targetNames = options.convertMany(
+      'target-name',
+      argv['target-name'],
+      true,
+    );
 
     if (targetIds) {
       partial.targets = targetIds;
@@ -193,35 +204,38 @@ export class AlertsCli {
     }
 
     if (partial.min_notification_interval) {
-      partial.min_notification_interval =
-        time.timespecToSeconds(partial.min_notification_interval);
+      partial.min_notification_interval = time.timespecToSeconds(
+        partial.min_notification_interval,
+      );
     }
 
     /*
      * the format of a trigger is column,index,comparison,warning,critical.
      */
     if (partial.triggers) {
-      let parsedTriggers = [];
+      const parsedTriggers = [];
       for (const t of partial.triggers) {
-        const split = t.split(",");
+        const split = t.split(',');
         if (split.length != 5) {
-          errx("The format of a trigger is column,aggregation_index,comparison,warning,critical");
+          errx(
+            'The format of a trigger is column,aggregation_index,comparison,warning,critical',
+          );
         }
         const [column, index_str, comparison, warningStr, criticalStr] = split;
         const index = Number.parseInt(index_str);
         if (Number.isNaN(index)) {
-          errx("Trigger indices must be integers");
+          errx('Trigger indices must be integers');
         }
-        if (comparison != "le" && comparison != "ge") {
-          errx("Valid trigger comparisons are le or ge");
+        if (comparison != 'le' && comparison != 'ge') {
+          errx('Valid trigger comparisons are le or ge');
         }
         const warning = Number.parseFloat(warningStr);
         if (Number.isNaN(warning)) {
-          errx("Trigger warning is not a valid number");
+          errx('Trigger warning is not a valid number');
         }
         const critical = Number.parseFloat(criticalStr);
         if (Number.isNaN(critical)) {
-          errx("Trigger critical threshold is not a number");
+          errx('Trigger critical threshold is not a number');
         }
 
         parsedTriggers.push({
@@ -244,21 +258,24 @@ export class AlertsCli {
   async createAlert(argv) {
     const spec = await this.generateAlertSpec(argv, true);
 
-    const query = queryCli.argvQuery(argv, /*implicitTimestampOps=*/false,
-      /*doFolds=*/true).query;
+    const query = queryCli.argvQuery(
+      argv,
+      /*implicitTimestampOps=*/ false,
+      /*doFolds=*/ true,
+    ).query;
     if (query.select || query['select-wildcard']) {
-      errx("Alerts only work on aggregation queryes");
+      errx('Alerts only work on aggregation queryes');
     }
 
     const queryStr = JSON.stringify(query);
     spec.query = queryStr;
 
-    let res = await this.client.createAlert(spec);
+    const res = await this.client.createAlert(spec);
     console.log(`Created alert ${res.id}`);
   }
 
   async updateAlert(argv) {
-    let unfilteredSpec = this.generateAlertSpec(argv, false);
+    const unfilteredSpec = this.generateAlertSpec(argv, false);
 
     /*
      * Filter out anything which wasn't set.
@@ -275,7 +292,7 @@ export class AlertsCli {
      * get rid of name, if set.
      */
     delete spec.name;
-    const newName = options.convertAtMostOne("rename", argv.rename);
+    const newName = options.convertAtMostOne('rename', argv.rename);
     if (newName) {
       spec.name = newName;
     }
@@ -287,10 +304,13 @@ export class AlertsCli {
     // cstrahan: note that updated was previously undefined :(
     var updated: any = {};
     if (argv['replace-query']) {
-      const query = queryCli.argvQuery(argv, /*implicitTimestampOps=*/false,
-        /*doFolds=*/true).query;
+      const query = queryCli.argvQuery(
+        argv,
+        /*implicitTimestampOps=*/ false,
+        /*doFolds=*/ true,
+      ).query;
       if (query.select || query['select-wildcard']) {
-        errx("Alerts only work with aggregation queries");
+        errx('Alerts only work with aggregation queries');
       }
       updated.query = JSON.stringify(query);
     }
@@ -301,8 +321,8 @@ export class AlertsCli {
 
     // cstrahan: note that this used to be spelled alertIdFromArgv; this function has been buggy for a while.
     const id = this.alertIdFromArgs(argv);
-    const alert  = await this.client.getAlert(id);
-    var updated = { ...alert, ...spec };
+    const alert = await this.client.getAlert(id);
+    var updated = {...alert, ...spec};
     await this.client.updateAlert(id, updated);
     console.log(`Updated alert ${id}`);
   }
@@ -334,8 +354,8 @@ export class AlertsCli {
 }
 
 export async function alertsCliFromCoroner(coroner, argv, config) {
-  let universe = options.convertAtMostOne("universe", argv.universe);
-  const project = options.convertOne("project", argv.project);
+  let universe = options.convertAtMostOne('universe', argv.universe);
+  const project = options.convertOne('project', argv.project);
   /*
    * Currently the Rust service infrastructure doesn't support inferring
    * universe, so do it on our end if we can.
@@ -344,7 +364,9 @@ export async function alertsCliFromCoroner(coroner, argv, config) {
     universe = config.config.universe.name;
   }
   if (!universe) {
-    errx("Unable to infer universe from config. Please provide --universe to select");
+    errx(
+      'Unable to infer universe from config. Please provide --universe to select',
+    );
   }
   const c = await client.alertsClientFromCoroner(coroner);
   return new AlertsCli(c, universe, project);

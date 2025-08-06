@@ -1,6 +1,6 @@
 import * as cliOptions from '../../cli/options';
 import assignDeep from 'assign-deep';
-import { skipNotDefinedKeys, getPluginId } from '../utils';
+import {skipNotDefinedKeys, getPluginId} from '../utils';
 
 export class CreateIntegration {
   pluginId: any;
@@ -36,27 +36,27 @@ export class CreateIntegration {
         skipNotDefinedKeys({
           pluginId: getPluginId(argv, init),
           watcherName: cliOptions.convertOne(
-            "name",
-            argv.name || init.watcherName
+            'name',
+            argv.name || init.watcherName,
           ),
-          state: cliOptions.convertAtMostOne("state", argv.state || init.state),
+          state: cliOptions.convertAtMostOne('state', argv.state || init.state),
           synchronizeIssues: cliOptions.convertBool(
-            "synchronize-issues",
-            argv["synchronize-issues"] || init.synchronizeIssues,
-            null
+            'synchronize-issues',
+            argv['synchronize-issues'] || init.synchronizeIssues,
+            null,
           ),
           synchronizeIssuesOnAdd: cliOptions.convertBool(
-            "synchronize-issues-on-add",
-            argv["synchronize-issues-on-add"] || init.synchronizeIssuesOnAdd,
-            null
+            'synchronize-issues-on-add',
+            argv['synchronize-issues-on-add'] || init.synchronizeIssuesOnAdd,
+            null,
           ),
           connectionId: cliOptions.convertAtMostOne(
-            "connection",
-            argv.connection || init.connectionId
+            'connection',
+            argv.connection || init.connectionId,
           ),
           options,
-        })
-      )
+        }),
+      ),
     );
   }
 }

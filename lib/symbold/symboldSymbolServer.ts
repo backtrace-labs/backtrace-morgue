@@ -11,61 +11,61 @@ export class SymboldSymbolServer {
       return this.showSymbolServerUsage();
     }
     switch (method) {
-      case "list": {
+      case 'list': {
         const universeProject = argv._.shift();
         this.getSymbolServers(universeProject, argv.page, argv.take);
         break;
       }
-      case "details": {
+      case 'details': {
         const symbolServerId = argv._.shift();
         this.getSymbolServerDetails(symbolServerId);
         break;
       }
-      case "logs": {
+      case 'logs': {
         const symbolServerId = argv._.shift();
         const method = argv._.shift();
-        if (method === "filter") {
+        if (method === 'filter') {
           const filter = argv._.shift();
           this.getSymbolServerLogsByFilter(
             symbolServerId,
             filter,
             argv.page,
-            argv.take
+            argv.take,
           );
         } else {
           this.getSymbolServerLogs(symbolServerId, argv.page, argv.take);
         }
         break;
       }
-      case "delete":
-      case "remove": {
+      case 'delete':
+      case 'remove': {
         const symbolServerId = argv._.shift();
         this.deleteSymbolServer(symbolServerId);
         break;
       }
-      case "create":
-      case "add": {
+      case 'create':
+      case 'add': {
         const universeProject = argv._.shift();
         const url = argv._.shift();
         this.createSymbolServer(universeProject, url, argv);
         break;
       }
-      case "update": {
+      case 'update': {
         const symbolServerId = argv._.shift();
         this.updateSymbolServer(symbolServerId, argv);
         break;
       }
-      case "disable": {
+      case 'disable': {
         const symbolServerId = argv._.shift();
-        this.toggleSymbolServer("disable", symbolServerId);
+        this.toggleSymbolServer('disable', symbolServerId);
         break;
       }
-      case "enable": {
+      case 'enable': {
         const symbolServerId = argv._.shift();
-        this.toggleSymbolServer("enable", symbolServerId);
+        this.toggleSymbolServer('enable', symbolServerId);
         break;
       }
-      case "help": {
+      case 'help': {
         this.showSymbolServerUsage();
         break;
       }
@@ -76,14 +76,14 @@ export class SymboldSymbolServer {
 
   toggleSymbolServer(action, id) {
     if (this.symboldClient.debug) {
-      console.log(`Method parameters`);
-      console.log({ action, id });
+      console.log('Method parameters');
+      console.log({action, id});
     }
     if (!id || isNaN(id)) {
       if (this.symboldClient.debug) {
-        console.log(`id is NaN`);
+        console.log('id is NaN');
       }
-      return this.showSymbolServerUsage("id parameter is required");
+      return this.showSymbolServerUsage('id parameter is required');
     }
 
     const url = `/symbolserver/${id}/${action}`;
@@ -92,14 +92,14 @@ export class SymboldSymbolServer {
 
   updateSymbolServer(id, argv) {
     if (this.symboldClient.debug) {
-      console.log(`Method parameters`);
-      console.log({ id, argv });
+      console.log('Method parameters');
+      console.log({id, argv});
     }
     if (!id || isNaN(id)) {
       if (this.symboldClient.debug) {
-        console.log(`Id is NaN`);
+        console.log('Id is NaN');
       }
-      return this.showSymbolServerUsage("id parameter is required");
+      return this.showSymbolServerUsage('id parameter is required');
     }
 
     const serverCredentials = this.getServerCredentials(argv);
@@ -107,12 +107,12 @@ export class SymboldSymbolServer {
     const data = {
       url: argv.symbolServerUrl,
       name: argv.name,
-      force: argv.force === "true" || argv.whitelist === 1,
+      force: argv.force === 'true' || argv.whitelist === 1,
       numberOfConcurrentDownload: argv.concurrentdownload,
       retryLimit: argv.retrylimit,
       retryTimeout: argv.retrytimeout,
       timeout: argv.timeout,
-      whiteList: argv.whitelist === "true" || argv.whitelist === 1,
+      whiteList: argv.whitelist === 'true' || argv.whitelist === 1,
       ignoreCredentials: !proxy && !serverCredentials,
       serverCredentials,
       proxy,
@@ -120,7 +120,7 @@ export class SymboldSymbolServer {
     };
 
     if (this.symboldClient.debug) {
-      console.log(`Symbol server update model:`);
+      console.log('Symbol server update model:');
       console.log(data);
     }
 
@@ -131,41 +131,41 @@ export class SymboldSymbolServer {
 
   createSymbolServer(universeProject, symbolServerUrl, argv) {
     if (this.symboldClient.debug) {
-      console.log(`Method parameters:`);
+      console.log('Method parameters:');
       console.Console; // cstrahan: is this intentional?
-      console.log({ universeProject, symbolServerUrl, argv });
+      console.log({universeProject, symbolServerUrl, argv});
     }
     if (!universeProject) {
-      return this.showSymbolServerUsage("Missing universe name");
+      return this.showSymbolServerUsage('Missing universe name');
     }
 
     if (!symbolServerUrl) {
-      return this.showSymbolServerUsage("url parameter is required");
+      return this.showSymbolServerUsage('url parameter is required');
     }
-    const [universe, project] = universeProject.split("/");
+    const [universe, project] = universeProject.split('/');
     if (!universeProject || !universe) {
-      return this.showSymbolServerUsage("Missing universe name");
+      return this.showSymbolServerUsage('Missing universe name');
     }
 
     const data = {
       url: symbolServerUrl,
       name: argv.name,
-      force: argv.force === "true" || argv.force === 1,
+      force: argv.force === 'true' || argv.force === 1,
       numberOfConcurrentDownload: argv.concurrentdownload,
       retryLimit: argv.retrylimit,
       retryTimeout: argv.retrytimeout,
       timeout: argv.timeout,
-      whitelist: argv.whitelist === "true" || argv.force === 1,
+      whitelist: argv.whitelist === 'true' || argv.force === 1,
       serverCredentials: this.getServerCredentials(argv),
       proxy: this.getProxy(),
       retain: argv.retain,
     };
     if (this.symboldClient.debug) {
-      console.log(`Symbol server data`);
+      console.log('Symbol server data');
       console.log(data);
     }
     const url = `/symbolserver/universe/${universe}${
-      project ? `/project/${project}` : ""
+      project ? `/project/${project}` : ''
     }`;
 
     this.symboldClient.post(url, data);
@@ -176,7 +176,7 @@ export class SymboldSymbolServer {
       console.log(`Trying to delete symbol server with id ${symbolServerId}`);
     }
     if (!symbolServerId || isNaN(symbolServerId)) {
-      return this.showSymbolServerUsage("Missing symbolserverid");
+      return this.showSymbolServerUsage('Missing symbolserverid');
     }
 
     const url = `/symbolserver/${symbolServerId}`;
@@ -185,11 +185,11 @@ export class SymboldSymbolServer {
 
   getSymbolServerLogs(symbolServerId, page = 0, take = 10) {
     if (this.symboldClient.debug) {
-      console.log(`Trying to fetch symbol server logs. Parameters`);
-      console.log({ symbolServerId, page, take });
+      console.log('Trying to fetch symbol server logs. Parameters');
+      console.log({symbolServerId, page, take});
     }
     if (!symbolServerId || isNaN(symbolServerId)) {
-      return this.showSymbolServerUsage("Missing symbolserverid");
+      return this.showSymbolServerUsage('Missing symbolserverid');
     }
 
     const url = `/logs/symbolserver/${symbolServerId}?page=${page}&take=${take}`;
@@ -198,14 +198,14 @@ export class SymboldSymbolServer {
 
   getSymbolServerLogsByFilter(symbolServerId, filter, page = 0, take = 10) {
     if (this.symboldClient.debug) {
-      console.log(`Trying to fetch symbol server logs. Parameters`);
-      console.log({ symbolServerId, page, take, filter });
+      console.log('Trying to fetch symbol server logs. Parameters');
+      console.log({symbolServerId, page, take, filter});
     }
     if (!symbolServerId || isNaN(symbolServerId)) {
-      return this.showSymbolServerUsage("Missing symbolserverid");
+      return this.showSymbolServerUsage('Missing symbolserverid');
     }
     if (!filter) {
-      return this.showSymbolServerUsage("Filter is not define!");
+      return this.showSymbolServerUsage('Filter is not define!');
     }
     const url = `/logs/symbolserver/${symbolServerId}/text?page=${page}&take=${take}&text=${filter}`;
     this.symboldClient.get(url);
@@ -214,11 +214,11 @@ export class SymboldSymbolServer {
   getSymbolServerDetails(symbolServerId) {
     if (this.symboldClient.debug) {
       console.log(
-        `Trying to fetch symbol server detais. Symbol server id: ${symbolServerId}`
+        `Trying to fetch symbol server detais. Symbol server id: ${symbolServerId}`,
       );
     }
     if (!symbolServerId || isNaN(symbolServerId)) {
-      return this.showSymbolServerUsage("Missing symbolserverid");
+      return this.showSymbolServerUsage('Missing symbolserverid');
     }
 
     const url = `/symbolserver/details/${symbolServerId}`;
@@ -227,14 +227,14 @@ export class SymboldSymbolServer {
 
   getSymbolServers(universeProject, page, take) {
     if (!universeProject) {
-      return this.showSymbolServerUsage("Missing universe name");
+      return this.showSymbolServerUsage('Missing universe name');
     }
-    const [universe, project] = universeProject.split("/");
+    const [universe, project] = universeProject.split('/');
     if (!universeProject || !universe) {
-      return this.showSymbolServerUsage("Missing universe name");
+      return this.showSymbolServerUsage('Missing universe name');
     }
 
-    const proj_url = project ? `/project/${project}` : "";
+    const proj_url = project ? `/project/${project}` : '';
     const params = `page=${page ? page : 0}&take=${take ? take : 10}`;
     const url = `/symbolserver/universe/${universe}${proj_url}?${params}`;
     this.symboldClient.get(url);
@@ -299,7 +299,7 @@ export class SymboldSymbolServer {
     if (argv.servercredentials) {
       serverCredentials = {
         userName: argv.servercredentials.username,
-        password: argv.servercredentials.password
+        password: argv.servercredentials.password,
       };
     }
     if (argv.aws) {
@@ -308,10 +308,10 @@ export class SymboldSymbolServer {
         password: argv.aws.secret,
         awsConnection: {
           bucketName: argv.aws.bucketname,
-          lowerFile: argv.aws.lowerfile === "true" || argv.aws.lowerfile === 1,
-          lowerId: argv.aws.lowerid === "true" || argv.aws.lowerid === 1,
-          usePdb: argv.aws.usepdb === "true" || argv.aws.usepdb === 1
-        }
+          lowerFile: argv.aws.lowerfile === 'true' || argv.aws.lowerfile === 1,
+          lowerId: argv.aws.lowerid === 'true' || argv.aws.lowerid === 1,
+          usePdb: argv.aws.usepdb === 'true' || argv.aws.usepdb === 1,
+        },
       };
     }
 
@@ -324,7 +324,7 @@ export class SymboldSymbolServer {
           host: argv.proxy.host,
           port: argv.proxy.port,
           username: argv.proxy.username,
-          password: argv.proxy.password
+          password: argv.proxy.password,
         }
       : undefined;
   }

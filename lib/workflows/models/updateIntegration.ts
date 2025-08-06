@@ -1,6 +1,6 @@
 import * as cliOptions from '../../cli/options';
 import assignDeep from 'assign-deep';
-import { skipNotDefinedKeys } from '../utils';
+import {skipNotDefinedKeys} from '../utils';
 
 export class UpdateIntegration {
   state: any;
@@ -28,24 +28,24 @@ export class UpdateIntegration {
       assignDeep(
         init,
         skipNotDefinedKeys({
-          state: cliOptions.convertAtMostOne("state", argv.state || init.state),
+          state: cliOptions.convertAtMostOne('state', argv.state || init.state),
           synchronizeIssues: cliOptions.convertBool(
-            "synchronize-issues",
-            argv["synchronize-issues"] || init.synchronizeIssues,
-            null
+            'synchronize-issues',
+            argv['synchronize-issues'] || init.synchronizeIssues,
+            null,
           ),
           synchronizeIssuesOnAdd: cliOptions.convertBool(
-            "synchronize-issues-on-add",
-            argv["synchronize-issues-on-add"] || init.synchronizeIssuesOnAdd,
-            null
+            'synchronize-issues-on-add',
+            argv['synchronize-issues-on-add'] || init.synchronizeIssuesOnAdd,
+            null,
           ),
           connectionId: cliOptions.convertAtMostOne(
-            "connection",
-            argv.connectionId || init.connectionId
+            'connection',
+            argv.connectionId || init.connectionId,
           ),
           options,
-        })
-      )
+        }),
+      ),
     );
   }
 }
