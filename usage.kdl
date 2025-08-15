@@ -11,6 +11,7 @@ flag "--endpoint" help="Specify API endpoint" global=#true {
     arg "<URL>"
 }
 flag "--token" help="Specify API token" global=#true {
+    // alias "api-token"
     arg "<TOKEN>"
 }
 flag "--universe" help="Universe name" global=#true {
@@ -31,11 +32,47 @@ flag "-k" help="Disable SSL verification with CA"  global=#true
 
 cmd "login" help="Log into a Backtrace server" {
     arg "<URL>" help="Server URL (e.g., http://localhost)"
+
+    long_help #"""
+        The first step to using `morgue` is to log into a server.
+        """#
+
+    after_long_help #"""
+        The first step to using `morgue` is to log into a server.
+
+        ```
+        $ morgue login http://localhost
+        User: sbahra
+        Password: **************
+
+        Logged in.
+        ```
+
+        At this point, you are able to issue queries.
+
+        If you need to log in from a CI context, it is possible to set the
+        environment variables `MORGUE_USERNAME` and `MORGUE_PASSWORD`. If these
+        variables are set, the interactive prompt will be suppressed, and the values
+        in the aforementioned environment variables used instead.
+
+        If you have SSO enabled please follow [this document](https://docs.saucelabs.com/error-reporting/troubleshooting/#how-can-i-login-to-the-morgue-tool-via-sso) to log in with a token.
+        """#
 }
 
-cmd "logout" help="Log out from the current server"
+cmd "logout" help="Log out from the current Backtrace server."
 
-cmd "clean" help="Apply sampling retroactively" {
+cmd "clean" help="Apply sampling retroactively." {
+    arg "<PROJECT>" help="Project name or universe/project"
+
+    flag "--keep" help="Number of objects to keep per fingerprint" {
+        arg "<N>"
+    }
+    flag "--oldest" help="Keep N oldest objects" {
+        arg "<N>"
+    }
+    flag "--output" help="Output object IDs to stdout"
+    flag "--verbose" help="Verbose output"
+    // TODO: argvQuery
     before_long_help #"""
         Retroactively apply sampling on a fingerprint. The default is to keep
         3 objects retained for every fingerprint. This is configurable. Also
@@ -45,23 +82,12 @@ cmd "clean" help="Apply sampling retroactively" {
     long_help #"""
         If --output is set, then all object identifiers are output to stdout. Statistics
         are output to stderr. It is then possible to chain this into morgue delete:
-        
+
         ```
         $ morgue clean blackhole --output > file.txt
         $ cat file.txt | xargs -n 8192 morgue delete blackhole --physical-only
         ```
         """#
-    
-    arg "<PROJECT>" help="Project name or universe/project"
-    
-    flag "--keep" help="Number of objects to keep per fingerprint" {
-        arg "<N>"
-    }
-    flag "--oldest" help="Keep N oldest objects" {
-        arg "<N>"
-    }
-    flag "--output" help="Output object IDs to stdout"
-    flag "--verbose" help="Verbose output"
 }
 
 cmd "describe" help="Requests a list and description of all metadata that can be queried against." {
@@ -70,6 +96,7 @@ cmd "describe" help="Requests a list and description of all metadata that can be
 
     after_long_help #"""
         Examples:
+
         ```
         $ morgue describe bidder uname
                     uname.machine: machine hardware name
@@ -80,22 +107,27 @@ cmd "describe" help="Requests a list and description of all metadata that can be
         """#
 }
 
-cmd "get" help="Download object from object store" {
+cmd "get" help="Download object from the Backtrace object store." {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<OBJECT_ID>" help="Object identifier"
-    
+
     flag "-o --output" help="Output to file" {
         arg "<FILE>"
     }
     flag "--resource" help="Fetch specific resource" {
         arg "<NAME>"
     }
+
+    long_help #"""
+        Downloads the specified object from the Backtrace object store and prints to standard output.
+        Optionally, output the file to disk.
+        """#
 }
 
-cmd "put" help="Upload object to object store" {
+cmd "put" help="Uploads object file to the Backtrace object store." {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<FILE>" help="File to upload"
-    
+
     flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=#true {
         arg "<FORMAT>" {
             choices btt minidump json plcrash symbols
@@ -109,23 +141,140 @@ cmd "put" help="Upload object to object store" {
     flag "--kv" help="Key-value pairs: key1:value1,key2:value2" {
         arg "<PAIRS>"
     }
-    flag "--form_data" help="Upload using multipart/form-data"
+    flag "--form_data" help="Upload using multipart/form-data POST request"
 }
 
 cmd "set" help="Modify object attributes" {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<QUERY>" help="Query or object ID"
     arg "<ASSIGNMENT>" help="key=value assignment"
-    
-    flag "--filter" help="Filter expression" {
+
+    // Query flags (keep in sync with list command!)
+    // Filters
+    flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<FILTER>"
     }
-    flag "--age" help="Age filter" {
+    // Pagination
+    flag "--limit" help="Number of rows to return" {
+        arg "<N>"
+    }
+    flag "--offset" help="Skip first N rows" {
+        arg "<N>"
+    }
+    // Selection
+    flag "--select" help="Select specific attributes" var=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+        arg "<TYPE>" {
+            choices physical derived virtual
+        }
+    }
+    // Aggregations
+    flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
         arg "<TIME>"
     }
-    flag "--time" help="Time filter" {
+    flag "--time" help="Time range using natural language" {
         arg "<RANGE>"
     }
+    flag "--unique" help="Count distinct values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--histogram" help="Show all distinct values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--distribution" help="Show truncated histogram" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--mean" help="Calculate mean" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--sum" help="Sum all values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--range" help="Show min and max values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--count" help="Count non-null values" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--bin" help="Linear histogram of values" {
+        // alias "quantize"
+        arg "<ATTRIBUTE>"
+    }
+    flag "--head" help="First value in factor" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--tail" help="Last value in factor" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--object" help="Maximum object identifier" {
+        arg "<ATTRIBUTE>"
+    }
+    // Aggregations (undocumented)
+    flag "--last" help="Last object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--first" help="First object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--min" help="Min object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--max" help="Max object identifier" hide=#true {
+        arg "<ATTRIBUTE>"
+    }
+    // Sorting
+    flag "--sort" help="Sort results: [-](column|fold_term)" {
+        arg "<TERM>"
+    }
+    // Computed Views
+    flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" var=#true {
+        arg "<SPEC>"
+    }
+    // Not documented
+    flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+        arg "<QUERY>"
+    }
+    flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+        arg "<QUERY>"
+    }
+    flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+        arg "<QUERY>"
+    }
+    flag "--reverse" help="Reverse sort order" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--template" help="TODO: (ex: select)" { // TODO
+        arg "<ATTRIBUTE>"
+    }
+    flag "--factor" help="Group by attribute" {
+        arg "<ATTRIBUTE>"
+    }
+    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+        arg "<VALUE>"
+    }
+
+    long_help #"""
+        Modifies attributes of the given object in the manner specified.
+        """#
+
+
+    after_long_help #"""
+        Example:
+
+        Set custom attribute `reason` to `oom` for all crashes containing `memory_abort`.
+
+        ```
+        $ morgue set reason=oom --filter=callstack,regular-expression,memory_abort
+        ```
+
+        Set `reason` to `boomboom` for object `cb`.
+
+        ```
+        $ morgue set reason=boomboom --filter=_tx,equal,206
+        ```
+        """#
 }
 
 cmd "attachment" subcommand_required=#true help="Manage object attachments" {
@@ -133,40 +282,40 @@ cmd "attachment" subcommand_required=#true help="Manage object attachments" {
         arg "<PROJECT>" help="Project name"
         arg "<OID>" help="Object ID"
         arg "<FILENAME>" help="File to attach"
-        
-        flag "--content-type" help="MIME content type" {
-            arg "<TYPE>"
-        }
-        flag "--attachment-name" help="Attachment name" {
-            arg "<NAME>"
-        }
-    }
-    
-    cmd "get" help="Download attachment" {
-        arg "<PROJECT>" help="Project name"
-        arg "<OID>" help="Object ID"
-        
-        flag "--attachment-id" help="Attachment ID" {
+
+        flag "--content-type" help="Content-Type for attachment" {
             arg "<ID>"
         }
         flag "--attachment-name" help="Attachment name" {
             arg "<NAME>"
         }
     }
-    
+
+    cmd "get" help="Download attachment" {
+        arg "<PROJECT>" help="Project name"
+        arg "<OID>" help="Object ID"
+
+        flag "--attachment-id" help="Attachment ID" /*required_unless="--attachment-name"*/ {
+            arg "<ID>"
+        }
+        flag "--attachment-name" help="Attachment name" /*required_unless="--attachment-id"*/ {
+            arg "<NAME>"
+        }
+    }
+
     cmd "list" help="List attachments" {
         arg "<PROJECT>" help="Project name"
         arg "<OID>" help="Object ID"
     }
-    
+
     cmd "delete" help="Delete attachment" {
         arg "<PROJECT>" help="Project name"
         arg "<OID>" help="Object ID"
-        
-        flag "--attachment-id" help="Attachment ID" {
+
+        flag "--attachment-id" help="Attachment ID" /*required_unless="--attachment-name"*/ {
             arg "<ID>"
         }
-        flag "--attachment-name" help="Attachment name" {
+        flag "--attachment-name" help="Attachment name" /*required_unless="--attachment-id"*/ {
             arg "<NAME>"
         }
     }
@@ -176,6 +325,8 @@ cmd "list" help="Query and list objects with filters and aggregations" {
     // alias "ls"
     arg "<PROJECT>" help="Project name or universe/project"
     arg "[SUBSTRING]" help="Optional substring filter" required=#false
+
+    // These are parsed by the argvQuery function
     // Filters
     flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<FILTER>"
@@ -280,12 +431,258 @@ cmd "list" help="Query and list objects with filters and aggregations" {
     flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
         arg "<VALUE>"
     }
+
     // Output options
     flag "--csv" help="Output to CSV file" {  // TODO: does this actually take a file path?
         arg "<FILE>"
     }
     flag "--json" help="Output JSON format"
     flag "--verbose" help="Show detailed query performance data"
+
+    before_long_help #"""
+        Allows you to perform queries on object metadata. You can perform
+        either selection queries or aggregation queries, but not both at the
+        same time.
+        """#
+
+    long_help #"""
+        You may pass `--verbose` in order to get more detailed query performance
+        data.
+
+        The `--csv=<output file>` option may be passed in with a specified output
+        file to output results to a CSV file instead. This may only be used with
+        `--select` and/or `--select-wildcard` queries.
+
+        **Filters:**
+
+        The filter option expects a comma-delimited list of the form
+        `<attribute>,<operation>,<value>`.
+
+        The currently supported operations are `equal`, `regular-expression`,
+        `inverse-regular-expression`, `at-least`, `greater-than`, `at-most`,
+        `less-than`, `contains`, `not-contains`, `is-set`, and `is-not-set`.
+
+        When using Coronerd 1.49 or greater, `contains`, `not-contains`,
+        `regular-expression`, and `inverse-regular-expression` accept an optional 4th
+        argument `case-insensitive` to enable case-insensitive filtering.
+
+        **Pagination:**
+
+        Pagination is handled with two flags
+
+        `--limit=<n>` controls the number of returned rows. `--offset=<n>` controls the
+        offset at which rows are returned, another way to put it is that it skips the
+        first `<n>` rows.
+
+        **Selection:**
+
+        Selection can be done with two options, `--select=<attribute>` and
+        `--select-wildcard=<physical|derived|virtual>`.
+
+        `--select` allows to select particular attributes, while `--select-wildcard` selects
+        all attributes that match the option.
+
+        Wildcards can be one of:
+        * `physical` - selects all attributes that are physically stored in objects,
+        * `derived` - selects all derived attributes, such as `first_seen` or `original`,
+        * `virtual` - selects all virtual (join) attributes.
+
+        **Aggregations:**
+
+        Aggregation is expressed through a myriad of command-line options that express
+        different aggregation operations. Options are of form `--<option>=<attribute>`.
+
+        The ``*`` factor is used when aggregations are performed when no factor is
+        specified or if an object does not have a valid value associated with the
+        factor.
+
+        | Option           | Description |
+        |------------------|-------------|
+        | `--age`          | Specify a relative timestamp to now. `1h` ago, or `1d` ago. |
+        | `--time`         | Specify a range using [Chrono](https://github.com/wanasit/chrono#readme). |
+        | `--unique`       | provide a count of distinct values |
+        | `--histogram`    | provide all distinct values |
+        | `--distribution` | provide a truncated histogram |
+        | `--mean`    	   | calculate the mean of a column |
+        | `--sum`          | sum all values |
+        | `--range`        | provide the minimum and maximum values |
+        | `--count`        | count all non-null values |
+        | `--bin`          | provide a linear histogram of values |
+        | `--head`         | provide the first value in a factor |
+        | `--tail`         | provide the last value in a factor |
+        | `--object`       | provide the maximum object identifier of a column |
+
+        **Sorting:**
+
+        Sorting of results is done with the stackable option `--sort=<term>`. The term
+        syntax is `[-](<column>|<fold_term>)`.
+
+        - The optional `-` reverse the sort term order to descending, otherwise it
+        defaults to ascending.
+        - The `<column>` term refers to a valid column in the table. This is only
+        effective for selection type query, i.e. when using the `--select` and/or `--select-wildcard` option.
+        - The `<fold_term>` is an expression pointing to a fold operation. The
+        expression language for fold operation is one of the following literal:
+            - `;group`: sort by the group key itself.
+            - `;count`: sort by the group count (number of crashes).
+            - `column;idx`: where `column` is a string referencing a column in the fold
+            dictionary and `idx` is an indice in the array. See examples .
+
+        Multiple sort terms can be provided to break ties in case the previous
+        referenced sort term has ties.
+
+        #### Computed Views
+
+        Coronerd offers support for a limited set of computed columns which can be
+        used in selection and aggregation stages of a query.
+
+        `--quantize-uint`:
+
+        Forms:
+
+        ```
+        --quantize-uint output_column,input_column,size
+        --quantize-uint output_column,input_column,size,offset
+        ```
+
+        Computes `( column + offset ) / size - offset` using integer math.  Used for
+        data alignment and rounding.
+
+        Size and offset may be integers or time units: `3600` and `1h` are both valid.
+
+        Typically size is a bin size and offset is a timezone offset from UTC.
+
+        For example, errors by day in EDT:
+
+        ```
+        morgue list project --count fingerprint --factor timestamp.edt.day --head timestamp.edt.day --quantize-uint timestamp.edt.day,timestamp,1d,-4h
+        ```
+    """#
+
+    after_long_help #"""
+        Examples:
+
+        Request all faults from application deployments owned by jdoe.
+        Provide the timestamp, hostname, callstack and classifiers.
+
+        ```
+        $ morgue list bidder --filter=tag_owner,equal,jdoe --select=timestamp --select=hostname --select=callstack --select=classifiers
+        *
+        #9d33    Thu Oct 13 2016 18:36:01 GMT-0400 (EDT)     5 months ago
+        hostname: 2235.bm-bidderc.prod.nym2
+        classifiers: abort stop
+        callstack:
+            assert ← int_set_union_all ← all_domain_lists ←
+            setup_phase_unlocked ← bid_handler_slave_inner ← bid_handler_slave ←
+            an_sched_process_task ← an_sched_slave ← event_base_loop ←
+            an_sched_enter ← bidder_slave ← an_sched_pthread_cb
+        #ef2f    Thu Oct 13 2016 18:36:01 GMT-0400 (EDT)     5 months ago
+        hostname: 2066.bm-impbus.prod.nym2
+        classifiers: abort stop
+        callstack:
+            assert ← an_discovery_get_instances ← budget_init_discovery ←
+            main
+        #119bf   Thu Oct 13 2016 18:36:01 GMT-0400 (EDT)     5 months ago
+        hostname: 2066.bm-impbus.prod.nym2
+        classifiers: abort stop
+        callstack:
+            assert ← an_discovery_get_instances ← budget_init_discovery ←
+            main
+        ```
+
+        Request faults owned by jdoe, group them by fingerprint and aggregate
+        the number of unique hosts, display a histogram of affected versions and
+        provide a linear histogram of process age distribution.
+
+        ```
+        $ morgue list bidder --age=1y --factor=fingerprint --filter=tag_owner,equal,jdoe --head=callstack --unique=hostname --histogram=tag --bin=process.age
+        823a55fb15bf697ba3041d736ade... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁ 5 months ago
+        Date: Wed May 18 2016 18:44:35 GMT-0400 (EDT)
+        callstack:
+            assert ← int_set_union_all ← all_domain_lists ←
+            setup_phase_unlocked ← bid_handler_slave_inner ← bid_handler_slave ←
+            an_sched_process_task ← an_sched_slave ← event_base_loop ←
+            an_sched_enter ← bidder_slave ← an_sched_pthread_cb
+        histogram(tag):
+        8.20.4.adc783.0 ▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆ 1
+        unique(hostname): 1
+        bin(process.age):
+                7731         7732 ▆▆▆▆▆▆▆▆▆▆ 1
+
+        3b851ac1ab1421409159cc38edb2... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁ 5 months ago
+        Date: Tue May 17 2016 17:28:26 GMT-0400 (EDT)
+            Tue May 17 2016 17:30:07 GMT-0400 (EDT)
+        callstack:
+            assert ← an_discovery_get_instances ← budget_init_discovery ←
+            main
+        histogram(tag):
+        4.44.0.adc783.1 ▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆ 2
+        unique(hostname): 1
+        bin(process.age):
+                    23           24 ▆▆▆▆▆▆▆▆▆▆ 1
+                    24           25 ▆▆▆▆▆▆▆▆▆▆ 1
+        ```
+
+        Request faults for the last 2 years, group them by fingerprint, show the first
+        object identifier in the group, sort the results by descending fingerprint,
+        limit the results to 5 faults and skip the first 10 (according to sort order).
+
+        ```
+        $ morgue list blackhole --age=2y --factor=fingerprint --object=fingerprint --limit=5 --offset=10 --sort="-;group"
+        fec4bfecf8e077cf44024f5668fa... ▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 2 years ago
+        First Occurrence: Tue Jan 12 2016 13:30:12 GMT-0500 (EST)
+            Occurrences: 360
+        object(fingerprint): 1c653d
+
+        fe7294a780a16e30b619e8d94a8a... █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 2 years ago
+        First Occurrence: Wed Oct 28 2015 11:30:47 GMT-0400 (EDT)
+        Last Occurrence: Wed Oct 28 2015 12:16:19 GMT-0400 (EDT)
+            Occurrences: 203
+        object(fingerprint): 1c23b3
+
+        fe5e0dda6cf0fb996a521dde4087... ▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+        First Occurrence: Tue Jun 14 2016 11:54:35 GMT-0400 (EDT)
+            Occurrences: 1
+        object(fingerprint): 2de5
+
+        fe46d9af7c65c084091fed51ef02... █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 2 years ago
+        First Occurrence: Tue Oct 27 2015 16:59:34 GMT-0400 (EDT)
+        Last Occurrence: Tue Oct 27 2015 20:05:30 GMT-0400 (EDT)
+            Occurrences: 3
+        object(fingerprint): 8f41
+
+        fdc0860ef6dfd3d0397b53043ab9... ▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+        First Occurrence: Tue Jun 07 2016 11:51:55 GMT-0400 (EDT)
+            Occurrences: 211
+        object(fingerprint): 1c1958
+        ```
+
+        Request faults for the two years, group them by fingerprint, sum process.age,
+        sort the results by descending sum of process.age per fingerprint, limit the
+        results to 3 faults. Note here that `1` in `-process.age;1` is the second
+        operator (`--sum`) in this case.
+
+        ```
+        $ morgue list blackhole --age=2y --factor=fingerprint --first=process.age --sum=process.age --limit=3 --sort="-process.age;1"
+        d9358a6fdb7eaa143254b6987d00... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+        First Occurrence: Tue Sep 20 2016 21:59:46 GMT-0400 (EDT)
+        Last Occurrence: Tue Sep 20 2016 22:03:23 GMT-0400 (EDT)
+            Occurrences: 38586
+        sum(process.age): 56892098354615 sec
+
+        524b9f988c8ff9dfc1b3a0c71231... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+        First Occurrence: Tue Sep 20 2016 22:01:52 GMT-0400 (EDT)
+        Last Occurrence: Tue Sep 20 2016 22:03:19 GMT-0400 (EDT)
+            Occurrences: 25737
+        sum(process.age): 37947233900547 sec
+
+        bffd05c6b745229fd1c648bbe2a7... ▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ 1 year ago
+        First Occurrence: Tue Sep 20 2016 21:59:46 GMT-0400 (EDT)
+        Last Occurrence: Tue Sep 20 2016 22:03:01 GMT-0400 (EDT)
+            Occurrences: 20096
+        sum(process.age): 29630010305216 sec
+        ```
+        """#
 }
 
 cmd "delete" help="Delete objects by query or ID" {
@@ -297,21 +694,59 @@ cmd "delete" help="Delete objects by query or ID" {
     flag "--filter" help="Filter expression" {
         arg "<FILTER>"
     }
+    // TODO: argvQuery (argvQueryFilterOnly)
+    long_help #"""
+        An optional subset can be specified to indicate whether physical, indexed, or
+        both are deleted. By default, this command (as of 2019-02-26) requests
+        physical-only deletion, which retains only indexing.  The previous
+        `--physical-only` argument is now a no-op.
+
+        The following options affect this behavior:
+        * `--physical-only` (default): Deletes only the physical data.
+        * `--crdb-only`: Delete only the indexed data; requires physically deleted objects.
+        * `--all`: Delete all related data, including indexing.
+
+        Either a query or a list of object identifiers must be passed.
+
+        Queries follow the same format as the `morgue list` command.
+
+        Object IDs can be obtained by using the `morgue list` output. The object ID
+        printed in the previous example is `9d33`.
+        """#
+
+    after_long_help #"""
+        Example:
+
+        Delete all data, physical and indexed, in the blackhole project
+        after 2023-11-14 22:13:20 UTC:
+
+        ```
+        $ morgue delete blackhole --all --filter="timestamp,greater-than,1700000000"
+        ```
+
+        Example:
+
+        Delete physical data (default subset) for object with identifier 9d33.
+
+        ```
+        $ morgue delete blackhole 9d33
+        ```
+        """#
 }
 
-cmd "project" subcommand_required=#true help="Manage projects" {
+cmd "project" subcommand_required=#true help="Create projects" {
     cmd "create" help="Create new project" {
         arg "<NAME>" help="Project name"
     }
 }
 
-cmd "projects" subcommand_required=#true help="Manage projects" {
+cmd "projects" subcommand_required=#true help="List projects" {
     cmd "list" help="List all projects"
 }
 
 cmd "flamegraph" help="Generate callstack flamegraph" {
     arg "<PROJECT>" help="Project name or universe/project"
-    
+
     flag "--filter" help="Filter expression" {
         arg "<FILTER>"
     }
@@ -320,28 +755,62 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
     }
     flag "--reverse" help="Sample from leaf functions"
     flag "--unique" help="Sample only unique crashes"
+    // TODO argvQuery
+
+    long_help #"""
+        Generate a flamegraph of callstacks of all objects matching the specified
+        filter criteria. The `--filter` option behaves identically to the `morgue list`
+        command. This functionality requires `perl` to be installed.
+        To learn more about flamegraphs, please see
+        http://www.brendangregg.com/flamegraphs.html.
+
+        Use `--unique` to only sample unique crashes. Use `--reverse` to begin sampling
+        from leaf functions.
+        """#
 }
 
-
-cmd "symbold" subcommand_required=#true help="Manage symbold service" {
-    cmd "status" help="Get symbold status" {
+cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" {
+    cmd "status" help="Get symbold service status" {
         arg "<PROJECT>" help="Project name"
     }
-    
+
     cmd "symbolserver" subcommand_required=#true help="Manage symbol servers" {
         cmd "list" help="List symbol servers" {
             arg "<PROJECT>" help="Project name"
+            after_long_help #"""
+                Example:
+
+                ```
+                $ morgue symbold symbolserver list backtrace
+                ```
+                """#
         }
-        
+
         cmd "details" help="Get symbol server details" {
             arg "<ID>" help="Symbol server ID"
+
+            after_long_help #"""
+                Example:
+
+                ```
+                $ morgue symbold symbolserver details 1
+                ```
+                """#
         }
-        
+
         cmd "logs" help="Get symbol server logs" {
             arg "<ID>" help="Symbol server ID"
-            
+
             cmd "filter" {
                 arg "<FILTER>" help="Filter string"
+
+                after_long_help #"""
+                    Example:
+
+                    ```
+                    morgue.js symbold symbolserver logs 5 filter a --take=100 --page=1
+                    ```
+                    """#
             }
 
             flag "--take" help="Number of logs" {
@@ -350,17 +819,24 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
             flag "--page" help="Page number" {
                 arg "<N>"
             }
+
+            after_long_help #"""
+                Example:
+
+                ```
+                $ morgue symbold symbolserver logs 1 --take=100 --page=0
+                ```
+
+                Command above will return first 100 logs from page 0
+                """#
         }
-        
+
         cmd "add" help="Add symbol server" {
             arg "<PROJECT>" help="Project name"
             arg "<URL>" help="Symbol server URL"
-            
+
             flag "--name" help="Server name" required=#true {
                 arg "<NAME>"
-            }
-            flag "--timeout" help="Download timeout" {
-                arg "<MS>"
             }
             flag "--concurrentdownload" help="Max concurrent downloads" {
                 arg "<N>"
@@ -368,45 +844,174 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
             flag "--retrylimit" help="Retry limit" {
                 arg "<N>"
             }
+            flag "--timeout" help="Download timeout" {
+                arg "<MS>"
+            }
             flag "--whitelist" help="Use whitelist" {
-                arg "<BOOL>"
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
             }
             flag "--retain" help="Retain original symbols" {
-                arg "<BOOL>"
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
             }
+            flag "--servercredentials.username" help="Symbol server auth user name" {
+                arg "<USERNAME>"
+            }
+            flag "--servercredentials.password" help="Symbol server auth password" {
+                arg "<PASSWORD>"
+            }
+            flag "--aws.accesskey" help="AWS S3 access key" {
+                arg "<ACCESS_KEY>"
+            }
+            flag "--aws.secret" help="AWS S3 secret" {
+                arg "<SECRET_KEY>"
+            }
+            flag "--aws.bucketname" help="AWS S3 bucket name" {
+                arg "<BUCKET_NAME>"
+            }
+            flag "--aws.lowerfile" help="Determine if symbold should use lower case symbol name" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--aws.lowerid" help="Determine if symbold should use lower case debug id" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--aws.usepdb" help="Determine a way to generate url to S3 symbols" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--proxy.host" help="Proxy host" {
+                arg "<PROXY_HOST>"
+            }
+            flag "--proxy.port" help="Proxy port" {
+                arg "<PROXY_PORT>"
+            }
+            flag "--proxy.username" help="Proxy username" {
+                arg "<PROXY_USERNAME>"
+            }
+            flag "--proxy.password" help="Proxy password" {
+                arg "<PROXY_PASSWORD>"
+            }
+
+            after_long_help #"""
+                Example:
+
+                ```
+                $ morgue symbold symbolserver add backtrace https://symbol.server.com --name=name --timeout=400
+                ```
+                """#
         }
-        
+
         cmd "update" help="Update symbol server" {
             arg "<ID>" help="Symbol server ID"
-            
-            flag "--url" help="New URL" {
-                arg "<URL>"
-            }
-            flag "--name" help="New name" {
+
+
+            flag "--name" help="Server name" required=#true {
                 arg "<NAME>"
             }
+            flag "--concurrentdownload" help="Max concurrent downloads" {
+                arg "<N>"
+            }
+            flag "--retrylimit" help="Retry limit" {
+                arg "<N>"
+            }
+            flag "--timeout" help="Download timeout" {
+                arg "<MS>"
+            }
+            flag "--whitelist" help="Use whitelist" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--retain" help="Retain original symbols" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--servercredentials.username" help="Symbol server auth user name" {
+                arg "<USERNAME>"
+            }
+            flag "--servercredentials.password" help="Symbol server auth password" {
+                arg "<PASSWORD>"
+            }
+            flag "--aws.accesskey" help="AWS S3 access key" {
+                arg "<ACCESS_KEY>"
+            }
+            flag "--aws.secret" help="AWS S3 secret" {
+                arg "<SECRET_KEY>"
+            }
+            flag "--aws.bucketname" help="AWS S3 bucket name" {
+                arg "<BUCKET_NAME>"
+            }
+            flag "--aws.lowerfile" help="Determine if symbold should use lower case symbol name" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--aws.lowerid" help="Determine if symbold should use lower case debug id" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--aws.usepdb" help="Determine a way to generate url to S3 symbols" {
+                arg "<BOOL>" {
+                    choice "true" "false"
+                }
+            }
+            flag "--proxy.host" help="Proxy host" {
+                arg "<PROXY_HOST>"
+            }
+            flag "--proxy.port" help="Proxy port" {
+                arg "<PROXY_PORT>"
+            }
+            flag "--proxy.username" help="Proxy username" {
+                arg "<PROXY_USERNAME>"
+            }
+            flag "--proxy.password" help="Proxy password" {
+                arg "<PROXY_PASSWORD>"
+            }
+
+
+            after_long_help #"""
+                ```
+                Update symbol server with ID. If aws, proxy and servercredentials data doesn't exists symbold will ignore update server credentials.
+                If any of them exists, symbold will try to update all properties.
+
+                Example:
+
+                ```
+                $ morgue symbold symbolserver update 1 --url="http://new.symbol.server.url"
+                ```
+                """#
         }
 
         cmd "disable" help="Disable symbol server" {
             arg "<ID>" help="Symbol server ID"
         }
-                
+
         cmd "enable" help="Enable symbol server" {
             arg "<ID>" help="Symbol server ID"
         }
     }
-    
+
     cmd "whitelist" subcommand_required=#true help="Manage whitelist" {
         cmd "add" help="Add to whitelist" {
             flag "--name" help="Item name" required=#true {
                 arg "<NAME>"
             }
         }
-        
+
         cmd "remove" help="Remove from whitelist" {
             arg "<ID>" help="Item ID" required=#true
         }
-        
+
         cmd "list" help="List whitelist items" {
             flag "--page" help="Page number" {
                 arg "<N>"
@@ -416,18 +1021,18 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
             }
         }
     }
-    
+
     cmd "blacklist" subcommand_required=#true help="Manage blacklist" {
         cmd "add" help="Add to blacklist" {
             flag "--name" help="Item name" required=#true {
                 arg "<NAME>"
             }
         }
-        
+
         cmd "remove" help="Remove from blacklist" {
             arg "<ID>" help="Item ID" required=#true
         }
-        
+
         cmd "list" help="List blacklist items" {
             flag "--page" help="Page number" {
                 arg "<N>"
@@ -437,12 +1042,12 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
             }
         }
     }
-    
+
     cmd "skiplist" subcommand_required=#true help="Manage skiplist" {
         cmd "find" help="Find items in skiplist" {
             arg "<SERVER_ID>" help="Symbol server ID"
             arg "<FILTER>" help="Filter string"
-            
+
             flag "--page" help="Page number" {
                 arg "<N>"
             }
@@ -450,40 +1055,40 @@ cmd "symbold" subcommand_required=#true help="Manage symbold service" {
                 arg "<N>"
             }
         }
-        
+
         cmd "remove" help="Remove from skiplist" {
             arg "[ID]" help="Item ID" required=#false // TODO: would be nice to specify "required unless all|filter cmd given"
 
             cmd "all" help="Remove all items" {
                 arg "<SERVER_ID>" help="Symbol server ID"
             }
-            
+
             cmd "filter" help="Remove by filter" {
                 arg "<SERVER_ID>" help="Symbol server ID"
                 arg "<FILTER>" help="Filter criteria"
             }
         }
     }
-    
+
     cmd "queue" subcommand_required=#true help="Manage symbold queue" {
         cmd "list" help="List queue events"
-        
+
         cmd "add" help="Add to queue" {
             // alias "create"
             arg "<PROJECT>" help="Universe/project"
             arg "<SYMBOL>" help="Missing symbol"
             arg "<OID>" help="Object ID"
         }
-        
+
         cmd "size" help="Get queue size"
-        
+
         cmd "symbold" help="List missing symbols from events"
     }
 }
 
 cmd "report" subcommand_required=#true help="Manage scheduled reports" {
     arg "<PROJECT>" help="Project name"
-    
+
     cmd "list" help="List reports"
 
     cmd "create" help="Create report" {
@@ -498,6 +1103,8 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
                 choices week day
             }
         }
+        // Query flags (keep in sync with list command!)
+        // Filters
         flag "--filter" help="Filter expression" {
             arg "<FILTER>"
         }
@@ -625,11 +1232,11 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
             arg "<VALUE>"
         }
     }
-    
+
     cmd "delete" help="Delete report" {
         arg "<ID>" help="Report ID"
     }
-    
+
     cmd "send" help="Send report immediately"
 }
 
@@ -650,7 +1257,7 @@ cmd "repair" help="Repair project's attribute database" {
 cmd "reprocess" help="Reprocess objects" {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<TARGET>" help="Query or object IDs" var=#true required=#false
-    
+
     flag "--first" help="First object ID" {
         arg "<N>"
     }
@@ -663,10 +1270,10 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
     cmd "list" help="List retention policies" {
 
     }
-    
+
     cmd "set" help="Set retention policy" {
         arg "<NAME>" help="Namespace name" // TODO: might be optional
-        
+
         flag "--dryrun" help="Show command without executing"
         flag "--type" help="Type: instance|universe|project" {
             arg "<TYPE>" {
@@ -692,7 +1299,7 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
             arg "<RULE>"
         }
     }
-    
+
     cmd "status" help="Get retention status" {
         arg "<NAME>" help="Namespace name"
 
@@ -702,10 +1309,10 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
             }
         }
     }
-    
+
     cmd "clear" help="Clear retention policy" {
         arg "<NAME>" help="Namespace name"
-        
+
         flag "--type" help="Type: project" {
             arg "<TYPE>" {
                 choices instance universe project
@@ -726,7 +1333,7 @@ cmd "sampling" subcommand_required=#true help="Manage object sampling" {
             arg "<N>"
         }
     }
-    
+
     cmd "reset" help="Reset sampling" {
         flag "--fingerprint" help="Specific fingerprint" {
             arg "<FP>"
@@ -735,7 +1342,7 @@ cmd "sampling" subcommand_required=#true help="Manage object sampling" {
             arg "<PROJECT>"
         }
     }
-    
+
     cmd "configure" help="Configure sampling" {
         flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
@@ -786,9 +1393,9 @@ cmd "symbol" help="Manage debug symbols" {
 // TODO: double check this
 cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
     arg "<PROJECT>" help="Project name"
-    
+
     cmd "list" help="List scrubbers"
-    
+
     cmd "create" help="Create scrubber" {
         flag "--name" help="Scrubber name" required=#true {
             arg "<NAME>"
@@ -803,7 +1410,7 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
             arg "<VALUE>"
         }
     }
-    
+
     cmd "modify" help="Modify scrubber" {
         flag "--name" help="Scrubber name" required=#true {
             arg "<NAME>"
@@ -815,7 +1422,7 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
             arg "<VALUE>"
         }
     }
-    
+
     cmd "delete" help="Delete scrubber" {
         flag "--name" help="Scrubber name" required=#true {
             arg "<NAME>"
@@ -845,7 +1452,7 @@ cmd "token" subcommand_required=#true help="Manage API tokens" {
             arg "<CAP>"
         }
     }
-    
+
     cmd "list" help="List tokens" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -854,7 +1461,7 @@ cmd "token" subcommand_required=#true help="Manage API tokens" {
             arg "<PROJECT>"
         }
     }
-    
+
     cmd "delete" help="Delete token" {
         arg "<TOKEN>" help="Token SHA256 or prefix"
     }
@@ -892,7 +1499,7 @@ cmd "users" subcommand_required=#true help="Manage users" {
             arg "<METHOD>"
         }
     }
-    
+
     cmd "list-teamless-users" help="List users not in any team"
 }
 
@@ -900,18 +1507,18 @@ cmd "tenant" subcommand_required=#true help="Manage isolated tenants (enterprise
     cmd "create" help="Create tenant" {
         arg "<NAME>" help="Tenant name"
     }
-    
+
     cmd "delete" help="Delete tenant" {
         arg "<NAME>" help="Tenant name"
     }
-    
+
     cmd "list" help="List all tenants"
 }
 
 cmd "similarity" help="Compute crash group similarity" {
     arg "<PROJECT>" help="Project name or universe/project"
     arg "<FILTER>" help="Filter expression" required=#false
-    
+
     flag "--threshold" help="Min callstack length" {
         arg "<N>"
     }
@@ -934,7 +1541,7 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
     cmd "create" help="Create invitation" {
         arg "<USERNAME>" help="Username"
         arg "<EMAIL>" help="Email address"
-        
+
         flag "--role" help="Role: guest|member|admin" {
             arg "<ROLE>"
         }
@@ -948,13 +1555,13 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
             arg "<METHOD>"
         }
     }
-    
+
     cmd "list" help="List pending invitations"
-    
+
     cmd "delete" help="Delete invitation" {
         arg "<TOKEN>" help="Invitation token"
     }
-    
+
     cmd "resend" help="Resend invitation" {
         arg "<TOKEN>" help="Invitation token"
     }
@@ -972,49 +1579,49 @@ cmd "access" subcommand_required=#true help="Control access permissions" {
         cmd "create" help="Create team" {
             arg "<TEAM>" help="Team name"
         }
-        
+
         cmd "remove" help="Remove team" {
             arg "<TEAM>" help="Team name"
         }
-        
+
         cmd "details" help="Get team details" {
             arg "<TEAM>" help="Team name"
         }
-        
+
         cmd "add-user" help="Add user to team" {
             arg "<TEAM>" help="Team name"
             arg "<USER>" help="Username"
         }
-        
+
         cmd "remove-user" help="Remove user from team" {
             arg "<TEAM>" help="Team name"
             arg "<USER>" help="Username"
         }
-        
+
         cmd "list" help="List all teams"
     }
-    
+
     cmd "project" subcommand_required=#true help="Manage project access" {
         arg "<PROJECT>" help="Project name"
-        
+
         cmd "add-team" help="Add team to project" {
             arg "<TEAM>" help="Team name"
             arg "<ROLE>" help="Role: admin|member|guest"
         }
-        
+
         cmd "remove-team" help="Remove team from project" {
             arg "<TEAM>" help="Team name"
         }
-        
+
         cmd "add-user" help="Add user to project" {
             arg "<USER>" help="Username"
             arg "<ROLE>" help="Role: admin|member|guest"
         }
-        
+
         cmd "remove-user" help="Remove user from project" {
             arg "<USER>" help="Username"
         }
-        
+
         cmd "details" help="Get project access details"
     }
 }
@@ -1053,7 +1660,7 @@ cmd "metrics-importer" subcommand_required=#true help="Control metrics importer"
             }
         }
     }
-    
+
     cmd "importer" subcommand_required=#true help="Manage importers" {
         cmd "create" help="Create importer" {
             flag "--project" help="Project name" required=#true {
@@ -1082,7 +1689,7 @@ cmd "metrics-importer" subcommand_required=#true help="Control metrics importer"
             }
         }
     }
-    
+
     cmd "logs" help="Display logs" {
         flag "--project" help="Project name" required=#true {
             arg "<PROJECT>"
@@ -1112,9 +1719,9 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
                 arg "<NAME>"
             }
         }
-        
+
         cmd "list" help="List targets"
-        
+
         cmd "get" help="Get target" {
             flag "--id" help="Target ID" {
                 arg "<ID>"
@@ -1123,7 +1730,7 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
                 arg "<NAME>"
             }
         }
-        
+
         cmd "update" help="Update target" {
             flag "--id" help="Target ID" {
                 arg "<ID>"
@@ -1138,7 +1745,7 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
                 arg "<NAME>"
             }
         }
-        
+
         cmd "delete" help="Delete target" {
             flag "--id" help="Target ID" {
                 arg "<ID>"
@@ -1148,10 +1755,10 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             }
         }
     }
-    
+
     cmd "alert" subcommand_required=#true help="Manage alerts" {
         cmd "list" help="List alerts"
-        
+
         cmd "get" help="Get alert" {
             flag "--id" help="Alert ID" {
                 arg "<ID>"
@@ -1160,7 +1767,7 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
                 arg "<NAME>"
             }
         }
-        
+
         cmd "update" help="Update alert" {
             flag "--id" help="Alert ID" {
                 arg "<ID>"
@@ -1175,7 +1782,7 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--clear-targets" help="Clear targets"
             // Other update flags
         }
-        
+
         cmd "delete" help="Delete alert" {
             flag "--id" help="Alert ID" {
                 arg "<ID>"
@@ -1342,16 +1949,16 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             }
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "list" help="List connections" {
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "get" help="Get connection" {
             arg "<ID>" help="Connection ID"
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "update" help="Update connection" {
             arg "<ID>" help="Connection ID"
             flag "--name" help="New name" {
@@ -1365,13 +1972,13 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             }
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "delete" help="Delete connection" {
             arg "<ID>" help="Connection ID"
             flag "--raw" help="Output raw JSON"
         }
     }
-    
+
     cmd "integration" subcommand_required=#true help="Manage integrations" {
         cmd "create" help="Create integration" {
             flag "--project" help="Project name" required=#true {
@@ -1403,16 +2010,16 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             }
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "list" help="List integrations" {
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "get" help="Get integration" {
             arg "<ID>" help="Integration ID"
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "update" help="Update integration" {
             arg "<ID>" help="Integration ID"
             flag "--options" help="New options" {
@@ -1429,23 +2036,23 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             }
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "delete" help="Delete integration" {
             arg "<ID>" help="Integration ID"
             flag "--raw" help="Output raw JSON"
         }
     }
-    
+
     cmd "alert" subcommand_required=#true help="Manage workflow alerts" {
         cmd "list" help="List workflow alerts" {
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "get" help="Get workflow alert" {
             arg "<ID>" help="Alert ID"
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "create" help="Create workflow alert" {
             flag "--project" help="Project name" required=#true {
                 arg "<PROJECT>"
@@ -1476,7 +2083,7 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             }
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "update" help="Update workflow alert" {
             arg "<ID>" help="Alert ID"
             flag "--name" help="New name" {
@@ -1487,7 +2094,7 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             }
             flag "--raw" help="Output raw JSON"
         }
-        
+
         cmd "delete" help="Delete workflow alert" {
             arg "<ID>" help="Alert ID"
             flag "--raw" help="Output raw JSON"
@@ -1504,7 +2111,7 @@ cmd "actions" subcommand_required=#true help="Manage actions configuration" {
             arg "<PROJECT>"
         }
     }
-    
+
     cmd "disable" help="Disable actions" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -1513,7 +2120,7 @@ cmd "actions" subcommand_required=#true help="Manage actions configuration" {
             arg "<PROJECT>"
         }
     }
-    
+
     cmd "enable" help="Enable actions" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -1522,7 +2129,7 @@ cmd "actions" subcommand_required=#true help="Manage actions configuration" {
             arg "<PROJECT>"
         }
     }
-    
+
     cmd "upload" help="Upload actions config" {
         arg "<PATH>" help="Config file path"
         flag "--universe" help="Universe name" {
@@ -1532,7 +2139,7 @@ cmd "actions" subcommand_required=#true help="Manage actions configuration" {
             arg "<PROJECT>"
         }
     }
-    
+
     cmd "delete" help="Delete actions config" {
         flag "--universe" help="Universe name" {
             arg "<UNIVERSE>"
@@ -1547,7 +2154,7 @@ cmd "attribute" subcommand_required=#true help="Manage project attributes" {
     cmd "create" help="Create attribute" {
         arg "<PROJECT>" help="Project name"
         arg "<NAME>" help="Attribute name"
-        
+
         flag "--description" help="Attribute description" {
             arg "<DESC>"
         }
@@ -1562,7 +2169,7 @@ cmd "attribute" subcommand_required=#true help="Manage project attributes" {
             }
         }
     }
-    
+
     cmd "delete" help="Delete attribute" {
         arg "<PROJECT>" help="Project name"
         arg "<NAME>" help="Attribute name"
@@ -1573,7 +2180,7 @@ cmd "view" subcommand_required=#true help="Manage query views" {
     cmd "create" help="Create view" {
         arg "<PROJECT>" help="Project name"
         arg "<NAME>" help="View name"
-        
+
         flag "--queries" help="Queries JSON file" {
             arg "<FILE>"
         }
@@ -1581,7 +2188,7 @@ cmd "view" subcommand_required=#true help="Manage query views" {
             arg "<FILE>"
         }
     }
-    
+
     cmd "delete" help="Delete view" {
         arg "<PROJECT>" help="Project name"
         arg "<NAME>" help="View name"
