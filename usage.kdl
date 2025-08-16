@@ -236,10 +236,10 @@ cmd "set" help="Modify object attributes" {
     flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
         arg "<QUERY>"
     }
-    flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+    flag "--table" help="The table to query" hide=#true {
         arg "<QUERY>"
     }
-    flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+    flag "--timestamp-attribute" help="Attribute to use as timestamp for --time (defaults to timestmape, unless --table is set to either unique_aggregations or unique_aggregations_coarse, in which case the default is _end_timestamp)" hide=#true {
         arg "<QUERY>"
     }
     flag "--reverse" help="Reverse sort order" {
@@ -849,12 +849,12 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             }
             flag "--whitelist" help="Use whitelist" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--retain" help="Retain original symbols" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--servercredentials.username" help="Symbol server auth user name" {
@@ -874,17 +874,17 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             }
             flag "--aws.lowerfile" help="Determine if symbold should use lower case symbol name" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--aws.lowerid" help="Determine if symbold should use lower case debug id" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--aws.usepdb" help="Determine a way to generate url to S3 symbols" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--proxy.host" help="Proxy host" {
@@ -912,9 +912,11 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
         cmd "update" help="Update symbol server" {
             arg "<ID>" help="Symbol server ID"
 
-
             flag "--name" help="Server name" required=#true {
                 arg "<NAME>"
+            }
+            flag "--symbolServerUrl" help="Symbol server URL" required=#true {
+                arg "<URL>"
             }
             flag "--concurrentdownload" help="Max concurrent downloads" {
                 arg "<N>"
@@ -925,14 +927,17 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             flag "--timeout" help="Download timeout" {
                 arg "<MS>"
             }
+            flag "--retrytimeout" help="Download retry timeout" {
+                arg "<MS>"
+            }
             flag "--whitelist" help="Use whitelist" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--retain" help="Retain original symbols" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--servercredentials.username" help="Symbol server auth user name" {
@@ -952,17 +957,17 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             }
             flag "--aws.lowerfile" help="Determine if symbold should use lower case symbol name" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--aws.lowerid" help="Determine if symbold should use lower case debug id" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--aws.usepdb" help="Determine a way to generate url to S3 symbols" {
                 arg "<BOOL>" {
-                    choice "true" "false"
+                    choices "true" "false"
                 }
             }
             flag "--proxy.host" help="Proxy host" {
@@ -977,7 +982,6 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             flag "--proxy.password" help="Proxy password" {
                 arg "<PROXY_PASSWORD>"
             }
-
 
             after_long_help #"""
                 ```
