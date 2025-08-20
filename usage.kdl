@@ -1408,7 +1408,9 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
             arg "<pattern>"
         }
         flag "--builtin" help="Builtin: ssn|ccn|key|env|all" {
-            arg "<type>"
+            arg "<type>" {
+                choices ssn ccn key env all
+            }
         }
         flag "--enable" help="Enable scrubber" {
             arg "<value>"
@@ -1453,7 +1455,9 @@ cmd "token" subcommand_required=#true help="Manage API tokens" {
             arg "<project>"
         }
         flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=#true var=#true {
-            arg "<cap>"
+            arg "<cap>" {
+                choices symbol:post error:post query:post sync:post
+            }
         }
     }
 
@@ -1547,7 +1551,9 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
         arg "<email>" help="Email address"
 
         flag "--role" help="Role: guest|member|admin" {
-            arg "<role>"
+            arg "<role>" {
+                choices guest member admin
+            }
         }
         flag "--metadata" help="Additional metadata" {
             arg "<data>"
@@ -1556,7 +1562,9 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
             arg "<tenant>"
         }
         flag "--method" help="Auth method: password|saml|pam" {
-            arg "<method>"
+            arg "<method>" {
+                choices password saml pam
+            }
         }
     }
 
@@ -1610,7 +1618,9 @@ cmd "access" subcommand_required=#true help="Control access permissions" {
 
         cmd "add-team" help="Add team to project" {
             arg "<team>" help="Team name"
-            arg "<role>" help="Role: admin|member|guest"
+            arg "<role>" help="Role: admin|member|guest" {
+                choices admin member guest
+            }
         }
 
         cmd "remove-team" help="Remove team from project" {
@@ -1619,7 +1629,9 @@ cmd "access" subcommand_required=#true help="Control access permissions" {
 
         cmd "add-user" help="Add user to project" {
             arg "<user>" help="Username"
-            arg "<role>" help="Role: admin|member|guest"
+            arg "<role>" help="Role: admin|member|guest" {
+                choices admin member guest
+            }
         }
 
         cmd "remove-user" help="Remove user from project" {
@@ -1998,7 +2010,9 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
                 arg "<json>"
             }
             flag "--state" help="State: enabled|disabled|stopped" {
-                arg "<state>"
+                arg "<state>" {
+                    choices enabled disabled stopped
+                }
             }
             flag "--connection" help="Connection ID" {
                 arg "<id>"
@@ -2074,7 +2088,9 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
                 arg "<ms>"
             }
             flag "--state" help="State: enabled|disabled|stopped" {
-                arg "<state>"
+                arg "<state>" {
+                    choices enabled disabled stopped
+                }
             }
             flag "--filter" help="Filter expression" {
                 arg "<filter>"
