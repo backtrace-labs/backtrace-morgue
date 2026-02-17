@@ -72,7 +72,113 @@ cmd "clean" help="Apply sampling retroactively." {
     }
     flag "--output" help="Output object IDs to stdout"
     flag "--verbose" help="Verbose output"
-    // TODO: argvQuery
+
+    // argvQuery
+    // Filters
+    flag "--filter" help="Filter expression: attribute,operation,value" {
+        arg "<filter>"
+    }
+    // Pagination
+    flag "--limit" help="Number of rows to return" {
+        arg "<n>"
+    }
+    flag "--offset" help="Skip first N rows" {
+        arg "<n>"
+    }
+    // Selection
+    flag "--select" help="Select specific attributes" var=#true {
+        arg "<attribute>"
+    }
+    flag "--select-wildcard" help="Select all attributes of the given type" {
+        arg "<type>" {
+            choices physical derived virtual
+        }
+    }
+    // Aggregations
+    flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
+        arg "<time>"
+    }
+    flag "--time" help="Time range using natural language" {
+        arg "<range>"
+    }
+    flag "--unique" help="Count distinct values" {
+        arg "<attribute>"
+    }
+    flag "--histogram" help="Show all distinct values" {
+        arg "<attribute>"
+    }
+    flag "--distribution" help="Show truncated histogram" {
+        arg "<attribute>"
+    }
+    flag "--mean" help="Calculate mean" {
+        arg "<attribute>"
+    }
+    flag "--sum" help="Sum all values" {
+        arg "<attribute>"
+    }
+    flag "--range" help="Show min and max values" {
+        arg "<attribute>"
+    }
+    flag "--count" help="Count non-null values" {
+        arg "<attribute>"
+    }
+    flag "--bin" help="Linear histogram of values" {
+        // alias "quantize"
+        arg "<attribute>"
+    }
+    flag "--head" help="First value in factor" {
+        arg "<attribute>"
+    }
+    flag "--tail" help="Last value in factor" {
+        arg "<attribute>"
+    }
+    flag "--object" help="Maximum object identifier" {
+        arg "<attribute>"
+    }
+    // Aggregations (undocumented)
+    flag "--last" help="Last object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--first" help="First object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--min" help="Min object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--max" help="Max object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    // Sorting
+    flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
+        arg "<term>"
+    }
+    // Computed Views
+    flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
+        arg "<spec>"
+    }
+    // Not documented
+    flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+        arg "<query>"
+    }
+    flag "--table" help="Table to query against" hide=#true {
+        arg "<query>"
+    }
+    flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
+        arg "<query>"
+    }
+    flag "--reverse" help="Reverse sort order" {
+        arg "<attribute>"
+    }
+    flag "--template" help="TODO: (ex: select)" { // TODO
+        arg "<attribute>"
+    }
+    flag "--factor" help="Group by attribute" {
+        arg "<attribute>"
+    }
+    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+        arg "<value>"
+    }
+
     before_long_help #"""
         Retroactively apply sampling on a fingerprint. The default is to keep
         3 objects retained for every fingerprint. This is configurable. Also
@@ -128,7 +234,7 @@ cmd "put" help="Uploads object file to the Backtrace object store." {
     arg "<project>" help="Project name or universe/project"
     arg "<file>" help="File to upload"
 
-    flag "--format" help="File format: btt|minidump|json|plcrash|symbols" required=#true {
+    flag "--format" help="File format" required=#true {
         arg "<format>" {
             choices btt minidump json plcrash symbols
         }
@@ -149,7 +255,7 @@ cmd "set" help="Modify object attributes" {
     arg "<query>" help="Query or object ID"
     arg "<assignment>" help="key=value assignment"
 
-    // Query flags (keep in sync with list command!)
+    // Query flags (keep in sync with list command!) argvQuery
     // Filters
     flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<filter>"
@@ -165,13 +271,13 @@ cmd "set" help="Modify object attributes" {
     flag "--select" help="Select specific attributes" var=#true {
         arg "<attribute>"
     }
-    flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+    flag "--select-wildcard" help="Select all attributes of the given type" {
         arg "<type>" {
             choices physical derived virtual
         }
     }
     // Aggregations
-    flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+    flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
         arg "<time>"
     }
     flag "--time" help="Time range using natural language" {
@@ -225,21 +331,21 @@ cmd "set" help="Modify object attributes" {
         arg "<attribute>"
     }
     // Sorting
-    flag "--sort" help="Sort results: [-](column|fold_term)" {
+    flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
         arg "<term>"
     }
     // Computed Views
-    flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" var=#true {
+    flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
         arg "<spec>"
     }
     // Not documented
     flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
         arg "<query>"
     }
-    flag "--table" help="The table to query" hide=#true {
+    flag "--table" help="Table to query against" hide=#true {
         arg "<query>"
     }
-    flag "--timestamp-attribute" help="Attribute to use as timestamp for --time (defaults to timestmape, unless --table is set to either unique_aggregations or unique_aggregations_coarse, in which case the default is _end_timestamp)" hide=#true {
+    flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
         arg "<query>"
     }
     flag "--reverse" help="Reverse sort order" {
@@ -342,13 +448,13 @@ cmd "list" help="Query and list objects with filters and aggregations" {
     flag "--select" help="Select specific attributes" var=#true {
         arg "<attribute>"
     }
-    flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+    flag "--select-wildcard" help="Select all attributes of the given type" {
         arg "<type>" {
             choices physical derived virtual
         }
     }
     // Aggregations
-    flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+    flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
         arg "<time>"
     }
     flag "--time" help="Time range using natural language" {
@@ -402,21 +508,21 @@ cmd "list" help="Query and list objects with filters and aggregations" {
         arg "<attribute>"
     }
     // Sorting
-    flag "--sort" help="Sort results: [-](column|fold_term)" {
+    flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
         arg "<term>"
     }
     // Computed Views
-    flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" {
+    flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
         arg "<spec>"
     }
     // Not documented
     flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
         arg "<query>"
     }
-    flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+    flag "--table" help="Table to query against" hide=#true {
         arg "<query>"
     }
-    flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+    flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
         arg "<query>"
     }
     flag "--reverse" help="Reverse sort order" {
@@ -691,10 +797,113 @@ cmd "delete" help="Delete objects by query or ID" {
     flag "--physical-only" help="Delete only physical data (default)"
     flag "--crdb-only" help="Delete only indexed data"
     flag "--all" help="Delete all related data"
-    flag "--filter" help="Filter expression" {
+
+    // TODO: argvQuery (argvQueryFilterOnly)
+    // Filters
+    flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<filter>"
     }
-    // TODO: argvQuery (argvQueryFilterOnly)
+    // Pagination
+    flag "--limit" help="Number of rows to return" {
+        arg "<n>"
+    }
+    flag "--offset" help="Skip first N rows" {
+        arg "<n>"
+    }
+    // Selection
+    flag "--select" help="Select specific attributes" var=#true {
+        arg "<attribute>"
+    }
+    flag "--select-wildcard" help="Select all attributes of the given type" {
+        arg "<type>" {
+            choices physical derived virtual
+        }
+    }
+    // Aggregations
+    flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
+        arg "<time>"
+    }
+    flag "--time" help="Time range using natural language" {
+        arg "<range>"
+    }
+    flag "--unique" help="Count distinct values" {
+        arg "<attribute>"
+    }
+    flag "--histogram" help="Show all distinct values" {
+        arg "<attribute>"
+    }
+    flag "--distribution" help="Show truncated histogram" {
+        arg "<attribute>"
+    }
+    flag "--mean" help="Calculate mean" {
+        arg "<attribute>"
+    }
+    flag "--sum" help="Sum all values" {
+        arg "<attribute>"
+    }
+    flag "--range" help="Show min and max values" {
+        arg "<attribute>"
+    }
+    flag "--count" help="Count non-null values" {
+        arg "<attribute>"
+    }
+    flag "--bin" help="Linear histogram of values" {
+        // alias "quantize"
+        arg "<attribute>"
+    }
+    flag "--head" help="First value in factor" {
+        arg "<attribute>"
+    }
+    flag "--tail" help="Last value in factor" {
+        arg "<attribute>"
+    }
+    flag "--object" help="Maximum object identifier" {
+        arg "<attribute>"
+    }
+    // Aggregations (undocumented)
+    flag "--last" help="Last object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--first" help="First object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--min" help="Min object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--max" help="Max object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    // Sorting
+    flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
+        arg "<term>"
+    }
+    // Computed Views
+    flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
+        arg "<spec>"
+    }
+    // Not documented
+    flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+        arg "<query>"
+    }
+    flag "--table" help="Table to query against" hide=#true {
+        arg "<query>"
+    }
+    flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
+        arg "<query>"
+    }
+    flag "--reverse" help="Reverse sort order" {
+        arg "<attribute>"
+    }
+    flag "--template" help="TODO: (ex: select)" { // TODO
+        arg "<attribute>"
+    }
+    flag "--factor" help="Group by attribute" {
+        arg "<attribute>"
+    }
+    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+        arg "<value>"
+    }
+
     long_help #"""
         An optional subset can be specified to indicate whether physical, indexed, or
         both are deleted. By default, this command (as of 2019-02-26) requests
@@ -747,15 +956,117 @@ cmd "projects" subcommand_required=#true help="List projects" {
 cmd "flamegraph" help="Generate callstack flamegraph" {
     arg "<project>" help="Project name or universe/project"
 
-    flag "--filter" help="Filter expression" {
-        arg "<filter>"
-    }
     flag "-o --output" help="Output SVG file" {
         arg "<file>"
     }
-    flag "--reverse" help="Sample from leaf functions"
     flag "--unique" help="Sample only unique crashes"
-    // TODO argvQuery
+    flag "--reverse" help="Sample from leaf functions"
+    
+    // argvQuery
+    // Filters
+    flag "--filter" help="Filter expression: attribute,operation,value" {
+        arg "<filter>"
+    }
+    // Pagination
+    flag "--limit" help="Number of rows to return" {
+        arg "<n>"
+    }
+    flag "--offset" help="Skip first N rows" {
+        arg "<n>"
+    }
+    // Selection
+    flag "--select" help="Select specific attributes" var=#true {
+        arg "<attribute>"
+    }
+    flag "--select-wildcard" help="Select all attributes of the given type" {
+        arg "<type>" {
+            choices physical derived virtual
+        }
+    }
+    // Aggregations
+    flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
+        arg "<time>"
+    }
+    flag "--time" help="Time range using natural language" {
+        arg "<range>"
+    }
+    flag "--unique" help="Count distinct values" {
+        arg "<attribute>"
+    }
+    flag "--histogram" help="Show all distinct values" {
+        arg "<attribute>"
+    }
+    flag "--distribution" help="Show truncated histogram" {
+        arg "<attribute>"
+    }
+    flag "--mean" help="Calculate mean" {
+        arg "<attribute>"
+    }
+    flag "--sum" help="Sum all values" {
+        arg "<attribute>"
+    }
+    flag "--range" help="Show min and max values" {
+        arg "<attribute>"
+    }
+    flag "--count" help="Count non-null values" {
+        arg "<attribute>"
+    }
+    flag "--bin" help="Linear histogram of values" {
+        // alias "quantize"
+        arg "<attribute>"
+    }
+    flag "--head" help="First value in factor" {
+        arg "<attribute>"
+    }
+    flag "--tail" help="Last value in factor" {
+        arg "<attribute>"
+    }
+    flag "--object" help="Maximum object identifier" {
+        arg "<attribute>"
+    }
+    // Aggregations (undocumented)
+    flag "--last" help="Last object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--first" help="First object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--min" help="Min object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--max" help="Max object identifier" hide=#true {
+        arg "<attribute>"
+    }
+    // Sorting
+    flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
+        arg "<term>"
+    }
+    // Computed Views
+    flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
+        arg "<spec>"
+    }
+    // Not documented
+    flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+        arg "<query>"
+    }
+    flag "--table" help="Table to query against" hide=#true {
+        arg "<query>"
+    }
+    flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
+        arg "<query>"
+    }
+    // flag "--reverse" help="Reverse sort order" {
+    //     arg "<attribute>"
+    // }
+    flag "--template" help="TODO: (ex: select)" { // TODO
+        arg "<attribute>"
+    }
+    flag "--factor" help="Group by attribute" {
+        arg "<attribute>"
+    }
+    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+        arg "<value>"
+    }
 
     long_help #"""
         Generate a flamegraph of callstacks of all objects matching the specified
@@ -1107,30 +1418,14 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
                 choices week day
             }
         }
-        // Query flags (keep in sync with list command!)
-        // Filters
-        flag "--filter" help="Filter expression" {
-            arg "<filter>"
-        }
-        flag "--fingerprint" help="Fingerprint filter" {
-            arg "<fp>"
-        }
-        flag "--histogram" help="Include histogram" {
-            arg "<attr>"
-        }
-        flag "--hour" help="Hour to send" {
-            arg "<hour>"
-        }
-        flag "--day" help="Day to send" {
-            arg "<day>"
-        }
         // Undocumented create flags
         // See coronerReport, in: if (action === 'create') { ... }
         flag "--timezone" help="TImezone for report" hide=#true {
             arg "<timezone>"
         }
         flag "--include-users" help="Whether to include users in the report" hide=#true
-        // Query flags (keep in sync with list command!)
+
+        // Query flags (keep in sync with list command!) argvQuery
         // Filters
         flag "--filter" help="Filter expression: attribute,operation,value" {
             arg "<filter>"
@@ -1146,13 +1441,13 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         flag "--select" help="Select specific attributes" var=#true {
             arg "<attribute>"
         }
-        flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+        flag "--select-wildcard" help="Select all attributes of the given type" {
             arg "<type>" {
                 choices physical derived virtual
             }
         }
         // Aggregations
-        flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+        flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
             arg "<time>"
         }
         flag "--time" help="Time range using natural language" {
@@ -1206,21 +1501,21 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
             arg "<attribute>"
         }
         // Sorting
-        flag "--sort" help="Sort results: [-](column|fold_term)" {
+        flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
             arg "<term>"
         }
         // Computed Views
-        flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" {
+        flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
             arg "<spec>"
         }
         // Not documented
         flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
             arg "<query>"
         }
-        flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+        flag "--table" help="Table to query against" hide=#true {
             arg "<query>"
         }
-        flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+        flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
             arg "<query>"
         }
         flag "--reverse" help="Reverse sort order" {
@@ -1279,7 +1574,7 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
         arg "<name>" help="Namespace name" // TODO: might be optional
 
         flag "--dryrun" help="Show command without executing"
-        flag "--type" help="Type: instance|universe|project" {
+        flag "--type" help="Which scope to set the retention policy on" {
             arg "<type>" {
                 choices instance universe project
             }
@@ -1379,7 +1674,7 @@ cmd "sampling" subcommand_required=#true help="Manage object sampling" {
 
 cmd "symbol" help="Manage debug symbols" {
     arg "<project>" help="Project name or universe/project"
-    arg "[action]" help="Action: summary|list|missing|archives" required=#false default=summary {
+    arg "[action]" help="Action to perform" required=#false default=summary {
         choices summary list missing archives
     }
     flag "--tag" help="Filter by tag" {
@@ -1407,7 +1702,7 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
         flag "--regexp" help="Pattern to match" {
             arg "<pattern>"
         }
-        flag "--builtin" help="Builtin: ssn|ccn|key|env|all" {
+        flag "--builtin" help="Which builtin to use" {
             arg "<type>" {
                 choices ssn ccn key env all
             }
@@ -1454,7 +1749,7 @@ cmd "token" subcommand_required=#true help="Manage API tokens" {
         flag "--project" help="Project name" required=#true {
             arg "<project>"
         }
-        flag "--capability" help="Capability: symbol:post|error:post|query:post|sync:post" required=#true var=#true {
+        flag "--capability" help="Capabilities to assign to this token" required=#true var=#true {
             arg "<cap>" {
                 choices symbol:post error:post query:post sync:post
             }
@@ -1550,7 +1845,7 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
         arg "<username>" help="Username"
         arg "<email>" help="Email address"
 
-        flag "--role" help="Role: guest|member|admin" {
+        flag "--role" help="Role to assign the user" {
             arg "<role>" {
                 choices guest member admin
             }
@@ -1561,7 +1856,7 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
         flag "--tenant" help="Tenant name" {
             arg "<tenant>"
         }
-        flag "--method" help="Auth method: password|saml|pam" {
+        flag "--method" help="Authentication method to use" {
             arg "<method>" {
                 choices password saml pam
             }
@@ -1618,7 +1913,7 @@ cmd "access" subcommand_required=#true help="Control access permissions" {
 
         cmd "add-team" help="Add team to project" {
             arg "<team>" help="Team name"
-            arg "<role>" help="Role: admin|member|guest" {
+            arg "<role>" help="Role to assign to the user" {
                 choices admin member guest
             }
         }
@@ -1629,7 +1924,7 @@ cmd "access" subcommand_required=#true help="Control access permissions" {
 
         cmd "add-user" help="Add user to project" {
             arg "<user>" help="Username"
-            arg "<role>" help="Role: admin|member|guest" {
+            arg "<role>" help="Role to assign to the user" {
                 choices admin member guest
             }
         }
@@ -1839,7 +2134,7 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--trigger" help="Trigger spec: column,index,op,warn,crit" required=#true {
                 arg "<spec>"
             }
-            // Query flags (keep in sync with list command!)
+            // Query flags (keep in sync with list command!) argvQuery
             // Filters
             flag "--filter" help="Filter expression: attribute,operation,value" {
                 arg "<filter>"
@@ -1855,13 +2150,13 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--select" help="Select specific attributes" var=#true {
                 arg "<attribute>"
             }
-            flag "--select-wildcard" help="Select all attributes of type: physical|derived|virtual" {
+            flag "--select-wildcard" help="Select all attributes of the given type" {
                 arg "<type>" {
                     choices physical derived virtual
                 }
             }
             // Aggregations
-            flag "--age" help="Relative timestamp (e.g., 1h, 1d)" {
+            flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
                 arg "<time>"
             }
             flag "--time" help="Time range using natural language" {
@@ -1915,21 +2210,21 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
                 arg "<attribute>"
             }
             // Sorting
-            flag "--sort" help="Sort results: [-](column|fold_term)" {
+            flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
                 arg "<term>"
             }
             // Computed Views
-            flag "--quantize-uint" help="Compute quantized column: output_column,input_column,size[,offset]" {
+            flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
                 arg "<spec>"
             }
             // Not documented
             flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
                 arg "<query>"
             }
-            flag "--table" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+            flag "--table" help="Table to query against" hide=#true {
                 arg "<query>"
             }
-            flag "--timestamp-attribute" help="Attribute to use as timestamp (defaults to 'timestamp', unless table is )" hide=#true {
+            flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
                 arg "<query>"
             }
             flag "--reverse" help="Reverse sort order" {
@@ -2009,7 +2304,7 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             flag "--options" help="Plugin options" required=#true {
                 arg "<json>"
             }
-            flag "--state" help="State: enabled|disabled|stopped" {
+            flag "--state" help="Initial state to set for the integration" {
                 arg "<state>" {
                     choices enabled disabled stopped
                 }
@@ -2087,7 +2382,7 @@ cmd "workflows" subcommand_required=#true help="Manage workflow integrations" {
             flag "--execution-delay" help="Delay in ms" {
                 arg "<ms>"
             }
-            flag "--state" help="State: enabled|disabled|stopped" {
+            flag "--state" help="Initial state to set for the integration" {
                 arg "<state>" {
                     choices enabled disabled stopped
                 }
@@ -2178,12 +2473,12 @@ cmd "attribute" subcommand_required=#true help="Manage project attributes" {
         flag "--description" help="Attribute description" {
             arg "<desc>"
         }
-        flag "--type" help="Type: bitmap|uint8|uint16|uint32|uint64|uint128|uuid|dictionary" {
+        flag "--type" help="Attribute value type" {
             arg "<type>" {
                 choices bitmap uint8 uint16 uint32 uint64 uint128 uuid dictionary
             }
         }
-        flag "--format" help="Format: none|commit|semver|callstack|hostname|bytes|kilobytes|gigabytes|nanoseconds|milliseconds|seconds|unix_timestamp|js_timestamp|gps_timestamp|memory_address|labels|sha256|uuid|ipv4|ipv6" {
+        flag "--format" help="Attribute display format" {
             arg "<format>" {
                 choices none commit semver callstack hostname bytes kilobytes gigabytes nanoseconds milliseconds seconds unix_timestamp js_timestamp gps_timestamp memory_address labels sha256 uuid ipv4 ipv6
             }
