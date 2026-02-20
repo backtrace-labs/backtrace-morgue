@@ -31,7 +31,6 @@
     "@cypress/request": "^3.0.8",
     "assign-deep": "^1.0.1",
     "axios": "^1.10.0",
-    "backtrace-morgue": "file:backtrace-morgue-1.24.11.tgz",
     "btoa": "^1.1.2",
     "chalk": "^4.1.2",
     "chrono-node": "^2.2.4",
