@@ -5,20 +5,20 @@ export interface CallstackOptions {
 
 function parseFrame(frame: string, options?: any): string[] {
   /* Templates are stripped by default. */
-  frame = frame.replace(/<.*>/, "<…>");
+  frame = frame.replace(/<.*>/, '<…>');
 
   /* Dangling template is also stripped. */
-  frame = frame.replace(/<.*/, "<…>");
+  frame = frame.replace(/<.*/, '<…>');
 
   /* Strip parameters. */
-  frame = frame.replace(/\(.*/, "");
+  frame = frame.replace(/\(.*/, '');
 
   /* Now, split up the callstack label into class components. */
   const classes = frame.split('::');
 
   return classes;
 }
- 
+
 function parse(frames: string[]): string[][] {
   const r: string[][] = [];
 
@@ -58,19 +58,18 @@ export class Callstack {
           label = frame.join('::');
         }
       } else if (options && options.dynamic && i > 1) {
-        var previous = this.parsed[i - 1];
+        const previous = this.parsed[i - 1];
 
         label = '';
 
-        for (var k = 0; k < frame.length; k++) {
+        for (let k = 0; k < frame.length; k++) {
           if (k < previous.length && previous[k] === frame[k]) {
             label += '…';
           } else {
             label += frame[k];
           }
 
-          if (k != frame.length - 1)
-            label += '::';
+          if (k != frame.length - 1) label += '::';
         }
       } else {
         label = frame.join('::');

@@ -4,12 +4,13 @@ import urlJoin from 'url-join';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import * as fs from 'fs';
-import request from '@cypress/request';
+import axios from 'axios';
+import {eMsg} from './util';
 
 interface CoronerConfig {
   endpoint: string;
   insecure?: boolean;
-  config?: any;
+  config?: {token?: string};
   debug?: boolean;
   timeout?: number;
 }
@@ -27,29 +28,42 @@ interface ResponseObject {
   response_obj?: any;
 }
 
+const Compression = {
+  DEFLATE: 'deflate',
+  GZIP: 'gzip',
+} as const;
+type CompressionKey = keyof typeof Compression;
+type CompressionValue = (typeof Compression)[keyof typeof Compression];
+
 function check_uri_supported(endpoint: string) {
-  var uri = url.parse(endpoint);
+  const uri = url.parse(endpoint);
 
   if (uri.protocol === 'https:') {
   } else if (uri.protocol === 'http:' || !uri.protocol) {
   } else {
-    throw new Error("Unsupported protocol " + uri.protocol);
+    throw new Error('Unsupported protocol ' + uri.protocol);
   }
   return uri;
 }
 
 function debug_response(resp: any, body: any) {
-  console.error("\nResponse: HTTP " + resp.statusCode + " " + resp.statusMessage +
-    "; headers:\n", JSON.stringify(resp.headers, null, 4));
-  console.error("Body (" + body.length + " bytes):\n");
+  console.error(
+    '\nResponse: HTTP ' +
+      (resp.status || resp.statusCode) +
+      ' ' +
+      (resp.statusText || resp.statusMessage) +
+      '; headers:\n',
+    JSON.stringify(resp.headers, null, 4),
+  );
+  console.error('Body (' + body.length + ' bytes):\n');
   /*
    * Limit body output to first 1KB of characters, then trim off any
    * non-printable characters.  This is defined here as those that wouldn't
    * typically appear in source code.  Only include an ellipsis if the
    * original is modified.
    */
-  var compressed = false;
-  var text;
+  let compressed = false;
+  let text;
   try {
     text = zlib.gunzipSync(body);
     compressed = true;
@@ -60,15 +74,20 @@ function debug_response(resp: any, body: any) {
     text = text.substr(0, 1024);
   }
   text = text.replace(/[^\t\n\x20-\x7E].*/gm, '');
-  if (text.length != body.length)
-    text += " ... (trimmed)";
-  if (compressed)
-    text = "(gzip-compressed body ...)\n" + text;
+  if (text.length != body.length) text += ' ... (trimmed)';
+  if (compressed) text = '(gzip-compressed body ...)\n' + text;
   console.error(text);
 }
 
-function onResponse(coroner: CoronerClient, callback: RequestCallback, opts: any, err: any, resp: any, body: any) {
-  var json, msg, text;
+function onResponse(
+  coroner: CoronerClient,
+  callback: RequestCallback,
+  opts: any,
+  err: any,
+  resp: any,
+  body: any,
+) {
+  var json, msg, text: string;
 
   /*
    * Traditional error callbacks don't allow for additional context to be
@@ -81,18 +100,25 @@ function onResponse(coroner: CoronerClient, callback: RequestCallback, opts: any
     callback(err);
     return;
   }
+
+  if (!resp) {
+    callback(new Error('No response received'));
+    return;
+  }
+
   resp.debug = coroner.debug;
   resp.bodyData = body;
 
-  if (coroner.debug || (opts && opts.json))
-    text = body.toString('utf8');
+  if (coroner.debug || opts?.json) text = body.toString('utf8');
 
   if (coroner.debug) {
     debug_response(resp, text);
   }
 
-  if (resp.statusCode !== 200) {
-    err = new Error("HTTP " + resp.statusCode + ": " + resp.statusMessage);
+  const statusCode = resp.status || resp.statusCode;
+  const statusMessage = resp.statusText || resp.statusMessage;
+  if (statusCode !== 200) {
+    err = new Error('HTTP ' + statusCode + ': ' + statusMessage);
     err.response_obj = resp;
     callback(err);
     return;
@@ -102,16 +128,15 @@ function onResponse(coroner: CoronerClient, callback: RequestCallback, opts: any
     try {
       json = JSON.parse(text);
     } catch (err) {
-      if (coroner.debug)
-        console.log("Got bad JSON: ", text);
-      callback(new Error("Server sent invalid JSON: " + err.message));
+      if (coroner.debug) console.log('Got bad JSON: ', text);
+      const message = eMsg(err);
+      callback(new Error('Server sent invalid JSON: ' + message));
       return;
     }
     if (json.error) {
       var msg = json.error.message;
       /* Send the full contents in case the caller needs it. */
-      if (!msg)
-        msg = JSON.stringify(json);
+      if (!msg) msg = JSON.stringify(json);
       callback(new Error(msg));
       return;
     }
@@ -122,15 +147,12 @@ function onResponse(coroner: CoronerClient, callback: RequestCallback, opts: any
 }
 
 function form_add_kvs(options: any, kvs: any) {
-  if (!kvs)
-    return;
+  if (!kvs) return;
 
-  if (typeof kvs === 'string')
-    kvs = kvs.split(",");
-  kvs.forEach(function(kv: string) {
-    var pair = kv.split(":");
-    if (pair.length === 2)
-      options.formData[pair[0]] = pair[1];
+  if (typeof kvs === 'string') kvs = kvs.split(',');
+  kvs.forEach((kv: string) => {
+    const pair = kv.split(':');
+    if (pair.length === 2) options.formData[pair[0]] = pair[1];
   });
 }
 
@@ -138,26 +160,24 @@ function form_add_file(options: any, file: string | null) {
   if (file !== null) {
     options.formData.upload_file = {
       value: fs.createReadStream(file),
-      options: { filename: file},
+      options: {filename: file},
     };
   }
 }
 
 function form_add_attachments(options: any, attachments: any) {
-  if (!attachments)
-    return;
+  if (!attachments) return;
 
-  if (!Array.isArray(attachments))
-    attachments = [attachments];
+  if (!Array.isArray(attachments)) attachments = [attachments];
 
-  let prefix = () => options.no_attachment_prefix ? '' : 'attachment_';
+  const prefix = () => (options.no_attachment_prefix ? '' : 'attachment_');
 
-  attachments.forEach(function(aobj: any) {
-    var aname;
+  attachments.forEach((aobj: any) => {
+    let aname;
     if (typeof aobj === 'string') {
-      aobj = { filename: aobj };
+      aobj = {filename: aobj};
     } else if (typeof aobj !== 'object' || !aobj.filename) {
-      throw new Error("Invalid attachment object type (" + aobj + ")");
+      throw new Error('Invalid attachment object type (' + aobj + ')');
     }
     aname = aobj.name || path.basename(aobj.filename);
     options.formData[prefix() + aname] = {
@@ -168,14 +188,14 @@ function form_add_attachments(options: any, attachments: any) {
 }
 
 function extend(o: any, src: any) {
-  for (var key in src) o[key] = src[key];
+  for (const key in src) o[key] = src[key];
   return o;
 }
 
 export class CoronerClient {
   endpoint: string;
   insecure: boolean;
-  config: any;
+  config: {token?: string};
   debug: boolean;
   timeout: number;
   _cached_config?: any;
@@ -191,22 +211,18 @@ export class CoronerClient {
   promise(name: string, ...args): any {
     const fn = this[name];
     if (typeof fn !== 'function')
-      throw new Error("Invalid or unknown function name");
+      throw new Error('Invalid or unknown function name');
     const boundfn = fn.bind(this);
 
-    /* Discard the name from the argument vector before passing it on. */
-    const fnArgs = [].slice.call(arguments);
-    args.shift();
-
-    return new Promise(function(resolve, reject) {
-      args.push(function(error: any, result: any) {
+    return new Promise((resolve, reject) => {
+      args.push((error: any, result: any) => {
         if (error) {
           reject(error);
         } else {
           resolve(result);
         }
       });
-      boundfn.apply(null, fnArgs);
+      boundfn.apply(null, args);
     });
   }
 
@@ -216,19 +232,28 @@ export class CoronerClient {
    *
    * If the caller only cares about error & response body, use get.
    */
-  http_get(path: string, params: any, opts: any, callback?: RequestCallback): void {
+  http_get(
+    path: string,
+    params: any,
+    opts: any,
+    callback?: RequestCallback,
+  ): void {
     const self = this;
 
     if (typeof opts === 'function') {
       if (typeof callback !== 'undefined')
-        throw new Error("Invalid usage: either opts or callback must be a function");
+        throw new Error(
+          'Invalid usage: either opts or callback must be a function',
+        );
       callback = opts;
       opts = {};
     } else if (typeof callback !== 'function') {
-      throw new Error("Invalid usage: either opts or callback must be a function");
+      throw new Error(
+        'Invalid usage: either opts or callback must be a function',
+      );
     }
 
-    var fullParams;
+    let fullParams;
     if (params) {
       if (this.config && this.config.token) {
         fullParams = extend({token: this.config.token}, params);
@@ -239,25 +264,52 @@ export class CoronerClient {
       fullParams = null;
     }
 
-    var options = Object.assign({
-      uri: this.endpoint + path,
-      qs: fullParams,
-      strictSSL: !this.insecure,
-      timeout: self.timeout,
-      encoding: null,
-    }, opts || {});
+    const options = Object.assign(
+      {
+        uri: this.endpoint + path,
+        qs: fullParams,
+        strictSSL: !this.insecure,
+        timeout: self.timeout,
+        encoding: null,
+      },
+      opts || {},
+    );
 
     if (this.debug) {
-      console.error("GET " + options.uri + "?" + qs.stringify(options.qs));
+      console.error('GET ' + options.uri + '?' + qs.stringify(options.qs));
     }
 
-    request.get(options, (err, resp, body) => {
-      return onResponse(self, callback!, null, err, resp, body);
-    });
+    axios
+      .get(options.uri, {
+        params: options.qs,
+        httpsAgent: !options.strictSSL
+          ? new (require('https').Agent)({rejectUnauthorized: false})
+          : undefined,
+        timeout: options.timeout,
+        responseType: 'arraybuffer',
+        decompress: false, // backwards compat with request (pre axios port)
+      })
+      .then(resp => {
+        const body = resp.data;
+        return onResponse(self, callback!, null, null, resp, body);
+      })
+      .catch(err => {
+        if (err.response) {
+          return onResponse(
+            self,
+            callback!,
+            null,
+            null,
+            err.response,
+            err.response.data,
+          );
+        }
+        return onResponse(self, callback!, null, err, null, null);
+      });
   }
 
   get(path: string, params: any, callback: RequestCallback): void {
-    return this.http_get(path, params, function(error: any, http_result: any) {
+    return this.http_get(path, params, (error: any, http_result: any) => {
       if (error) {
         callback(error);
       } else {
@@ -266,97 +318,174 @@ export class CoronerClient {
     });
   }
 
-  http_fetch(universe: string, project: string, object: string, params: any, callback: RequestCallback): void {
-    var p_type = typeof params;
+  http_fetch(
+    universe: string,
+    project: string,
+    object: string,
+    params: any,
+    callback: RequestCallback,
+  ): void {
+    const p_type = typeof params;
     if (p_type === 'string') {
-      params = { resource: params };
+      params = {resource: params};
     } else if (!params) {
-      params = { resource: 'raw' };
+      params = {resource: 'raw'};
     } else if (p_type !== 'object') {
       throw new Error("Invalid parameter object type '" + p_type + "'");
     }
 
-    var p = Object.assign({
-      universe: universe,
-      project: project,
-      object: object,
-    }, params);
+    const p = Object.assign(
+      {
+        universe: universe,
+        project: project,
+        object: object,
+      },
+      params,
+    );
 
-    return this.http_get("/api/get", p, callback);
+    return this.http_get('/api/get', p, callback);
   }
 
-  fetch(universe: string, project: string, object: string, resource: any, callback: RequestCallback): void {
-    return this.http_fetch(universe, project, object, resource, function(error: any, http_result: any) {
-      if (error) {
-        callback(error);
-      } else {
-        callback(null, http_result.bodyData);
-      }
-    });
+  fetch(
+    universe: string,
+    project: string,
+    object: string,
+    resource: any,
+    callback: RequestCallback,
+  ): void {
+    return this.http_fetch(
+      universe,
+      project,
+      object,
+      resource,
+      (error: any, http_result: any) => {
+        if (error) {
+          callback(error);
+        } else {
+          callback(null, http_result.bodyData);
+        }
+      },
+    );
   }
 
-  modify_object(universe: string, project: string, oid: string, params: any, request: any, callback: RequestCallback): void {
-    var p = Object.assign({
-      universe: universe,
-      project: project,
-      object: oid,
-      format: 'json',
-      resource: '_kv',
-    }, params || {});
-    return this.post("/api/post", p, request, null, callback);
+  modify_object(
+    universe: string,
+    project: string,
+    oid: string,
+    params: any,
+    request: any,
+    callback: RequestCallback,
+  ): void {
+    const p = Object.assign(
+      {
+        universe: universe,
+        project: project,
+        object: oid,
+        format: 'json',
+        resource: '_kv',
+      },
+      params || {},
+    );
+    return this.post('/api/post', p, request, null, callback);
   }
 
-  list(universe: string, project: string, object: string, params: any, callback: RequestCallback): void {
-    var p = Object.assign({
-      universe: universe,
-      project: project,
-      object: object,
-    }, params || {});
+  list(
+    universe: string,
+    project: string,
+    object: string,
+    params: any,
+    callback: RequestCallback,
+  ): void {
+    const p = Object.assign(
+      {
+        universe: universe,
+        project: project,
+        object: object,
+      },
+      params || {},
+    );
 
-    return this.get("/api/list", p, callback);
+    return this.get('/api/list', p, callback);
   }
 
-  attachments(universe: string, project: string, object: string, params: any, callback: RequestCallback): void {
-    var p = Object.assign({
-      view: "attachments",
-    }, params || {});
+  attachments(
+    universe: string,
+    project: string,
+    object: string,
+    params: any,
+    callback: RequestCallback,
+  ): void {
+    const p = Object.assign(
+      {
+        view: 'attachments',
+      },
+      params || {},
+    );
     return this.list(universe, project, object, params, callback);
   }
 
-  attach(universe: string, project: string, object: string, name: string, params: any, opt: any, body: any, callback: RequestCallback): void {
-    var p = Object.assign({
-      universe: universe,
-      project: project,
-      object: object,
-      attachment_name: name,
-    }, params || {});
+  attach(
+    universe: string,
+    project: string,
+    object: string,
+    name: string,
+    params: any,
+    opt: any,
+    body: any,
+    callback: RequestCallback,
+  ): void {
+    const p = Object.assign(
+      {
+        universe: universe,
+        project: project,
+        object: object,
+        attachment_name: name,
+      },
+      params || {},
+    );
 
-    return this.post("/api/post", p, body, opt, callback);
+    return this.post('/api/post', p, body, opt, callback);
   }
 
-  post(path: string, params: any, body: any, opt: any, callback: RequestCallback): void {
+  post(
+    path: string,
+    params: {
+      kvs?: string[] | {};
+      http_opts?: any;
+      token?: string;
+      username?: string;
+      password?: string;
+      universe?: string;
+    },
+    body: any,
+    opt: {
+      compression?: CompressionValue;
+      binary?: boolean;
+      http_opts?: any;
+    },
+    callback: RequestCallback,
+  ): void {
     const self = this;
-    var contentType, fullParams, kvs, payload;
-    var uri = check_uri_supported(this.endpoint);
-    var http_opts;
+    params = {...params};
+    let fullParams, kvs;
+    const uri = check_uri_supported(this.endpoint);
 
-    if (!opt)
-      opt = {};
+    if (!opt) opt = {};
 
-    http_opts = opt.http_opts;
+    let http_opts = opt.http_opts;
 
     if (params) {
-      if (typeof(params.kvs) === 'string') {
-        kvs = params.kvs.split(",");
-        kvs.forEach(function(kv: string) {
-          var pair = kv.split(":");
+      if (typeof params.kvs === 'string') {
+        kvs = params.kvs.split(',');
+        kvs.forEach((kv: string) => {
+          const pair = kv.split(':');
           if (pair.length == 2) {
             params[pair[0]] = pair[1];
           }
         });
         delete params.kvs;
-      } else if (typeof(params.kvs) === 'object') {
-        params = Object.assign(params, params.kvs);
+      } else if (typeof params.kvs === 'object') {
+        params = {...params, ...params.kvs};
         delete params.kvs;
       }
 
@@ -365,8 +494,8 @@ export class CoronerClient {
         delete params.http_opts;
       }
 
-      if (path !== '/api/login' && this.config && this.config.token) {
-        fullParams = extend({token: this.config.token}, params);
+      if (path !== '/api/login' && this.config?.token) {
+        fullParams = {token: this.config.token, ...params};
       } else {
         fullParams = params;
       }
@@ -374,16 +503,17 @@ export class CoronerClient {
       fullParams = null;
     }
 
-    var options = Object.assign({
-      uri: uri.protocol + "//" + uri.host + path,
+    const options: any = {
+      uri: uri.protocol + '//' + uri.host + path,
       strictSSL: !this.insecure,
       timeout: this.timeout,
       encoding: null,
       headers: {},
-    }, http_opts || {});
+      ...http_opts,
+    };
 
     if (opt.compression) {
-      options.headers["Content-Encoding"] = opt.compression;
+      options.headers['Content-Encoding'] = opt.compression;
     }
 
     if (body) {
@@ -392,48 +522,83 @@ export class CoronerClient {
         options.body = body;
         // Allow omitting content-type if present and null.
         if (opt.content_type)
-          options.headers["Content-Type"] = opt.content_type;
+          options.headers['Content-Type'] = opt.content_type;
       } else if (!opt.binary) {
         options.body = JSON.stringify(body);
         options.encoding = 'utf8';
-        options.headers["Content-Type"] = "application/json";
+        options.headers['Content-Type'] = 'application/json';
       } else if (opt.binary === true) {
         options.body = body;
-        options.headers["Content-Type"] = "application/octet-stream";
+        options.headers['Content-Type'] = 'application/octet-stream';
       }
     } else {
       options.body = qs.stringify(fullParams);
-      options.headers["Content-Type"] = "application/x-www-form-urlencoded";
+      options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
     if (self.debug) {
-      var opts = Object.assign({}, options);
+      const opts = Object.assign({}, options);
       delete opts.uri;
       delete opts.headers;
       delete opts.body;
-      console.error("POST " + options.uri + "?" + qs.stringify(options.qs));
-      console.error("Headers: ", JSON.stringify(options.headers, null, 4));
-      console.error("Options: ", JSON.stringify(opts, null, 4));
-      console.error("Body (" + options.body.length + " bytes):");
+      console.error('POST ' + options.uri + '?' + qs.stringify(options.qs));
+      console.error('Headers: ', JSON.stringify(options.headers, null, 4));
+      console.error('Options: ', JSON.stringify(opts, null, 4));
+      console.error('Body (' + options.body.length + ' bytes):');
       console.error(options.body);
     }
 
-    request.post(options, (err, resp, body) => {
-      return onResponse(self, callback, {json: true}, err, resp, body);
-    });
+    axios
+      .post(options.uri, options.body, {
+        params: options.qs,
+        headers: options.headers,
+        httpsAgent: !options.strictSSL
+          ? new (require('https').Agent)({rejectUnauthorized: false})
+          : undefined,
+        timeout: options.timeout,
+        responseType: 'arraybuffer',
+        decompress: false, // backwards compat with request (pre axios port)
+      })
+      .then(resp => {
+        const body = resp.data;
+        return onResponse(self, callback, {json: true}, null, resp, body);
+      })
+      .catch(err => {
+        if (err.response) {
+          return onResponse(
+            self,
+            callback,
+            {json: true},
+            null,
+            err.response,
+            err.response.data,
+          );
+        }
+        return onResponse(self, callback, {json: true}, err, null, null);
+      });
   }
 
-  svclayer(action: string, params: any, opts: any, callback: RequestCallback): void {
-    const body_params = Object.assign({ action: action }, params);
+  svclayer(
+    action: string,
+    params: any,
+    opts: any,
+    callback: RequestCallback,
+  ): void {
+    const body_params = Object.assign({action: action}, params);
     this.post('/api/svclayer', {}, body_params, opts, callback);
   }
 
-  post_form(file: string | null, attachments: any, params: any, callback: RequestCallback): void {
+  post_form(
+    file: string | null,
+    attachments: any,
+    params: any,
+    callback: RequestCallback,
+  ): void {
     const self = this;
-    var kvs;
-    var uri = check_uri_supported(this.endpoint);
-    var http_opts;
-    var form_opts;
+    let kvs;
+    const uri = check_uri_supported(this.endpoint);
+    let http_opts;
+    let form_opts;
 
     if (this.config && this.config.token && !params.token)
       params.token = this.config.token;
@@ -454,14 +619,17 @@ export class CoronerClient {
       }
     }
 
-    var options = Object.assign({
-      uri: uri.protocol + "//" + uri.host + "/api/post",
-      strictSSL: !this.insecure,
-      timeout: this.timeout,
-      encoding: null,
-      qs: params,
-      formData: {},
-    }, http_opts || {});
+    const options = Object.assign(
+      {
+        uri: uri.protocol + '//' + uri.host + '/api/post',
+        strictSSL: !this.insecure,
+        timeout: this.timeout,
+        encoding: null,
+        qs: params,
+        formData: {},
+      },
+      http_opts || {},
+    );
 
     /* Set the form data in the order it should be sent. */
     form_add_kvs(options, kvs);
@@ -474,59 +642,107 @@ export class CoronerClient {
     }
 
     if (this.debug) {
-      console.error("MULTIPART POST " + options.uri + "?" + qs.stringify(options.qs));
+      console.error(
+        'MULTIPART POST ' + options.uri + '?' + qs.stringify(options.qs),
+      );
       if (options.headers) {
-        console.error("Headers: ", JSON.stringify(options.headers, null, 4));
+        console.error('Headers: ', JSON.stringify(options.headers, null, 4));
       }
-      console.error("Body:");
-      for (var fkey in options.formData) {
-        var fobj = options.formData[fkey];
+      console.error('Body:');
+      for (const fkey in options.formData) {
+        const fobj = options.formData[fkey];
         var sobj;
         if (typeof fobj === 'object' && fobj.options) {
           sobj = JSON.stringify(fobj.options);
         } else {
           sobj = JSON.stringify(fobj);
         }
-        console.error("  " + fkey + ": " + sobj);
+        console.error('  ' + fkey + ': ' + sobj);
       }
     }
 
-    request.post(options, (err, resp, body) => {
-      return onResponse(self, callback, {json: true}, err, resp, body);
-    });
+    // Convert formData to FormData for axios
+    const FormData = require('form-data');
+    const formData = new FormData();
+
+    for (const key in options.formData) {
+      const value = options.formData[key];
+      if (value && typeof value === 'object' && value.value !== undefined) {
+        // Handle file uploads
+        formData.append(key, value.value, value.options);
+      } else {
+        formData.append(key, value);
+      }
+    }
+
+    axios
+      .post(options.uri, formData, {
+        params: options.qs,
+        headers: {...formData.getHeaders(), ...options.headers},
+        httpsAgent: !options.strictSSL
+          ? new (require('https').Agent)({rejectUnauthorized: false})
+          : undefined,
+        timeout: options.timeout,
+        responseType: 'arraybuffer',
+        decompress: false, // backwards compat with request (pre axios port)
+      })
+      .then(resp => {
+        const body = resp.data;
+        return onResponse(self, callback, {json: true}, null, resp, body);
+      })
+      .catch(err => {
+        if (err.response) {
+          return onResponse(
+            self,
+            callback,
+            {json: true},
+            null,
+            err.response,
+            err.response.data,
+          );
+        }
+        return onResponse(self, callback, {json: true}, err, null, null);
+      });
   }
 
   login_token(token: string, callback: RequestCallback): void {
-    var self = this;
+    const self = this;
 
-    var params = { token: token };
-    self.post("/api/login", params, null, null, function(err: any, json: any) {
+    const params = {token: token};
+    self.post('/api/login', params, null, null, (err: any, json: any) => {
       if (err) return callback(err);
-      if (!json.token) return callback(new Error("login response missing token"));
+      if (!json.token)
+        return callback(new Error('login response missing token'));
       self.config = json;
       callback(null);
     });
   }
 
   login(username: string, password: string, callback: RequestCallback): void {
-    var self = this;
+    const self = this;
 
-    var params = {
+    const params = {
       username: username,
       password: password,
     };
-    self.post("/api/login", params, null, null, function(err: any, json: any) {
+    self.post('/api/login', params, null, null, (err: any, json: any) => {
       if (err) return callback(err);
-      if (!json.token) return callback(new Error("login response missing token"));
+      if (!json.token)
+        return callback(new Error('login response missing token'));
       self.config = json;
       callback(null);
     });
   }
 
-  describe(universe: string, project: string, options: any, callback?: RequestCallback): void {
+  describe(
+    universe: string,
+    project: string,
+    options: any,
+    callback?: RequestCallback,
+  ): void {
     let disabled = true;
 
-    if (typeof(options) === 'function') {
+    if (typeof options === 'function') {
       /* Backwards compatibility: old API didn't have options arg */
       callback = options;
       options = {};
@@ -534,40 +750,69 @@ export class CoronerClient {
       disabled = false;
     }
 
-    var params = Object.assign({
-      action: 'describe',
-      universe: universe,
-      project: project,
-      disabled: false
-    }, options);
+    const params = Object.assign(
+      {
+        action: 'describe',
+        universe: universe,
+        project: project,
+        disabled: false,
+      },
+      options,
+    );
 
-    this.post("/api/query", params, {}, null, callback!);
+    this.post('/api/query', params, {}, null, callback!);
   }
 
   control(action: any, callback: RequestCallback): void {
-    if (action)
-      action.token = this.config.token;
+    if (action) action.token = this.config.token;
 
-    this.post("/api/control", null, action, null, callback);
+    this.post('/api/control', null, action, null, callback);
   }
 
-  put_form(dumpfile: string | null, attachments: any, options: any, callback: RequestCallback): void {
+  put_form(
+    dumpfile: string | null,
+    attachments: any,
+    options: any,
+    callback: RequestCallback,
+  ): void {
     this.post_form(dumpfile, attachments, options, callback);
   }
 
-  put(object: any, options: any, compression: any, callback: RequestCallback): void {
-    this.post("/api/post", options, object, { binary: true, compression: compression }, callback);
+  put(
+    object: any,
+    options: any,
+    compression: any,
+    callback: RequestCallback,
+  ): void {
+    this.post(
+      '/api/post',
+      options,
+      object,
+      {binary: true, compression: compression},
+      callback,
+    );
   }
 
-  query(universe: string, project: string, query: any, callback: RequestCallback): void {
-    var params = {
+  query(
+    universe: string,
+    project: string,
+    query: any,
+    callback: RequestCallback,
+  ): void {
+    const params = {
       universe: universe,
       project: project,
     };
-    this.post("/api/query", params, query, null, callback);
+    this.post('/api/query', params, query, null, callback);
   }
 
-  queries(universe: string, project: string, action: string, payload: any, callback: RequestCallback): void {
+  queries(
+    universe: string,
+    project: string,
+    action: string,
+    payload: any,
+    callback: RequestCallback,
+  ): void {
     const params = {
       universe: universe,
     };
@@ -577,79 +822,115 @@ export class CoronerClient {
 
     const body = {
       action: action,
-      form: payload
+      form: payload,
     };
 
-    this.post("/api/queries", params, body, null, callback);
+    this.post('/api/queries', params, body, null, callback);
   }
 
-  control2(universe: string, action: string, form: any, callback: RequestCallback): void {
-    var params = {
-      universe: universe
+  control2(
+    universe: string,
+    action: string,
+    form: any,
+    callback: RequestCallback,
+  ): void {
+    const params = {
+      universe: universe,
     };
-    this.post("/api/control/" + action, params, form, null, callback);
+    this.post('/api/control/' + action, params, form, null, callback);
   }
 
-  reportSend(universe: string, project: string, form: any, callback: RequestCallback): void {
-    var params = {
+  reportSend(
+    universe: string,
+    project: string,
+    form: any,
+    callback: RequestCallback,
+  ): void {
+    const params = {
       universe: universe,
       project: project,
     };
-    this.post("/api/report", params, form, null, callback);
+    this.post('/api/report', params, form, null, callback);
   }
 
-  symfile(universe: string, project: string, tag: any, callback: RequestCallback): void {
-    var params = {
+  symfile(
+    universe: string,
+    project: string,
+    tag: any,
+    callback: RequestCallback,
+  ): void {
+    const params = {
       universe: universe,
       project: project,
     };
-    this.post("/api/symfile", params, tag, null, callback);
+    this.post('/api/symfile', params, tag, null, callback);
   }
 
-  delete_objects(universe: string, project: string, objects: any, params: any, callback: RequestCallback): void {
-    var p = Object.assign({
-      universe: universe,
-      project: project,
-      objects: objects,
-    }, params);
+  delete_objects(
+    universe: string,
+    project: string,
+    objects: any,
+    params: any,
+    callback: RequestCallback,
+  ): void {
+    const p = Object.assign(
+      {
+        universe: universe,
+        project: project,
+        objects: objects,
+      },
+      params,
+    );
 
     if (Array.isArray(p.objects)) {
       /* Tolerate caller arrays of number vs arrays of string etc */
-      var objs = p.objects.map(function(x: any) {
-        switch(typeof x) {
-          case 'number': return x.toString(16);
-          case 'object': return x;
-          default: return x.toString();
+      const objs = p.objects.map((x: any) => {
+        switch (typeof x) {
+          case 'number':
+            return x.toString(16);
+          case 'object':
+            return x;
+          default:
+            return x.toString();
         }
       });
       p.objects = objs;
     }
 
-    this.post("/api/delete", { universe }, p, null, callback);
+    this.post('/api/delete', {universe}, p, null, callback);
   }
 
-  delete_by_query(universe: string, project: string, query: any, params: any, callback: RequestCallback): void {
-    var p = Object.assign({
-      universe: universe,
-      project: project,
-      query: query,
-    }, params);
+  delete_by_query(
+    universe: string,
+    project: string,
+    query: any,
+    params: any,
+    callback: RequestCallback,
+  ): void {
+    const p = Object.assign(
+      {
+        universe: universe,
+        project: project,
+        query: query,
+      },
+      params,
+    );
 
-    this.post("/api/delete", { universe }, p, null, callback);
+    this.post('/api/delete', {universe}, p, null, callback);
   }
 
-  async get_config(refresh?: boolean): Promise<any> { 
+  async get_config(refresh?: boolean): Promise<any> {
     if (!this._cached_config || refresh) {
-      const config = JSON.parse(await this.promise("get", "/api/config", {}));
-      this._cached_config = config
-      return config
+      const config = JSON.parse(await this.promise('get', '/api/config', {}));
+      this._cached_config = config;
+      return config;
     }
 
-    return this._cached_config;  
+    return this._cached_config;
   }
 
   async has_service(name: string): Promise<boolean> {
-    const config = await this.get_config(true)
+    const config = await this.get_config(true);
     const serviceEntry = config.services.find((x: any) => x.name === name);
     return !!serviceEntry;
   }
@@ -666,14 +947,14 @@ export class CoronerClient {
      * get which currently only injects auth params if there's an object to
      * inject them into.
      */
-    const config = await this.get_config(true)
+    const config = await this.get_config(true);
     const serviceEntry = config.services.find((x: any) => x.name === name);
     if (!serviceEntry) {
-      throw new Error(`No ${ name } service is configured`);
+      throw new Error(`No ${name} service is configured`);
     }
     const endpoint = serviceEntry.endpoint;
     if (!endpoint) {
-      throw new Error(`Service ${ name } doesn't have an endpoint`);
+      throw new Error(`Service ${name} doesn't have an endpoint`);
     }
     /*
      * Frontend gets to assume that relative urls will work because it's

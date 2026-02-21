@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 export class Response {
   json: any;
@@ -9,8 +9,7 @@ export class Response {
    * end-point.
    */
   constructor(json) {
-    if (json.error)
-      this.json = {};
+    if (json.error) this.json = {};
 
     this.json = json;
   }
@@ -20,20 +19,20 @@ export class Response {
   }
 
   unpackObject() {
-    var i;
-    var json = this.json;
-    var result = {};
+    let i;
+    const json = this.json;
+    const result = {};
 
     /*
      * The first step is to construct object arrays. This is a sequence of
      * arrays whose first element is group identifier.
      */
     for (i = 0; i < json.objects.length; i++) {
-      var object = json.objects[i];
+      const object = json.objects[i];
       var label = object[0];
-      var rle = object[1];
+      const rle = object[1];
       var target;
-      var order = [];
+      const order = [];
       var j;
 
       if (result[label] === undefined) {
@@ -45,7 +44,7 @@ export class Response {
        * length.
        */
       for (j = 0; j < rle.length; j++) {
-        target.push({'object' : rle[j][0], 'id' : rle[j][0].toString(16) });
+        target.push({object: rle[j][0], id: rle[j][0].toString(16)});
 
         if (rle[j].length === 2) {
           var k;
@@ -55,8 +54,8 @@ export class Response {
            */
           for (k = 1; k <= rle[j][1]; k++)
             target.push({
-                'object' : rle[j][0] + k,
-                'id' : (rle[j][0] + k).toString(16)
+              object: rle[j][0] + k,
+              id: (rle[j][0] + k).toString(16),
             });
         }
       }
@@ -72,9 +71,9 @@ export class Response {
 
       for (j = 0; j < json.columns.length; j++) {
         var label = json.columns[j % json.columns.length][0];
-        var key = json.values[i + j][0];
-        var values = json.values[i + j];
-        var counter = 0;
+        const key = json.values[i + j][0];
+        const values = json.values[i + j];
+        let counter = 0;
         var k;
 
         if (result[key] === undefined) {
@@ -83,7 +82,7 @@ export class Response {
         }
 
         for (k = 1; k < values.length; k++) {
-          var base = values[k][0];
+          const base = values[k][0];
           var r;
 
           for (r = 0; r < values[k][1]; r++) {
@@ -98,10 +97,9 @@ export class Response {
   }
 
   fields() {
-    var i;
+    let i;
 
-    if (this._fields)
-      return this._fields;
+    if (this._fields) return this._fields;
 
     this._fields = {};
 
@@ -116,21 +114,20 @@ export class Response {
    * state.
    */
   unpack() {
-    var result = {};
-    var i, cursor;
+    const result = {};
+    let i, cursor;
 
     /*
      * If the objects array exists then object materialization is requested.
      */
-    if (this.json.objects)
-      return this.unpackObject();
+    if (this.json.objects) return this.unpackObject();
 
     /* Now we extract every column value. */
     for (i = 0; i < this.json.values.length; i++) {
-      var field = this.json.values[i];
-      var factor = field[0];
+      const field = this.json.values[i];
+      const factor = field[0];
       var j;
-      var count = null;
+      let count = null;
 
       if (field.length > 2) {
         count = field[2];
@@ -138,12 +135,11 @@ export class Response {
 
       if (result[factor] === undefined) {
         result[factor] = {};
-        if (count)
-          result[factor].count = count;
+        if (count) result[factor].count = count;
       }
 
       for (j = 0; j < this.json.columns.length; j++) {
-        var label = this.json.columns[j][0];
+        const label = this.json.columns[j][0];
         result[factor][label] = field[1][j];
       }
     }
@@ -152,18 +148,18 @@ export class Response {
   }
 
   row(id) {
-    var length = this.json.columns.length;
-    var row = this.json.values[id];
-    var result = {};
-    var i;
+    const length = this.json.columns.length;
+    const row = this.json.values[id];
+    const result = {};
+    let i;
 
     for (i = 0; i < length; i++) {
-      var label = this.json.columns[i];
+      const label = this.json.columns[i];
 
       if (this.json.columns[i].startsWith('unique(') === true) {
-              result[label] = row[1][i][0];
+        result[label] = row[1][i][0];
       } else {
-              result[label] = row[1][i];
+        result[label] = row[1][i];
       }
     }
 

@@ -6,18 +6,18 @@ import * as s3export from './s3export/integrationOptions';
 // (e.g. plugin requires an array, but parser returns one element for one arg and an array for two)
 const PLUGINS = {
   s3export: {
-    integration: s3export.integrationOptions
+    integration: s3export.integrationOptions,
   },
 };
 
-const options = (key) => (pluginId) => {
+const options = key => pluginId => {
   const plugin = PLUGINS[pluginId];
-  const fn = (plugin && plugin[key]) || ((v) => v);
-  return (argv, init = { "options": null }) =>
+  const fn = (plugin && plugin[key]) || (v => v);
+  return (argv, init = {options: null}) =>
     argv.options || init.options
       ? fn(assignDeep({}, init.options || {}, argv.options || {}))
       : undefined;
 };
 
-export const integrationOptions = options("integration");
-export const connectionOptions = options("connection");
+export const integrationOptions = options('integration');
+export const connectionOptions = options('connection');

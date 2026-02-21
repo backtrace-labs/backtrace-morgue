@@ -33,8 +33,7 @@ function isPrimary(field: FieldConstraint): boolean {
   let primary = false;
 
   for (i = 0; i < field.constraints.length; i++) {
-    if (field.constraints[i] === 'primary')
-      primary = true;
+    if (field.constraints[i] === 'primary') primary = true;
     if (String(field.constraints[i]).indexOf('references ') > 0)
       primary = false;
   }
@@ -52,8 +51,7 @@ function generateKey(object: BPGObject): void {
   let field: string;
   let hasPrimary = false;
 
-  if (object._parent)
-    source = object._parent;
+  if (object._parent) source = object._parent;
 
   object._key = {};
 
@@ -69,9 +67,11 @@ function generateKey(object: BPGObject): void {
     const a = object._type[field].constraints;
 
     if (hasPrimary === true) {
-      if (a.indexOf('primary') === -1)
-        continue;
-    } else if (a.indexOf('unique') === -1 && a.indexOf('autoincrement') === -1) {
+      if (a.indexOf('primary') === -1) continue;
+    } else if (
+      a.indexOf('unique') === -1 &&
+      a.indexOf('autoincrement') === -1
+    ) {
       continue;
     }
 
@@ -82,9 +82,9 @@ function generateKey(object: BPGObject): void {
 class BPGObject {
   _typeName: string;
   _type: FieldType;
-  fields: { [key: string]: any };
+  fields: {[key: string]: any};
   _parent?: BPGObject;
-  _key?: { [key: string]: any };
+  _key?: {[key: string]: any};
 
   constructor(t: FieldType, name: string) {
     this._typeName = name;
@@ -108,7 +108,10 @@ class BPGObject {
   }
 
   get(field: string): any {
-    if (String(field).substring(0, 2) !== '__' && this.fields[field] === undefined)
+    if (
+      String(field).substring(0, 2) !== '__' &&
+      this.fields[field] === undefined
+    )
       throw Error('unknown field ' + field);
     return this.fields[field];
   }
@@ -116,8 +119,7 @@ class BPGObject {
   set(field: string, value: any, options?: BPGObjectOptions): void {
     let expectedType: string, type: string;
 
-    if (!options)
-      options = {};
+    if (!options) options = {};
 
     /*
      * If populating from server input, just set internal string values.
@@ -144,9 +146,15 @@ class BPGObject {
       throw Error('unknown type "' + type + '"');
     }
 
-    if (value !== null && typeof(value) !== expectedType) {
-      throw Error('type mismatch on field "' + field + '": ' +
-        typeof(value) + ' != ' + expectedType);
+    if (value !== null && typeof value !== expectedType) {
+      throw Error(
+        'type mismatch on field "' +
+          field +
+          '": ' +
+          typeof value +
+          ' != ' +
+          expectedType,
+      );
     }
 
     this.fields[field] = value;
@@ -166,12 +174,12 @@ class BPGObject {
    *
    */
   withFields(fields: any): BPGObject {
-    if (typeof(fields) != 'object') {
+    if (typeof fields !== 'object') {
       throw Error('withFields expect an object');
     }
 
     for (const field in fields) {
-      this.set(field, fields[field])
+      this.set(field, fields[field]);
     }
 
     return this;
@@ -180,11 +188,11 @@ class BPGObject {
 
 export class BPG {
   coronerd: CoronerdConfig;
-  id: { [key: string]: number };
+  id: {[key: string]: number};
   queue: any[];
   opts: any;
-  types: { [key: string]: FieldType };
-  objects: { [key: string]: BPGObject[] };
+  types: {[key: string]: FieldType};
+  objects: {[key: string]: BPGObject[]};
 
   constructor(coronerd: CoronerdConfig, opts?: any) {
     this.coronerd = coronerd;
@@ -198,20 +206,19 @@ export class BPG {
 
   post(payload: any): any {
     let url = this.coronerd.url + '/api/bpg';
-    const full_payload = { json: payload };
+    const full_payload = {json: payload};
 
-    if (this.coronerd.session)
-      url += '?token=' + this.coronerd.session.token;
+    if (this.coronerd.session) url += '?token=' + this.coronerd.session.token;
 
     if (this.opts.debug) {
-      console.error("POST " + url);
+      console.error('POST ' + url);
       console.error(JSON.stringify(full_payload, null, 4));
     }
 
-    let response = request('POST', url, full_payload);
+    const response = request('POST', url, full_payload);
 
     if (this.opts.debug) {
-      console.error("\nResponse:\n");
+      console.error('\nResponse:\n');
       console.error(response.body.toString('utf8'));
     }
     return response;
@@ -221,78 +228,76 @@ export class BPG {
     let response: any, json: any, f: any;
 
     response = this.post({
-      'actions' : [
+      actions: [
         {
-          'action' : 'schema',
-           'model' : 'configuration'
-        }
-      ]
+          action: 'schema',
+          model: 'configuration',
+        },
+      ],
     });
 
     json = JSON.parse(response.body);
-    if (json.error && json.error.message)
-      throw new Error(json.error.message);
+    if (json.error && json.error.message) throw new Error(json.error.message);
     if (Array.isArray(json.results) === false)
-      throw new Error("invalid BPG response");
+      throw new Error('invalid BPG response');
     this.types = json.results[0].result;
   }
 
   primary(type: string): number {
     let id: number;
 
-    if (this.id[type] === undefined)
-      this.id[type] = 0;
+    if (this.id[type] === undefined) this.id[type] = 0;
 
     id = this.id[type]++;
     return id;
   }
 
   new(type: string): BPGObject {
-    if (!this.types[type])
-      throw Error('unknown type "' + type + '"');
+    if (!this.types[type]) throw Error('unknown type "' + type + '"');
 
     return new BPGObject(this.types[type], type);
   }
 
-  enqueue(a: string, object: BPGObject, fields: any, options?: BPGObjectOptions): void {
+  enqueue(
+    a: string,
+    object: BPGObject,
+    fields: any,
+    options?: BPGObjectOptions,
+  ): void {
     let cascade = false;
     let key: any;
 
-    if (a !== 'create' &&
-        a !== 'modify' &&
-        a !== 'delete') {
+    if (a !== 'create' && a !== 'modify' && a !== 'delete') {
       throw Error('unknown action');
     }
 
-    if (fields !== null && typeof fields != 'object')
-      throw Error('fields must be a dict')
+    if (fields !== null && typeof fields !== 'object')
+      throw Error('fields must be a dict');
     /*
      * Construct key object from parent, otherwise construct from
      * child.
      */
     generateKey(object);
     key = object._key;
-    if (options && options.key)
-      key = options.key;
+    if (options && options.key) key = options.key;
 
-    if (options && options.cascade)
-      cascade = options.cascade;
+    if (options && options.cascade) cascade = options.cascade;
 
     if (fields) {
       this.queue.push({
         action: a,
-          type: 'configuration/' + object._typeName,
-           key: key,
-       cascade: cascade,
-        fields: fields
+        type: 'configuration/' + object._typeName,
+        key: key,
+        cascade: cascade,
+        fields: fields,
       });
     } else {
       this.queue.push({
         action: a,
-          type: 'configuration/' + object._typeName,
-           key: key,
-       cascade: cascade,
-        object: object.fields
+        type: 'configuration/' + object._typeName,
+        key: key,
+        cascade: cascade,
+        object: object.fields,
       });
     }
   }
@@ -309,7 +314,7 @@ export class BPG {
     this.enqueue('delete', object, null, options);
   }
 
-  get(): { [key: string]: BPGObject[] } {
+  get(): {[key: string]: BPGObject[]} {
     let response: any, json: any, f: string, i: number;
     const queue: any[] = [];
     const types: string[] = [];
@@ -317,15 +322,19 @@ export class BPG {
     this.objects = {};
 
     for (f in this.types) {
-      queue.push({ action: 'get', type: 'configuration/' + f});
+      queue.push({action: 'get', type: 'configuration/' + f});
       types.push(f);
     }
 
-    response = this.post({ 'actions' : queue });
+    response = this.post({actions: queue});
 
     json = JSON.parse(response.body);
     if (json.error && json.error.code === 5) {
-      console.log(chalk.bold.blue('Run setup one more time to receive setup instructions'));
+      console.log(
+        chalk.bold.blue(
+          'Run setup one more time to receive setup instructions',
+        ),
+      );
       process.exit(0);
     }
 
@@ -334,8 +343,7 @@ export class BPG {
       for (j = 0; j < json.results[i].result.length; j++) {
         let bo: BPGObject;
 
-        if (!this.objects[types[i]])
-          this.objects[types[i]] = [];
+        if (!this.objects[types[i]]) this.objects[types[i]] = [];
 
         bo = new BPGObject(this.types[types[i]], types[i]);
         bo.populate(json.results[i].result[j]);
@@ -353,7 +361,7 @@ export class BPG {
 
     this.queue = [];
 
-    response = this.post({ 'actions' : queue });
+    response = this.post({actions: queue});
     json = JSON.parse(response.body);
     for (i = 0; i < json.results.length; i++) {
       if (json.results[i].text !== 'success') {
@@ -367,7 +375,7 @@ export class BPG {
 
     this.queue = [];
 
-    const response = this.post({ 'actions' : queue });
+    const response = this.post({actions: queue});
     const json = JSON.parse(response.body);
     for (let i = 0; i < json.results.length; i++) {
       if (json.results[i].text !== 'success') {
