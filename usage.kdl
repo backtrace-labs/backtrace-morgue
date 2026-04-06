@@ -543,6 +543,7 @@ cmd "list" help="Query and list objects with filters and aggregations" {
         arg "<file>"
     }
     flag "--json" help="Output JSON format"
+    flag "--query" help="Show the built query JSON and exit without performing the request"
     flag "--verbose" help="Show detailed query performance data"
 
     before_long_help #"""
