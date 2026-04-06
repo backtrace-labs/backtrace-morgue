@@ -1143,6 +1143,13 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             cmd "filter" {
                 arg "<filter>" help="Filter string"
 
+                flag "--take" help="Number of logs" {
+                    arg "<n>"
+                }
+                flag "--page" help="Page number" {
+                    arg "<n>"
+                }
+
                 after_long_help #"""
                     Example:
 
@@ -1808,6 +1815,10 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
 
 cmd "setup" help="Configure initial organization and user for on-premise server" {
     arg "<url>" help="Server URL"
+
+    flag "--setup-json" help="Path to JSON file with setup configuration" hide=#true {
+        arg "<file>"
+    }
 }
 
 cmd "nuke" help="Delete object and dependencies" {
@@ -1956,6 +1967,16 @@ cmd "callstack" subcommand_required=#true help="Evaluate callstack processing" {
     cmd "evaluate" help="Check callstack results" {
         arg "<project>" help="Project name"
         arg "<target>" help="Object ID or JSON file"
+
+        flag "--name" help="Callstack format name" {
+            arg "<name>"
+        }
+        flag "--language" help="Language filter" {
+            arg "<language>"
+        }
+        flag "--platform" help="Platform filter" {
+            arg "<platform>"
+        }
     }
 }
 
@@ -2167,9 +2188,133 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--rename" help="New name" {
                 arg "<name>"
             }
+            flag "--enabled" help="Enable/disable alert" {
+                arg "<bool>"
+            }
+            flag "--query-period" help="Query period" {
+                arg "<time>"
+            }
+            flag "--min-notification-interval" help="Min notification interval" {
+                arg "<time>"
+            }
+            flag "--mute-until" help="Mute until timestamp" {
+                arg "<ts>"
+            }
+            flag "--target-name" help="Target name" var=#true {
+                arg "<name>"
+            }
+            flag "--target-id" help="Target ID" var=#true {
+                arg "<id>"
+            }
+            flag "--trigger" help="Trigger spec: column,index,op,warn,crit" {
+                arg "<spec>"
+            }
             flag "--replace-query" help="Replace query"
             flag "--clear-targets" help="Clear targets"
-            // Other update flags
+            // argvQuery
+            // Filters
+            flag "--filter" help="Filter expression: attribute,operation,value" {
+                arg "<filter>"
+            }
+            // Pagination
+            flag "--limit" help="Number of rows to return" {
+                arg "<n>"
+            }
+            flag "--offset" help="Skip first N rows" {
+                arg "<n>"
+            }
+            // Selection
+            flag "--select" help="Select specific attributes" var=#true {
+                arg "<attribute>"
+            }
+            flag "--select-wildcard" help="Select all attributes of the given type" {
+                arg "<type>" {
+                    choices physical derived virtual
+                }
+            }
+            // Aggregations
+            flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
+                arg "<time>"
+            }
+            flag "--time" help="Time range using natural language" {
+                arg "<range>"
+            }
+            flag "--unique" help="Count distinct values" {
+                arg "<attribute>"
+            }
+            flag "--histogram" help="Show all distinct values" {
+                arg "<attribute>"
+            }
+            flag "--distribution" help="Show truncated histogram" {
+                arg "<attribute>"
+            }
+            flag "--mean" help="Calculate mean" {
+                arg "<attribute>"
+            }
+            flag "--sum" help="Sum all values" {
+                arg "<attribute>"
+            }
+            flag "--range" help="Show min and max values" {
+                arg "<attribute>"
+            }
+            flag "--count" help="Count non-null values" {
+                arg "<attribute>"
+            }
+            flag "--bin" help="Linear histogram of values" {
+                arg "<attribute>"
+            }
+            flag "--head" help="First value in factor" {
+                arg "<attribute>"
+            }
+            flag "--tail" help="Last value in factor" {
+                arg "<attribute>"
+            }
+            flag "--object" help="Maximum object identifier" {
+                arg "<attribute>"
+            }
+            // Aggregations (undocumented)
+            flag "--last" help="Last object identifier" hide=#true {
+                arg "<attribute>"
+            }
+            flag "--first" help="First object identifier" hide=#true {
+                arg "<attribute>"
+            }
+            flag "--min" help="Min object identifier" hide=#true {
+                arg "<attribute>"
+            }
+            flag "--max" help="Max object identifier" hide=#true {
+                arg "<attribute>"
+            }
+            // Sorting
+            flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
+                arg "<term>"
+            }
+            // Computed Views
+            flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
+                arg "<spec>"
+            }
+            // Not documented
+            flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
+                arg "<query>"
+            }
+            flag "--table" help="Table to query against" hide=#true {
+                arg "<query>"
+            }
+            flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
+                arg "<query>"
+            }
+            flag "--reverse" help="Reverse sort order" {
+                arg "<attribute>"
+            }
+            flag "--template" help="TODO: (ex: select)" { // TODO
+                arg "<attribute>"
+            }
+            flag "--factor" help="Group by attribute" {
+                arg "<attribute>"
+            }
+            flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+                arg "<value>"
+            }
         }
 
         cmd "delete" help="Delete alert" {
@@ -2642,6 +2787,9 @@ cmd "deduplication" help="Manage deduplication rules" hide=#true {
         }
         flag "--platform" help="Platform filter" {
             arg "<platform>"
+        }
+        flag "--owner" help="Owner user ID" hide=#true {
+            arg "<uid>"
         }
     }
 

@@ -1124,6 +1124,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   cmd_symbold_symbolserver_logs.command('filter')
     .argument('<id>', 'id')
     .argument('<filter>', 'filter')
+    .option('--take <take>', 'Number of logs')
+    .option('--page <page>', 'Page number')
     .action((id, filter, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1131,6 +1133,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
         globalOptions: g,
         id,
         filter,
+        take: opts['take'],
+        page: opts['page'],
       } satisfies SymboldSymbolserverLogsFilterCommand;
     });
   cmd_symbold_skiplist_remove.command('all')
@@ -1573,12 +1577,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- setup ---
   program.command('setup')
     .argument('<url>', 'url')
+    .addOption(new Option('--setup-json <setup-json>', 'Path to JSON file with setup configuration').hideHelp(!revealHidden))
     .action((url, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
         kind: 'setup',
         globalOptions: g,
         url,
+        setupJson: opts['setupJson'],
       } satisfies SetupCommand;
     });
 
@@ -1786,6 +1792,9 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   cmd_callstack.command('evaluate')
     .argument('<project>', 'project')
     .argument('<target>', 'target')
+    .option('--name <name>', 'Callstack format name')
+    .option('--language <language>', 'Language filter')
+    .option('--platform <platform>', 'Platform filter')
     .action((project, target, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1793,6 +1802,9 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
         globalOptions: g,
         project,
         target,
+        name: opts['name'],
+        language: opts['language'],
+        platform: opts['platform'],
       } satisfies CallstackEvaluateCommand;
     });
 
@@ -2126,7 +2138,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--id <id>', 'Alert ID')
     .option('--name <name>', 'Alert name')
     .option('--rename <rename>', 'New name')
-    .option('--enabled <enabled>', 'Enable alert')
+    .option('--enabled <enabled>', 'Enable/disable alert')
     .option('--query-period <query-period>', 'Query period')
     .option('--min-notification-interval <min-notification-interval>', 'Min notification interval')
     .option('--mute-until <mute-until>', 'Mute until timestamp')
@@ -2774,6 +2786,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--rules <rules>', 'Rules JSON file')
     .option('--priority <priority>', 'Rule priority')
     .option('--platform <platform>', 'Platform filter')
+    .addOption(new Option('--owner <owner>', 'Owner user ID').hideHelp(!revealHidden))
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -2784,6 +2797,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
         rules: opts['rules'],
         priority: opts['priority'],
         platform: opts['platform'],
+        owner: opts['owner'],
       } satisfies DeduplicationAddCommand;
     });
   cmd_deduplication.command('delete', { hidden: !revealHidden })

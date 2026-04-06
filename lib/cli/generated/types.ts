@@ -257,6 +257,8 @@ export interface SymboldSymbolserverLogsFilterCommand {
   globalOptions: GlobalOptions;
   id: string;
   filter: string;
+  take?: string;
+  page?: string;
 }
 
 export interface SymboldSymbolserverAddCommand {
@@ -612,6 +614,7 @@ export interface SetupCommand {
   kind: 'setup';
   globalOptions: GlobalOptions;
   url: string;
+  setupJson?: string;
 }
 
 export interface NukeCommand {
@@ -723,6 +726,9 @@ export interface CallstackEvaluateCommand {
   globalOptions: GlobalOptions;
   project: string;
   target: string;
+  name?: string;
+  language?: string;
+  platform?: string;
 }
 
 export interface AccessTeamCreateCommand {
@@ -1201,6 +1207,7 @@ export interface DeduplicationAddCommand {
   rules: string;
   priority?: string;
   platform?: string;
+  owner?: string;
 }
 
 /** @internal Hidden command */
