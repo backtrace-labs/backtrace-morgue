@@ -2593,14 +2593,157 @@ cmd "error" help="Throw test error" hide=#true {
     arg "<message>" help="Error message"
 }
 
-cmd "log" help="Show changelog" hide=#true
-cmd "audit" help="Audit log operations" hide=#true
-cmd "bpg" help="Binary protocol operations" hide=#true
-cmd "control" help="Control operations" hide=#true
-cmd "deduplication" help="Deduplication operations" hide=#true
-cmd "latency" help="Latency testing" hide=#true
-cmd "cts" help="CTS operations" hide=#true
-cmd "session" help="Session operations" hide=#true
-cmd "limit" help="Limit operations" hide=#true
-cmd "service" help="Service operations" hide=#true
-cmd "status" help="Status operations" hide=#true
+cmd "log" help="Managed log operations" hide=#true {
+    cmd "list" help="List available logs"
+    cmd "activate" help="Activate a log" {
+        arg "<name>" help="Log name"
+    }
+    cmd "deactivate" help="Deactivate a log" {
+        arg "<name>" help="Log name"
+    }
+    cmd "extract" help="Extract log entries" {
+        arg "<name>" help="Log name"
+        flag "--json" help="Output JSON format"
+        flag "--table" help="Output as table"
+    }
+}
+
+cmd "audit" help="Audit log operations" hide=#true {
+    cmd "extract" help="Extract audit log" {
+        flag "--json" help="Output JSON format"
+        flag "--table" help="Output as table"
+    }
+}
+cmd "bpg" help="BPG operations" hide=#true {
+    flag "--raw" help="Raw BPG JSON request" {
+        arg "<json>"
+    }
+
+    cmd "list" help="List BPG objects of a given type" {
+        arg "<type>" help="BPG type (e.g. configuration/project)"
+    }
+}
+cmd "control" help="Trigger control operations" hide=#true {
+    flag "--smr" help="Trigger grace period"
+}
+
+cmd "deduplication" help="Manage deduplication rules" hide=#true {
+    arg "<project>" help="Universe/project"
+
+    cmd "add" help="Add deduplication rules" {
+        flag "--name" help="Rule name" required=#true {
+            arg "<name>"
+        }
+        flag "--rules" help="Rules JSON file" required=#true {
+            arg "<file>"
+        }
+        flag "--priority" help="Rule priority" {
+            arg "<n>"
+        }
+        flag "--platform" help="Platform filter" {
+            arg "<platform>"
+        }
+    }
+
+    cmd "delete" help="Delete deduplication rule" {
+        flag "--name" help="Rule name" required=#true {
+            arg "<name>"
+        }
+    }
+
+    cmd "modify" help="Modify deduplication rule" {
+        flag "--name" help="Rule name" required=#true {
+            arg "<name>"
+        }
+        flag "--rules" help="Rules JSON file" {
+            arg "<file>"
+        }
+        flag "--priority" help="Rule priority" {
+            arg "<n>"
+        }
+    }
+
+    cmd "list" help="List deduplication rules" {
+        flag "--name" help="Filter by rule name" {
+            arg "<name>"
+        }
+        flag "--verbose" help="Show detailed rule info"
+    }
+}
+
+cmd "latency" help="Latency histogram testing" hide=#true {
+    cmd "list" help="List available histograms" {
+        arg "[pattern]" help="Regex filter" required=#false
+    }
+    cmd "activate" help="Activate histogram" {
+        arg "<name>" help="Histogram name"
+        flag "--samples" help="Number of samples" {
+            arg "<n>"
+        }
+    }
+    cmd "deactivate" help="Deactivate histogram" {
+        arg "<name>" help="Histogram name"
+    }
+    cmd "extract" help="Extract histogram data" {
+        arg "<name>" help="Histogram name"
+        flag "--raw" help="Output raw values"
+    }
+}
+
+cmd "cts" help="Set marker for uniquely introduced issues" hide=#true {
+    arg "<project>" help="Project name"
+    arg "<attribute>" help="Attribute name"
+    arg "<value>" help="Target value"
+    flag "--query" help="Show query JSON without executing"
+}
+
+cmd "session" help="Manage session resource overrides" hide=#true {
+    cmd "list" help="List active sessions" {
+        flag "--scope" help="Session scope" {
+            arg "<scope>" {
+                choices global user session
+            }
+        }
+        flag "-g" help="Shorthand for --scope=global"
+        flag "-u" help="Shorthand for --scope=user"
+        flag "-s" help="Shorthand for --scope=session"
+    }
+    cmd "set" help="Set resource override values" {
+        arg "<resources_json>" help="JSON object of resources"
+        flag "--persist" help="Persist to configuration" {
+            arg "<scope>" {
+                choices universe user
+            }
+        }
+        flag "--uid" help="User ID for persistence" {
+            arg "<uid>"
+        }
+    }
+    cmd "unset" help="Unset resource override values" {
+        arg "<resource_names>" help="Resource names to unset" var=#true
+    }
+}
+
+cmd "limit" help="Manage submission limits" hide=#true {
+    cmd "list" help="List current limits"
+    cmd "reset" help="Reset limits for a universe"
+    cmd "delete" help="Delete limits for a universe"
+    cmd "create" help="Create submission limit" {
+        flag "--submissions" help="Submission limit" required=#true {
+            arg "<n>"
+        }
+        flag "--metadata" help="Metadata JSON" {
+            arg "<json>"
+        }
+    }
+}
+
+cmd "service" help="Service layer operations" hide=#true {
+    cmd "list" help="List services"
+    cmd "status" help="Get service status"
+    cmd "rescan" help="Rescan services"
+}
+
+cmd "status" help="Server status operations" hide=#true {
+    cmd "reload" help="Get reload status"
+}
