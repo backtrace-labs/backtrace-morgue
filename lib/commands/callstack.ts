@@ -40,9 +40,9 @@ function coronerCallstackParams(cmd: CallstackEvaluateCommand, p, action) {
     },
     p,
   );
-  if ((cmd as any).name) csparams.name = (cmd as any).name;
-  if ((cmd as any).language) csparams.language = (cmd as any).language;
-  if ((cmd as any).platform) csparams.platform = (cmd as any).platform;
+  if (cmd.name) csparams.name = cmd.name;
+  if (cmd.language) csparams.language = cmd.language;
+  if (cmd.platform) csparams.platform = cmd.platform;
   return csparams;
 }
 
@@ -254,7 +254,7 @@ function setupDeduplication(cmd: any, config: any) {
   }
 
   let owner = coroner.config.user.uid;
-  if ((cmd as any).owner !== undefined) owner = parseInt((cmd as any).owner);
+  if ('owner' in cmd && cmd.owner !== undefined) owner = parseInt(cmd.owner);
 
   const rules = bpg.new('deduplication');
 

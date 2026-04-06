@@ -69,8 +69,8 @@ export class SymboldSymbolServer {
   getLogsByFilter(cmd: SymboldSymbolserverLogsFilterCommand) {
     const symbolServerId = cmd.id;
     const filter = cmd.filter;
-    const page = (cmd as any).page ?? '0';
-    const take = (cmd as any).take ?? '10';
+    const page = cmd.page ?? '0';
+    const take = cmd.take ?? '10';
     if (this.symboldClient.debug) {
       console.log('Trying to fetch symbol server logs. Parameters');
       console.log({symbolServerId, page, take, filter});

@@ -54,8 +54,8 @@ function handleReprocess(cmd: ReprocessCommand, config: any): any {
     action: 'reload',
   };
 
-  if (cmd.first) params.first = oidToString(cmd.first as any);
-  if (cmd.last) params.last = oidToString(cmd.last as any);
+  if (cmd.first) params.first = cmd.first;
+  if (cmd.last) params.last = cmd.last;
 
   // Check for target objects vs query filter
   const targets = cmd.target || [];

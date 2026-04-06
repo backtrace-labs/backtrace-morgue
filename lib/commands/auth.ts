@@ -2,7 +2,7 @@ import promptLib from 'prompt';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as config from '../config';
-import type {LoginCommand, LogoutCommand, SetupCommand} from '../cli/generated/types';
+import type {LoginCommand, LogoutCommand, SetupCommand, GlobalOptions} from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerClient, coronerBpgFromGlobal, saveConfig} from '../cli/context';
 import {usage} from '../cli/util';
@@ -177,8 +177,8 @@ async function coronerSetupUniverse(coroner, bpg, setupCfg): Promise<any> {
 function coronerSetupStart(coroner: any, cmd: SetupCommand): any {
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   let setupCfg;
-  if ((cmd as any).setup_json && fs.existsSync((cmd as any).setup_json)) {
-    setupCfg = JSON.parse(fs.readFileSync((cmd as any).setup_json, 'utf8'));
+  if (cmd.setupJson && fs.existsSync(cmd.setupJson)) {
+    setupCfg = JSON.parse(fs.readFileSync(cmd.setupJson, 'utf8'));
   }
 
   coronerSetupNext(coroner, bpg, setupCfg)
@@ -210,7 +210,7 @@ function loginComplete(coroner, cmd, err, cb) {
   return;
 }
 
-function coronerLogin(cmd: LoginCommand, config: any, cb?) {
+function coronerLogin(cmd: {url: string; globalOptions: GlobalOptions}, config: any, cb?) {
   const endpoint = cmd.url;
 
   if (!endpoint) {
@@ -320,7 +320,7 @@ function coronerSetup(cmd: SetupCommand, config: any): any {
       process.stderr.write(green('configured\n\n'));
 
       console.log(bold('Please login to continue setup.'));
-      return coronerLogin(cmd as any, config, coronerSetupStart);
+      return coronerLogin(cmd, config, coronerSetupStart);
     } else {
       process.stderr.write(
         red("\n\nUnexpected response when checking the server's status.\n\n"),
