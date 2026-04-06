@@ -1,8 +1,19 @@
 import * as config from '../config';
 import {err, errx, success_color, error_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerBpgSetup, coronerParams} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  coronerBpgFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {bpgPost, bpgObjectFind, std_failure_cb} from '../cli/bpg-helpers';
 import * as timeCli from '../cli/time';
+import type {
+  RetentionListCommand,
+  RetentionSetCommand,
+  RetentionClearCommand,
+  RetentionStatusCommand,
+} from '../cli/generated/types';
 
 function retentionUsage(str?: string): never {
   if (str) err(str + '\n');
@@ -147,7 +158,7 @@ function normalizeRetentionParam(param: any): string[] {
   return param;
 }
 
-function retentionSet(bpg, objects, argv, config): any {
+function retentionSet(bpg, objects, cmd: RetentionSetCommand, config): any {
   const act_obj: any = {};
   let rules = [
     {
@@ -155,43 +166,39 @@ function retentionSet(bpg, objects, argv, config): any {
       actions: [{type: 'delete-all'}],
     },
   ];
-  const rtn_ptype = argv.type || 'project';
+  const rtn_ptype = cmd.type || 'project';
   const rtn_type = retentionTypeFor(rtn_ptype);
-  let rtn_pname = null;
+  let rtn_pname: string | null = cmd.name;
   let rtn_parent = null;
   let rtn_parent_id = null;
   let obj = null;
-  let max_age = argv['max-age'];
-  let physical_only = argv['physical-only'];
-
-  /* If argv.rules is not specified, assume only one rule. */
-  if (argv.rules === undefined) argv.rules = 1;
 
   /* Normalize inputs.  Make all parameters arrays of strings. */
-  argv.age = normalizeRetentionParam(argv.age);
-  argv.compress = normalizeRetentionParam(argv.compress);
-  argv.delete = normalizeRetentionParam(argv.delete);
+  const n_rules = cmd.rules ? parseInt(cmd.rules) : 1;
+  const ageArr = normalizeRetentionParam(cmd.age);
+  const compressArr = normalizeRetentionParam(cmd.compress);
+  const deleteArr = normalizeRetentionParam(cmd.delete);
 
   /* Convert the old-style --max-age argument to new-style --age. */
-  max_age = normalizeRetentionParam(max_age);
-  for (const mage of max_age) {
+  const maxAgeArr = normalizeRetentionParam(cmd.maxAge);
+  for (const mage of maxAgeArr) {
     const fields = mage.split(',');
     if (fields.length === 1) {
-      argv.age.push(`0,at-least,${mage}`);
+      ageArr.push(`0,at-least,${mage}`);
     } else {
-      const [ruleId, fields] = checkRuleId(argv.rules, 'max-age', mage);
-      argv.age.push(`${ruleId},at-least,${fields.join(',')}`);
+      const [ruleId, rest] = checkRuleId(n_rules, 'max-age', mage);
+      ageArr.push(`${ruleId},at-least,${rest.join(',')}`);
     }
   }
 
   /* Convert the old-style --physical-only to new-style --delete. */
-  physical_only = normalizeRetentionParam(physical_only);
-  for (const po of physical_only) {
+  const physicalOnlyArr = normalizeRetentionParam(cmd.physicalOnly);
+  for (const po of physicalOnlyArr) {
     const ruleId = getRuleId(po);
     if (isNaN(ruleId)) {
-      argv.delete.push('0,physical');
+      deleteArr.push('0,physical');
     } else {
-      argv.delete.push(`${ruleId},physical`);
+      deleteArr.push(`${ruleId},physical`);
     }
   }
 
@@ -200,25 +207,25 @@ function retentionSet(bpg, objects, argv, config): any {
    * Make sure every parameter, if specified for a rule, has a valid rule id.
    */
   rules = [];
-  for (let i = 0; i < argv.rules; i++) rules[i] = {criteria: [], actions: []};
+  for (let i = 0; i < n_rules; i++) rules[i] = {criteria: [], actions: []};
 
-  for (const a of argv.age) {
-    const [ruleId, fields] = checkRuleId(argv.rules, 'age', a);
+  for (const a of ageArr) {
+    const [ruleId, fields] = checkRuleId(n_rules, 'age', a);
     const [op, time, time_end] = fields;
     const params: any = {op, time: timeCli.timespecToSeconds(time).toString()};
     if (time_end)
       params.time_end = timeCli.timespecToSeconds(time_end).toString();
     addCriterion(rules[ruleId], 'object-age', params);
   }
-  for (const d of argv.delete) {
-    const [ruleId, fields] = checkRuleId(argv.rules, 'delete', d);
+  for (const d of deleteArr) {
+    const [ruleId, fields] = checkRuleId(n_rules, 'delete', d);
     const [subset] = fields;
     const params: any = {};
     if (subset) params.subsets = [subset];
     addAction(rules[ruleId], 'delete-all', params);
   }
-  for (const d of argv.compress) {
-    const [ruleId, fields] = checkRuleId(argv.rules, 'compress', d);
+  for (const d of compressArr) {
+    const [ruleId, fields] = checkRuleId(n_rules, 'compress', d);
     addAction(rules[ruleId], 'compress');
   }
 
@@ -238,18 +245,12 @@ function retentionSet(bpg, objects, argv, config): any {
 
   /* Determine the target policy being set. */
   if (rtn_type === 'instance_retention') {
-    if (argv._.length > 0) {
-      return retentionUsage('Instances do not have names.');
-    }
-  } else {
-    if (argv._.length != 1) {
-      return retentionUsage('Must specify namespace name.');
-    }
-    rtn_pname = argv._[0];
+    /* Instances do not have names; name is required by the type but
+     * for instance type it should be empty/ignored. */
   }
 
   /* Determine whether a create or update is needed. */
-  if (rtn_pname) {
+  if (rtn_pname && rtn_type !== 'instance_retention') {
     const id_attr = rtn_ptype === 'project' ? 'pid' : 'id';
     rtn_parent = retentionParent(objects, rtn_ptype, rtn_pname);
     if (!rtn_parent) {
@@ -279,7 +280,7 @@ function retentionSet(bpg, objects, argv, config): any {
     }
   }
 
-  if (argv.dryrun) {
+  if (cmd.dryrun) {
     console.log('# BPG command that would be executed:');
     console.log(JSON.stringify({actions: [act_obj]}, null, 4));
     return;
@@ -294,15 +295,16 @@ function retentionSet(bpg, objects, argv, config): any {
   });
 }
 
-function retentionClear(bpg, objects, argv, config) {
-  /* Currently, this is essentially set(rules=0). */
-  argv.rules = 0;
-  return retentionSet(bpg, objects, argv, config);
-}
-
-function retentionNoString(reason: any, argv: any): string {
-  if (!argv || !argv.debug) return null;
-  return 'max age: unspecified (' + reason + ')';
+function retentionClear(bpg, objects, cmd: RetentionClearCommand, config) {
+  /* Clear is essentially set with zero rules. */
+  const setCmd: RetentionSetCommand = {
+    kind: 'retention.set',
+    globalOptions: cmd.globalOptions,
+    name: cmd.name,
+    type: cmd.type,
+    rules: '0',
+  };
+  return retentionSet(bpg, objects, setCmd, config);
 }
 
 function ageCritToString(crit: any): string {
@@ -320,10 +322,6 @@ function deleteActToString(act: any): string {
 function compressActToString(act: any): string {
   const actstr = 'compress';
   return actstr;
-}
-
-function ruleString(num: any, s: any): string {
-  return `rule #${num}: ${s}`;
 }
 
 function ruleToString(rule: any): string {
@@ -355,10 +353,8 @@ function ruleToString(rule: any): string {
   return s;
 }
 
-function retentionToStrings(r_obj: any, argv: any): string[] {
+function retentionToStrings(r_obj: any): string[] {
   const rules = JSON.parse(r_obj.get('rules'));
-  let rule;
-  let s;
 
   if (Array.isArray(rules) === false || rules.length === 0) return null;
 
@@ -375,22 +371,16 @@ function retentionListRules(spaces: any, rules: any): string {
 }
 
 function retentionListNamespaceRules(ns_obj: any, rules: any): string {
-  const s = `${ns_obj.get('name')}:`;
-
   return `  ${ns_obj.get('name')}:${retentionListRules('    ', rules)}`;
 }
 
-function retentionList(bpg, objects, argv, config): any {
+function retentionList(bpg, objects): any {
   let r;
   let count = 0;
   let before = 0;
 
-  if (argv._.length > 0) {
-    return retentionUsage('List does not take any arguments.');
-  }
-
   if ((r = objects['instance_retention'])) {
-    const rules = retentionToStrings(r[0], argv);
+    const rules = retentionToStrings(r[0]);
     if (rules) {
       console.log(`Instance-level:${retentionListRules('  ', rules)}`);
     }
@@ -404,7 +394,7 @@ function retentionList(bpg, objects, argv, config): any {
         'universe',
         r_obj.get('universe'),
       );
-      const rules = retentionToStrings(r_obj, argv);
+      const rules = retentionToStrings(r_obj);
       if (rules) {
         if (count === before) console.log('Universe-level:');
         count++;
@@ -417,7 +407,7 @@ function retentionList(bpg, objects, argv, config): any {
     before = count;
     r.forEach(r_obj => {
       const project = bpgObjectFind(objects, 'project', r_obj.get('project'));
-      const rules = retentionToStrings(r_obj, argv);
+      const rules = retentionToStrings(r_obj);
       if (rules) {
         if (count === before) console.log('Project-level:');
         count++;
@@ -543,7 +533,6 @@ function compressActStatus(act: any): string {
 
 function ruleTaskStatus(rule: any): string {
   const items = [];
-  const str = '';
   if (rule.enabled !== undefined)
     items.push(rule.enabled ? 'enabled' : 'disabled');
   if (rule.target !== undefined) {
@@ -558,11 +547,11 @@ function ruleTaskStatus(rule: any): string {
   return 'status[' + items.join(', ') + ']';
 }
 
-function ruleStatusInstances(rule, argv, exp_off, spaces) {
+function ruleStatusInstances(rule, cmd: RetentionStatusCommand, exp_off, spaces) {
   let num_shown = 0;
   let num_excluded = 0;
 
-  if (!argv.instances) return;
+  if (!cmd.instances) return;
 
   if (!rule.next_object || !rule.next_object.instances) return;
 
@@ -574,7 +563,7 @@ function ruleStatusInstances(rule, argv, exp_off, spaces) {
       continue;
     }
     /* Skip namespaces that don't keep objects. */
-    if (!argv.includeall) {
+    if (!cmd.includeall) {
       if (noi.namespace.endsWith('/symbols')) {
         num_excluded++;
         continue;
@@ -607,23 +596,24 @@ function ruleStatusInstances(rule, argv, exp_off, spaces) {
     instances.splice(index, 0, noi);
   }
 
+  const verbosity = cmd.verbose ? 1 : 0;
   for (let i = 0; i < instances.length; i++) {
     const exp_data = {next_object: instances[i], off: exp_off};
-    const s = oiiToString(exp_data, argv.verbose);
+    const s = oiiToString(exp_data, verbosity);
     if (s) {
       if (num_shown === 0) console.log(`${spaces}namespace instances:`);
       num_shown++;
       console.log(spaces + `-> ${s}`);
     }
   }
-  if (num_shown != rule.next_object.instances.length && argv.verbose >= 2) {
+  if (num_shown != rule.next_object.instances.length && verbosity >= 2) {
     const diff = rule.next_object.instances.length - num_shown - num_excluded;
     if (diff !== 0)
       console.log(`${spaces}namespace instances: ${diff} not shown`);
   }
 }
 
-function ruleStatus(rule, argv, spaces) {
+function ruleStatus(rule, cmd: RetentionStatusCommand, spaces) {
   const exp_data = rule.criteria.reduce(
     (exp_data, crit) => {
       if (exp_data.off === 0) {
@@ -639,7 +629,8 @@ function ruleStatus(rule, argv, spaces) {
 
   if (!exp_data.next_object) exp_data.next_object = rule.next_object;
 
-  const top_status = oiiToString(exp_data, argv.verbose || 0);
+  const verbosity = cmd.verbose ? 1 : 0;
+  const top_status = oiiToString(exp_data, verbosity);
   console.log(spaces + `rule: next_object[${top_status}]`);
 
   /* Indent rule metadata a bit. */
@@ -666,11 +657,11 @@ function ruleStatus(rule, argv, spaces) {
   s += ']';
 
   console.log(spaces + s);
-  if (argv.verbose >= 3) console.log(spaces + `${ruleTaskStatus(rule)}`);
-  ruleStatusInstances(rule, argv, exp_data.off, spaces);
+  if (verbosity >= 3) console.log(spaces + `${ruleTaskStatus(rule)}`);
+  ruleStatusInstances(rule, cmd, exp_data.off, spaces);
 }
 
-function retentionStatusDump(argv, obj, name, level, indent) {
+function retentionStatusDump(cmd: RetentionStatusCommand, obj, name, level, indent) {
   let header, i;
   let spaces = '';
 
@@ -679,13 +670,13 @@ function retentionStatusDump(argv, obj, name, level, indent) {
   for (i = 0; i < indent; i++) spaces += ' ';
   header = spaces + level;
   if (name) header += ' ' + name;
-  if (obj.state !== 'not installed' || !argv.recursive || argv.debug)
+  if (obj.state !== 'not installed' || !cmd.recursive || cmd.globalOptions.debug)
     console.log(header + ': policy state: ' + obj.state);
   spaces += '  ';
 
   if (obj.state !== 'not installed') {
     for (const rule of obj.rules) {
-      ruleStatus(rule, argv, spaces);
+      ruleStatus(rule, cmd, spaces);
     }
   }
   if (typeof obj.children === 'object') {
@@ -693,7 +684,7 @@ function retentionStatusDump(argv, obj, name, level, indent) {
     const sublevel = retentionSublevel(level);
     for (i = 0; sublevel !== null && i < keys.length; i++) {
       retentionStatusDump(
-        argv,
+        cmd,
         obj.children[keys[i]],
         keys[i],
         sublevel,
@@ -707,15 +698,14 @@ function retentionStatusDump(argv, obj, name, level, indent) {
  * retention status [--type universe|project] [name]
  * -> api/control?action=rpstatus, parse response JSON
  */
-function retentionStatus(coroner, argv, config) {
+function retentionStatus(cmd: RetentionStatusCommand, config) {
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const params: any = {action: 'rpstatus'};
-  const name = argv._[0];
-  const type = argv.type;
+  const name = cmd.name;
+  const type = cmd.type;
   let level = 'instance';
 
-  if (argv.recursive) params.recursive = true;
-
-  if (argv._.length > 1) return usageRetentionStatus();
+  if (cmd.recursive) params.recursive = true;
 
   if (type != undefined) {
     if (type !== 'project' && type !== 'universe')
@@ -726,66 +716,90 @@ function retentionStatus(coroner, argv, config) {
   }
 
   if (name !== undefined) {
-    const p = coronerParams({_: [null, name]}, config);
-    let tmp;
-    /* coronerParams parses name; check type for any needed overrides. */
-    if (type === 'project') {
-      p.project = name;
-    } else if (type === 'universe') {
-      p.universe = name;
-      delete p.project;
+    /* Parse the name to extract universe/project. */
+    const split = name.split('/');
+    let p_universe: string | undefined;
+    let p_project: string | undefined;
+
+    if (split.length === 2) {
+      p_universe = split[0];
+      p_project = split[1];
+    } else {
+      /* Single name: look up as project in default universe. */
+      let first;
+      for (first in config.config.universes) break;
+      p_universe = first;
+      p_project = name;
     }
-    if (p.project !== undefined) level = 'project';
-    else if (p.universe !== undefined) level = 'universe';
-    Object.assign(params, p);
+
+    /* Check type for any needed overrides. */
+    if (type === 'project') {
+      p_project = name;
+    } else if (type === 'universe') {
+      p_universe = name;
+      p_project = undefined;
+    }
+
+    if (p_project !== undefined) {
+      level = 'project';
+      params.project = p_project;
+      params.universe = p_universe;
+    } else if (p_universe !== undefined) {
+      level = 'universe';
+      params.universe = p_universe;
+    }
   }
 
   coroner
     .promise('control', params)
     .then(r => {
-      if (argv.raw) console.log(JSON.stringify(r, null, 4));
-      else retentionStatusDump(argv, r, null, level, 0);
+      if (cmd.raw) console.log(JSON.stringify(r, null, 4));
+      else retentionStatusDump(cmd, r, null, level, 0);
     })
     .catch(std_failure_cb);
 }
 
 /**
- * @brief Implements the retention command.
+ * Handler for retention.list
  */
-function coronerRetention(argv: any, config: any): any {
+function handleRetentionList(cmd: RetentionListCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  let coroner;
-  let bpg;
-  let subcmd;
-  let fn = null;
-  const subcmd_map = {
-    set: retentionSet,
-    list: retentionList,
-    clear: retentionClear,
-  };
-
-  argv._.shift();
-  if (argv._.length == 0) {
-    return retentionUsage('No request specified.');
-  }
-
-  subcmd = argv._.shift();
-  if (subcmd === '--help' || subcmd == 'help') return retentionUsage();
-
-  coroner = coronerClientArgv(config, argv);
-  /* Special case for retention status which doesn't use BPG. */
-  if (subcmd === 'status') return retentionStatus(coroner, argv, config);
-
-  bpg = coronerBpgSetup(coroner, argv);
-
-  fn = subcmd_map[subcmd];
-  if (fn) {
-    return fn(bpg, bpg.get(), argv, config);
-  }
-
-  retentionUsage("Invalid retention subcommand '" + subcmd + "'.");
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
+  retentionList(bpg, bpg.get());
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  retention: coronerRetention,
+/**
+ * Handler for retention.set
+ */
+function handleRetentionSet(cmd: RetentionSetCommand, config: any): any {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
+  return retentionSet(bpg, bpg.get(), cmd, config);
+}
+
+/**
+ * Handler for retention.clear
+ */
+function handleRetentionClear(cmd: RetentionClearCommand, config: any): any {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
+  return retentionClear(bpg, bpg.get(), cmd, config);
+}
+
+/**
+ * Handler for retention.status
+ */
+function handleRetentionStatus(cmd: RetentionStatusCommand, config: any): any {
+  abortIfNotLoggedIn(config);
+  return retentionStatus(cmd, config);
+}
+
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'retention.list': handleRetentionList,
+  'retention.set': handleRetentionSet,
+  'retention.clear': handleRetentionClear,
+  'retention.status': handleRetentionStatus,
 };

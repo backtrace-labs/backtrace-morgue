@@ -1,6 +1,6 @@
 import * as cliOptions from '../../cli/options';
 import assignDeep from 'assign-deep';
-import {skipNotDefinedKeys, getPluginId} from '../utils';
+import {skipNotDefinedKeys} from '../utils';
 
 export class CreateIntegration {
   pluginId: any;
@@ -29,30 +29,47 @@ export class CreateIntegration {
     this.connectionId = connectionId;
   }
 
-  static fromArgv(argv, init, options) {
+  static fromCmd(
+    fields: {
+      name: string;
+      plugin: string;
+      state?: string;
+      synchronizeIssues?: string;
+      synchronizeIssuesOnAdd?: string;
+      connection?: string;
+    },
+    init: any,
+    options: any,
+  ) {
     return new CreateIntegration(
       assignDeep(
         init,
         skipNotDefinedKeys({
-          pluginId: getPluginId(argv, init),
+          pluginId: cliOptions.convertOne(
+            'plugin',
+            fields.plugin || init.pluginId,
+          ),
           watcherName: cliOptions.convertOne(
             'name',
-            argv.name || init.watcherName,
+            fields.name || init.watcherName,
           ),
-          state: cliOptions.convertAtMostOne('state', argv.state || init.state),
+          state: cliOptions.convertAtMostOne(
+            'state',
+            fields.state || init.state,
+          ),
           synchronizeIssues: cliOptions.convertBool(
             'synchronize-issues',
-            argv['synchronize-issues'] || init.synchronizeIssues,
+            fields.synchronizeIssues || init.synchronizeIssues,
             null,
           ),
           synchronizeIssuesOnAdd: cliOptions.convertBool(
             'synchronize-issues-on-add',
-            argv['synchronize-issues-on-add'] || init.synchronizeIssuesOnAdd,
+            fields.synchronizeIssuesOnAdd || init.synchronizeIssuesOnAdd,
             null,
           ),
           connectionId: cliOptions.convertAtMostOne(
             'connection',
-            argv.connection || init.connectionId,
+            fields.connection || init.connectionId,
           ),
           options,
         }),

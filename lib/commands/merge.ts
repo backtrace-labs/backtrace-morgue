@@ -1,23 +1,17 @@
 import * as util from 'util';
-import * as config from '../config';
-import {errx, err, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerParams, coronerClientArgv} from '../cli/context';
+import type {MergeCommand, UnmergeCommand} from '../cli/generated/types';
+import {errx, success_color} from '../cli/errors';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {usage} from '../cli/util';
 import {eMsg} from '../util';
 import {WorkflowsClient} from '../workflows/client';
 
 function dump_obj(o) {
   console.log(util.inspect(o, {showHidden: false, depth: null}));
-}
-
-function userUsage(error_str?: any): never {
-  if (typeof error_str === 'string') err(error_str + '\n');
-  console.log('Usage: morgue user reset [options]');
-  console.log('Valid options:');
-  console.log('  --password=P   Specify password to use for reset.');
-  console.log('  --universe=U   Specify universe scope.');
-  console.log('  --user=USER    Specify user to reset password for');
-  process.exit(1);
 }
 
 function _coronerMerge(coroner, universe, project, fingerprints, action) {
@@ -52,58 +46,52 @@ async function _workflowsMerge(coroner, universe, project, fingerprints) {
   }
 }
 
-async function mergeFingerprints(argv: any, config: any): Promise<any> {
+async function handleMerge(cmd: MergeCommand, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
-  if (argv._.length === 0) {
-    return userUsage();
-  }
 
-  const {universe, project} = coronerParams(argv, config);
+  const {universe, project} = parseProjectArg(cmd.project, config);
   if (!universe || !project) {
     return usage('Missing project, universe arguments');
   }
 
-  const fingerprints = argv._.slice(2);
-  if (!fingerprints.length) {
+  const fingerprints = cmd.fingerprints;
+  if (!fingerprints || !fingerprints.length) {
     return usage('At least one fingerprint must be specified');
   }
 
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const isWorkflowsAvailable = await WorkflowsClient.isAvailable(coroner);
   if (isWorkflowsAvailable) {
-    if (argv.debug) {
+    if (cmd.globalOptions.debug) {
       console.log('Merging using the Workflows service');
     }
     return _workflowsMerge(coroner, universe, project, fingerprints);
   } else {
-    if (argv.debug) {
+    if (cmd.globalOptions.debug) {
       console.log('Merging using Coroner directly');
     }
     return _coronerMerge(coroner, universe, project, fingerprints, 'merge');
   }
 }
 
-function unmergeFingerprints(argv: any, config: any): any {
+function handleUnmerge(cmd: UnmergeCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  if (argv._.length === 0) {
-    return userUsage();
-  }
 
-  const {universe, project} = coronerParams(argv, config);
+  const {universe, project} = parseProjectArg(cmd.project, config);
   if (!universe || !project) {
     return usage('Missing project, universe arguments');
   }
 
-  const fingerprints = argv._.slice(2);
-  if (!fingerprints.length) {
+  const fingerprints = cmd.fingerprints;
+  if (!fingerprints || !fingerprints.length) {
     return usage('At least one fingerprint must be specified');
   }
 
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   return _coronerMerge(coroner, universe, project, fingerprints, 'unmerge');
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  merge: mergeFingerprints,
-  unmerge: unmergeFingerprints,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  merge: handleMerge,
+  unmerge: handleUnmerge,
 };

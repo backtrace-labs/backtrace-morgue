@@ -1,13 +1,9 @@
-import * as config from '../config';
+import type {ErrorCommand} from '../cli/generated/types';
 
-function coronerError(argv: any, config: any): any {
-  if (argv._.length < 2) {
-    throw new Error('Missing error string');
-  }
-
-  throw Error(argv._[1]);
+function handleError(cmd: ErrorCommand, config: any): any {
+  throw Error(cmd.message);
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  error: coronerError,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  error: handleError,
 };

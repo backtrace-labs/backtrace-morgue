@@ -1,6 +1,6 @@
 import * as cliOptions from '../../cli/options';
 import assignDeep from 'assign-deep';
-import {skipNotDefinedKeys, getPluginId} from '../utils';
+import {skipNotDefinedKeys} from '../utils';
 
 export class CreateConnection {
   pluginId: any;
@@ -13,13 +13,20 @@ export class CreateConnection {
     this.options = options;
   }
 
-  static fromArgv(argv, init, options) {
+  static fromCmd(
+    fields: {name: string; plugin: string},
+    init: any,
+    options: any,
+  ) {
     return new CreateConnection(
       assignDeep(
         init,
         skipNotDefinedKeys({
-          name: cliOptions.convertOne('name', argv.name || init.name),
-          pluginId: getPluginId(argv, init),
+          name: cliOptions.convertOne('name', fields.name || init.name),
+          pluginId: cliOptions.convertOne(
+            'plugin',
+            fields.plugin || init.pluginId,
+          ),
           options,
         }),
       ),

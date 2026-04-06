@@ -10,14 +10,14 @@ const PLUGINS = {
   },
 };
 
-const options = key => pluginId => {
+const buildOptionsFn = key => pluginId => {
   const plugin = PLUGINS[pluginId];
   const fn = (plugin && plugin[key]) || (v => v);
-  return (argv, init = {options: null}) =>
-    argv.options || init.options
-      ? fn(assignDeep({}, init.options || {}, argv.options || {}))
+  return (cmdOptions: any, init: any = {options: null}) =>
+    cmdOptions || init.options
+      ? fn(assignDeep({}, init.options || {}, cmdOptions || {}))
       : undefined;
 };
 
-export const integrationOptions = options('integration');
-export const connectionOptions = options('connection');
+export const integrationOptions = buildOptionsFn('integration');
+export const connectionOptions = buildOptionsFn('connection');

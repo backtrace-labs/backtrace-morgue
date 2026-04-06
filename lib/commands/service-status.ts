@@ -1,48 +1,46 @@
-import * as config from '../config';
 import {err, errx, chalk, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerParams} from '../cli/context';
-import {subcmdProcess, std_json_cb, std_failure_cb} from '../cli/bpg-helpers';
+import {abortIfNotLoggedIn, coronerClientFromGlobal} from '../cli/context';
+import {std_json_cb, std_failure_cb} from '../cli/bpg-helpers';
+import type {
+  ServiceListCommand,
+  ServiceStatusCommand,
+  ServiceRescanCommand,
+  StatusReloadCommand,
+  ControlCommand,
+} from '../cli/generated/types';
 
-const red = chalk.red;
-
-function serviceUsageFn(str: any): any {
-  if (str) err(str + '\n');
-  console.error('Usage: morgue service <list|status>');
-}
-
-function serviceList(argv, config, opts): Promise<any> {
-  return opts.state.coroner
+function serviceList(cmd: ServiceListCommand, config: any): Promise<any> {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  return coroner
     .promise('svclayer', 'list', null, null)
     .then(std_json_cb)
     .catch(std_failure_cb);
 }
 
-function serviceTokenCommand(argv, config, opts): Promise<any> {
-  const p = {token: opts.state.coroner.config.token};
-  return opts.state.coroner
-    .promise('svclayer', opts.state.subcmd, p, null)
+function serviceTokenCommand(kind: string, cmd: {globalOptions: any}, config: any): Promise<any> {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const subcmd = kind.split('.')[1]; // 'service.status' -> 'status', 'service.rescan' -> 'rescan'
+  const p = {token: coroner.config.token};
+  return coroner
+    .promise('svclayer', subcmd, p, null)
     .then(std_json_cb)
     .catch(std_failure_cb);
 }
 
-function coronerService(argv: any, config: any) {
-  subcmdProcess(argv, config, {
-    usageFn: serviceUsageFn,
-    subcmds: {
-      list: serviceList,
-      status: serviceTokenCommand,
-      rescan: serviceTokenCommand,
-    },
-  });
+function serviceStatus(cmd: ServiceStatusCommand, config: any): Promise<any> {
+  return serviceTokenCommand(cmd.kind, cmd, config);
 }
 
-function statusUsage(error_str: any): never {
-  if (typeof error_str === 'string') err(error_str + '\n');
-  console.log(red('Usage: morgue status <type> ...'));
-  process.exit(1);
+function serviceRescan(cmd: ServiceRescanCommand, config: any): Promise<any> {
+  return serviceTokenCommand(cmd.kind, cmd, config);
 }
 
-function statusReload(argv, config, params, coroner) {
+function statusReload(cmd: StatusReloadCommand, config: any): void {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+
   const p = {
     action: 'status',
     token: coroner.config.token,
@@ -56,35 +54,11 @@ function statusReload(argv, config, params, coroner) {
     .catch(std_failure_cb);
 }
 
-/**
- * @brief Implements the status command.
- */
-function coronerStatus(argv: any, config: any) {
+function coronerControl(cmd: ControlCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  let fn, object, params, subcmd;
-  const coroner = coronerClientArgv(config, argv);
-  const subcmds = {
-    reload: statusReload,
-  };
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  if (argv._.length < 2) statusUsage('Not enough arguments specified.');
-
-  argv._.shift();
-  /* Extract u/p at this point since they'll be in the correct position. */
-  params = coronerParams(argv, config);
-  subcmd = argv._.shift();
-  fn = subcmds[subcmd];
-  if (!fn) statusUsage('No such subcommand ' + subcmd);
-
-  argv._.shift();
-  fn(argv, config, params, coroner);
-}
-
-function coronerControl(argv: any, config: any): any {
-  abortIfNotLoggedIn(config);
-  const coroner = coronerClientArgv(config, argv);
-
-  if (argv.smr) {
+  if (cmd.smr) {
     coroner.control({action: 'graceperiod'}, (error, r) => {
       if (error) {
         let message = error.message ? error.message : error;
@@ -99,8 +73,10 @@ function coronerControl(argv: any, config: any): any {
   }
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  service: coronerService,
-  status: coronerStatus,
-  control: coronerControl,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'service.list': serviceList,
+  'service.status': serviceStatus,
+  'service.rescan': serviceRescan,
+  'status.reload': statusReload,
+  'control': coronerControl,
 };

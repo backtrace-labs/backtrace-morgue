@@ -1,10 +1,15 @@
 import * as config from '../config';
 import * as crdb from '../crdb';
-import * as queryCli from '../cli/query';
+import {buildQuery} from '../cli/query';
 import {errx, chalk, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerParams, coronerClientArgv} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {usage, nsToUs, printSamples} from '../cli/util';
 import {coronerPrint} from '../cli/print';
+import type {ListCommand} from '../cli/generated/types';
 
 const yellow = chalk.yellow;
 const blue = chalk.blue;
@@ -12,79 +17,71 @@ const blue = chalk.blue;
 /**
  * @brief: Implements the list command.
  */
-function coronerList(argv: any, config: any): any {
+function handleList(cmd: ListCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  let query;
-  let p;
 
-  const coroner = coronerClientArgv(config, argv);
-
-  if (argv._.length < 2) {
-    return usage('Missing project, universe arguments');
-  }
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
 
   let implicitTimeOps = true;
-  if (argv['implicit-filters'] === false) {
+  if (cmd.implicitFilters === 'false') {
     implicitTimeOps = false;
   }
 
-  const csv = argv.csv;
-  if (csv && !argv.select && !argv['select-wildcard'])
+  const csv = cmd.csv;
+  if (csv && !cmd.queryOptions.select && !cmd.queryOptions.selectWildcard)
     return usage('--csv requires select or select-wildcard parameters');
 
-  p = coronerParams(argv, config);
-
-  if (!argv.table) {
-    argv.table = 'objects';
+  const queryOpts = {...cmd.queryOptions};
+  if (!queryOpts.table) {
+    queryOpts.table = 'objects';
   }
 
-  const aq = queryCli.argvQuery(argv, implicitTimeOps, /*doFolds=*/ true);
-  query = aq.query;
+  const aq = buildQuery(queryOpts, implicitTimeOps, /*doFolds=*/ true);
+  const query = aq.query;
   const d_age = aq.age;
 
-  if (argv.table != 'objects') {
-    query.table = argv.table;
+  if (queryOpts.table !== 'objects') {
+    query.table = queryOpts.table;
   }
 
-  if (argv.set) {
-    let set = argv.set;
-
-    if (!Array.isArray(set)) set = [argv.set];
+  if (cmd.set) {
+    let set = cmd.set;
+    const setArr = Array.isArray(set) ? set : [set];
 
     query.set = {};
-    set.forEach(s => {
+    setArr.forEach(s => {
       const kv = s.split('=');
       query.set[kv[0]] = kv[1];
     });
   }
 
-  if (argv.clear) {
-    let clear = argv.clear;
-
-    if (!Array.isArray(clear)) clear = [argv.clear];
+  if (cmd.clear) {
+    let clear = cmd.clear;
+    const clearArr = Array.isArray(clear) ? clear : [clear];
 
     if (!query.set) query.set = {};
-    clear.forEach(c => {
+    clearArr.forEach(c => {
       query.set[c] = null;
     });
   }
 
-  if (argv.query) {
+  if (cmd.query) {
     console.log(JSON.stringify(query));
-    if (!argv.raw) return;
+    if (!cmd.raw) return;
   }
 
-  if (argv.benchmark) {
-    let start, end;
+  if (cmd.benchmark) {
+    let start;
     let concurrency = 1;
     const samples = [];
     let n_samples = 8;
     let requests = 0;
     let i;
 
-    if (argv.concurrency) concurrency = parseInt(argv.concurrency);
+    if (cmd.concurrency) concurrency = parseInt(cmd.concurrency);
 
-    if (argv.samples) n_samples = argv.samples;
+    if (cmd.samples) n_samples = parseInt(cmd.samples);
 
     start = process.hrtime();
 
@@ -116,7 +113,7 @@ function coronerList(argv: any, config: any): any {
         errx(err.message);
       }
 
-      if (argv.raw) {
+      if (cmd.raw) {
         let pp;
 
         try {
@@ -140,7 +137,7 @@ function coronerList(argv: any, config: any): any {
       } else {
         const rp = new crdb.Response(result.response);
 
-        if (argv.json) {
+        if (cmd.json) {
           const results = rp.unpack();
 
           console.log(JSON.stringify(results, null, 2));
@@ -160,11 +157,11 @@ function coronerList(argv: any, config: any): any {
         if (d_age) {
           date_label = 'as of ' + d_age + ' ago';
         } else {
-          date_label = 'with a time range of ' + argv.time;
+          date_label = 'with a time range of ' + queryOpts.time;
         }
       }
 
-      if (argv.verbose) {
+      if (cmd.verbose) {
         console.log(yellow('Timing:'));
 
         let o = '';
@@ -215,6 +212,6 @@ function coronerList(argv: any, config: any): any {
   }
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  list: coronerList,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  list: handleList,
 };

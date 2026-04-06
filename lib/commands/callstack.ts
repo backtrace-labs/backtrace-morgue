@@ -4,8 +4,16 @@ import * as config from '../config';
 import * as crdb from '../crdb';
 import * as queryCli from '../cli/query';
 import {table} from 'table';
+import type {
+  CallstackEvaluateCommand,
+  DeduplicationAddCommand,
+  DeduplicationDeleteCommand,
+  DeduplicationModifyCommand,
+  DeduplicationListCommand,
+  CtsCommand,
+} from '../cli/generated/types';
 import {errx, err, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerBpgSetup, coronerParams} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg} from '../cli/context';
 import {std_failure_cb} from '../cli/bpg-helpers';
 
 function callstackUsage(str?: any): never {
@@ -24,7 +32,7 @@ function callstackUsage(str?: any): never {
   process.exit(1);
 }
 
-function coronerCallstackParams(argv, p, action) {
+function coronerCallstackParams(cmd: CallstackEvaluateCommand, p, action) {
   const csparams = Object.assign(
     {
       action: action,
@@ -32,21 +40,20 @@ function coronerCallstackParams(argv, p, action) {
     },
     p,
   );
-  if (argv.name) csparams.name = argv.name;
-  if (argv.language) csparams.language = argv.language;
-  if (argv.platform) csparams.platform = argv.platform;
+  if ((cmd as any).name) csparams.name = (cmd as any).name;
+  if ((cmd as any).language) csparams.language = (cmd as any).language;
+  if ((cmd as any).platform) csparams.platform = (cmd as any).platform;
   return csparams;
 }
 
-async function coronerCallstackEval(argv, coroner, p): Promise<any> {
-  const csparams = coronerCallstackParams(argv, p, 'evaluate');
-  let data, params, obj;
+async function coronerCallstackEval(cmd: CallstackEvaluateCommand, config: any): Promise<any> {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
+  const csparams = coronerCallstackParams(cmd, p, 'evaluate');
+  let data;
 
-  if (argv._.length != 1) {
-    return callstackUsage('evaluate: Must specify one object.');
-  }
-
-  obj = argv._[0];
+  const obj = cmd.target;
 
   if (fs.existsSync(obj)) {
     data = JSON.parse(fs.readFileSync(obj, 'utf8'));
@@ -63,7 +70,7 @@ async function coronerCallstackEval(argv, coroner, p): Promise<any> {
    * Fetch the json resource, then submit it to /api/callstack, dumping the
    * JSON response.
    */
-  params = {resource: 'json.gz'};
+  const params = {resource: 'json.gz'};
 
   await coroner
     .promise('http_fetch', p.universe, p.project, obj, params)
@@ -82,52 +89,6 @@ async function coronerCallstackEval(argv, coroner, p): Promise<any> {
         .catch(std_failure_cb);
     })
     .catch(std_failure_cb);
-}
-
-function coronerCallstackGet(argv, coroner, p) {
-  const csparams = coronerCallstackParams(argv, p, 'get');
-
-  coroner
-    .promise('get', '/api/callstack', csparams)
-    .then(csr => {
-      const json = JSON.parse(csr.toString('utf8'));
-      console.log(JSON.stringify(json, null, 4));
-    })
-    .catch(std_failure_cb);
-}
-
-/**
- * @brief Implements the callstack command.
- */
-function coronerCallstack(argv: any, config: any): any {
-  let coroner, fn, p, subcmd;
-
-  const subcmd_map = {
-    evaluate: coronerCallstackEval,
-    eval: coronerCallstackEval,
-    get: coronerCallstackGet,
-  };
-
-  argv._.shift();
-  if (argv._.length === 0) {
-    return callstackUsage('No request specified.');
-  }
-
-  subcmd = argv._[0];
-  if (subcmd === '--help' || subcmd === 'help' || subcmd === '-h')
-    return callstackUsage();
-
-  coroner = coronerClientArgv(config, argv);
-  p = coronerParams(argv, config);
-  argv._.shift(); /* remove subcmd */
-  argv._.shift(); /* remove project */
-
-  fn = subcmd_map[subcmd];
-  if (fn) {
-    return fn(argv, coroner, p);
-  }
-
-  callstackUsage("Invalid callstack subcommand '" + subcmd + "'.");
 }
 
 function deduplicationUsage(str?: any): never {
@@ -151,45 +112,45 @@ function deduplicationUsage(str?: any): never {
   process.exit(1);
 }
 
-function coronerDeduplicationAdd(argv, coroner, p, bpg, rules): any {
-  if (fs.existsSync(argv.rules)) {
-    const data = JSON.parse(fs.readFileSync(argv.rules, 'utf8'));
+function coronerDeduplicationAdd(cmd: DeduplicationAddCommand, coroner, p, bpg, rules): any {
+  if (fs.existsSync(cmd.rules)) {
+    const data = JSON.parse(fs.readFileSync(cmd.rules, 'utf8'));
     rules.set('rules', JSON.stringify(data));
 
     let priority = -1;
-    if (argv.priority && parseInt(argv.priority) != 0)
-      priority = parseInt(argv.priority);
+    if (cmd.priority && parseInt(cmd.priority) != 0)
+      priority = parseInt(cmd.priority);
     rules.set('priority', priority);
     bpg.create(rules);
     bpg.commit();
-    console.log(success_color(`Rule ${argv.name} created`));
+    console.log(success_color(`Rule ${cmd.name} created`));
   } else {
-    return deduplicationUsage(`Unknown file ${argv.rules}`);
+    return deduplicationUsage(`Unknown file ${cmd.rules}`);
   }
 }
 
-function coronerDeduplicationDelete(argv, coroner, p, bpg, rules) {
+function coronerDeduplicationDelete(cmd: DeduplicationDeleteCommand, coroner, p, bpg, rules) {
   bpg.delete(rules);
   bpg.commit();
-  console.log(success_color(`Rule ${argv.name} deleted`));
+  console.log(success_color(`Rule ${cmd.name} deleted`));
 }
 
-function coronerDeduplicationModify(argv, coroner, p, bpg, rules) {
+function coronerDeduplicationModify(cmd: DeduplicationModifyCommand, coroner, p, bpg, rules) {
   const delta: any = {};
 
-  if (argv.priority && parseInt(argv.priority) != 0)
-    delta.priority = parseInt(argv.priority);
+  if (cmd.priority && parseInt(cmd.priority) != 0)
+    delta.priority = parseInt(cmd.priority);
 
-  if (argv.rules !== undefined && fs.existsSync(argv.rules)) {
-    const data = JSON.parse(fs.readFileSync(argv.rules, 'utf8'));
+  if (cmd.rules !== undefined && fs.existsSync(cmd.rules)) {
+    const data = JSON.parse(fs.readFileSync(cmd.rules, 'utf8'));
     delta.rules = JSON.stringify(data);
   }
   bpg.modify(rules, delta);
   bpg.commit();
-  console.log(success_color(`Rule ${argv.name} modified`));
+  console.log(success_color(`Rule ${cmd.name} modified`));
 }
 
-function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
+function coronerDeduplicationList(cmd: DeduplicationListCommand, coroner, p, bpg, rules) {
   const model = bpg.get();
 
   const printDeduplicationList = function (data, verbose) {
@@ -245,12 +206,12 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
     }
   };
 
-  if (argv.name !== undefined) {
+  if (cmd.name !== undefined) {
     let found = undefined;
 
     for (let i = 0; i < model.deduplication.length; i++) {
       const el = model.deduplication[i].fields;
-      if (el.name == argv.name) {
+      if (el.name == cmd.name) {
         found = el;
         break;
       }
@@ -260,43 +221,21 @@ function coronerDeduplicationList(argv, coroner, p, bpg, rules) {
       return;
     }
 
-    printDeduplicationList([found], argv.verbose);
+    printDeduplicationList([found], cmd.verbose);
   } else {
     const fields = model.deduplication.map(e => e.fields);
     fields.sort((l, r) => l.priority - r.priority);
 
-    printDeduplicationList(fields, argv.verbose);
+    printDeduplicationList(fields, cmd.verbose);
   }
 }
 
-/**
- * @brief Implements the deduplication command.
- */
-function coronerDeduplication(argv: any, config: any): any {
-  let coroner, fn, p, subcmd;
+function setupDeduplication(cmd: any, config: any) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
 
-  const subcmd_map = {
-    add: coronerDeduplicationAdd,
-    delete: coronerDeduplicationDelete,
-    modify: coronerDeduplicationModify,
-    list: coronerDeduplicationList,
-  };
-
-  argv._.shift();
-  if (argv._.length === 0) {
-    return deduplicationUsage('No request specified.');
-  }
-
-  subcmd = argv._[0];
-  if (subcmd === '--help' || subcmd === 'help' || subcmd === '-h')
-    return deduplicationUsage();
-
-  coroner = coronerClientArgv(config, argv);
-  p = coronerParams(argv, config);
-  argv._.shift(); /* remove subcmd */
-  argv._.shift(); /* remove project */
-
-  const bpg = coronerBpgSetup(coroner, argv);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
   const model = bpg.get('project');
 
@@ -315,63 +254,80 @@ function coronerDeduplication(argv: any, config: any): any {
   }
 
   let owner = coroner.config.user.uid;
-  if (argv.owner !== undefined) owner = parseInt(argv.owner);
+  if ((cmd as any).owner !== undefined) owner = parseInt((cmd as any).owner);
 
   const rules = bpg.new('deduplication');
 
-  if (argv.name !== undefined) rules.set('name', argv.name);
+  if (cmd.name !== undefined) rules.set('name', cmd.name);
   rules.set('id', 0);
   rules.set('project', pid);
   rules.set('rules', '');
   rules.set('languages', 'c');
   rules.set('enabled', 1);
   rules.set('owner', owner);
-  // rules.set('priority', priority);
-  if (argv.platform) rules.set('platforms', argv.platform);
+  if (cmd.platform) rules.set('platforms', cmd.platform);
 
-  fn = subcmd_map[subcmd];
-  if (fn) {
-    try {
-      return fn(argv, coroner, p, bpg, rules);
-    } catch (e) {
-      return deduplicationUsage(e);
-    }
-  }
+  return {coroner, p, bpg, rules};
+}
 
-  deduplicationUsage("Invalid deduplication subcommand '" + subcmd + "'.");
+function handleDeduplicationAdd(cmd: DeduplicationAddCommand, config: any): any {
+  const result = setupDeduplication(cmd, config);
+  if (!result) return;
+  const {coroner, p, bpg, rules} = result;
+  return coronerDeduplicationAdd(cmd, coroner, p, bpg, rules);
+}
+
+function handleDeduplicationDelete(cmd: DeduplicationDeleteCommand, config: any): any {
+  const result = setupDeduplication(cmd, config);
+  if (!result) return;
+  const {coroner, p, bpg, rules} = result;
+  return coronerDeduplicationDelete(cmd, coroner, p, bpg, rules);
+}
+
+function handleDeduplicationModify(cmd: DeduplicationModifyCommand, config: any): any {
+  const result = setupDeduplication(cmd, config);
+  if (!result) return;
+  const {coroner, p, bpg, rules} = result;
+  return coronerDeduplicationModify(cmd, coroner, p, bpg, rules);
+}
+
+function handleDeduplicationList(cmd: DeduplicationListCommand, config: any): any {
+  const result = setupDeduplication(cmd, config);
+  if (!result) return;
+  const {coroner, p, bpg, rules} = result;
+  return coronerDeduplicationList(cmd, coroner, p, bpg, rules);
 }
 
 /**
  * @brief Implements the cts command.
  */
-function coronerCts(argv: any, config: any): any {
+function coronerCts(cmd: CtsCommand, config: any): any {
   /* First extract a list of all fingerprint values for the given target. */
   abortIfNotLoggedIn(config);
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = argv.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const p = parseProjectArg(cmd.project, config);
+  const universe = cmd.globalOptions.universe || Object.keys((config as any).config.universes)[0];
 
-  const project = argv._[1];
-  const attribute = argv._[2];
-  const value = argv._[3];
+  const attribute = cmd.attribute;
+  const value = cmd.value;
 
-  const query = queryCli.argvQuery(argv);
-  const q_v = query.query;
+  const aq = queryCli.buildQuery({});
+  const q_v = aq.query;
   q_v.filter[0][attribute] = [['equal', value]];
   q_v.filter[0]['fingerprint;issues;tags'] = [['not-contains', value]];
   q_v.group = ['fingerprint'];
   q_v.fold = {};
   q_v.fold[attribute] = [['count']];
 
-  if (argv.query) {
+  if (cmd.query) {
     console.log(JSON.stringify(q_v, null, 2));
     return;
   }
 
   const fingerprint: any = {};
 
-  coroner.query(universe, project, q_v, (err, result) => {
+  coroner.query(universe, p.project, q_v, (err, result) => {
     if (err) {
       errx(err.message);
     }
@@ -386,7 +342,7 @@ function coronerCts(argv: any, config: any): any {
     /* Now we have suspect fingerprints. Eliminate those not unique to the run. */
     delete q_v.filter[0][attribute];
     q_v.fold[attribute] = [['distribution', 8192]];
-    coroner.query(universe, project, q_v, (err, result) => {
+    coroner.query(universe, p.project, q_v, (err, result) => {
       if (err) {
         errx(err.message);
       }
@@ -430,7 +386,7 @@ function coronerCts(argv: any, config: any): any {
       delete q_v.filter[0]['fingerprint;issues;tags'];
       q_v.filter[0]['tags'] = [['not-contains', value]];
 
-      coroner.query(universe, project, q_v, (error, result) => {
+      coroner.query(universe, p.project, q_v, (error, result) => {
         if (err) {
           errx(err.message);
         }
@@ -440,8 +396,11 @@ function coronerCts(argv: any, config: any): any {
   });
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  callstack: coronerCallstack,
-  deduplication: coronerDeduplication,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'callstack.evaluate': coronerCallstackEval,
+  'deduplication.add': handleDeduplicationAdd,
+  'deduplication.delete': handleDeduplicationDelete,
+  'deduplication.modify': handleDeduplicationModify,
+  'deduplication.list': handleDeduplicationList,
   cts: coronerCts,
 };

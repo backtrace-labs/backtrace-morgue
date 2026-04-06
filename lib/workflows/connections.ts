@@ -1,17 +1,16 @@
-import {output, loadInit, getPluginId} from './utils';
-import * as cliOptions from '../cli/options';
+import {output, loadInit} from './utils';
 import {CreateConnection} from './models/createConnection';
-import * as router from '../cli/router';
 import {UpdateConnection} from './models/updateConnection';
 import {connectionOptions} from './plugins/plugins';
+import * as cliOptions from '../cli/options';
 
-const HELP_MESSAGE = `
-Usage:
-
-morgue workflows connection [create | list | get | update | delete] <args>
-
-See the Morgue README for option documentation.
-`;
+import type {
+  WorkflowsConnectionCreateCommand,
+  WorkflowsConnectionListCommand,
+  WorkflowsConnectionGetCommand,
+  WorkflowsConnectionUpdateCommand,
+  WorkflowsConnectionDeleteCommand,
+} from '../cli/generated/types';
 
 export class WorkflowsConnectionsCli {
   client: any;
@@ -22,67 +21,55 @@ export class WorkflowsConnectionsCli {
     this.universe = universe;
   }
 
-  async routeMethod(argv) {
-    const routes = {
-      get: this.getConnection.bind(this),
-      list: this.getConnections.bind(this),
-      create: this.createConnection.bind(this),
-      update: this.updateConnection.bind(this),
-      delete: this.deleteConnection.bind(this),
-    };
-
-    await router.route(routes, HELP_MESSAGE, argv);
+  async getConnection(cmd: WorkflowsConnectionGetCommand) {
+    const connection = await this.client.getConnection(this.universe, cmd.id);
+    output(connection, cmd.raw ?? false, printConnection);
   }
 
-  async getConnection(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
-    const connection = await this.client.getConnection(this.universe, id);
-    output(connection, argv, printConnection);
-  }
-
-  async getConnections(argv) {
+  async getConnections(cmd: WorkflowsConnectionListCommand) {
     const connections = await this.client.getConnections(this.universe);
 
     output(
       connections.sort((c1, c2) => c1.name.localeCompare(c2.name)),
-      argv,
+      cmd.raw ?? false,
       printConnection,
     );
   }
 
-  async createConnection(argv) {
-    const init = loadInit(argv);
-    const pluginId = getPluginId(argv, init);
+  async createConnection(cmd: WorkflowsConnectionCreateCommand) {
+    const init = loadInit(cmd.fromFile);
+    const pluginId = cliOptions.convertOne(
+      'plugin',
+      cmd.plugin || init.pluginId,
+    );
     const optionsInitFn = connectionOptions(pluginId);
 
-    const body = CreateConnection.fromArgv(argv, init, optionsInitFn(pluginId));
+    const body = CreateConnection.fromCmd(cmd, init, optionsInitFn(cmd.options, init));
     const connection = await this.client.createConnection(this.universe, body);
-    output(connection, argv, printConnection);
+    output(connection, cmd.raw ?? false, printConnection);
   }
 
-  async updateConnection(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
-    const connection = await this.client.getConnection(this.universe, id);
+  async updateConnection(cmd: WorkflowsConnectionUpdateCommand) {
+    const connection = await this.client.getConnection(this.universe, cmd.id);
 
-    const init = loadInit(argv);
+    const init = loadInit(cmd.fromFile);
     const pluginId = connection.pluginId;
     const optionsInitFn = connectionOptions(pluginId);
 
-    const body = UpdateConnection.fromArgv(
-      argv,
+    const body = UpdateConnection.fromCmd(
+      cmd,
       init,
-      optionsInitFn(argv, init),
+      optionsInitFn(cmd.options, init),
     );
 
-    const updated = await this.client.updateConnection(this.universe, id, body);
+    const updated = await this.client.updateConnection(this.universe, cmd.id, body);
 
-    output(updated, argv, printConnection);
+    output(updated, cmd.raw ?? false, printConnection);
   }
 
-  async deleteConnection(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
-    const connection = await this.client.deleteConnection(this.universe, id);
-    output(connection, argv, printConnection);
+  async deleteConnection(cmd: WorkflowsConnectionDeleteCommand) {
+    const connection = await this.client.deleteConnection(this.universe, cmd.id);
+    output(connection, cmd.raw ?? false, printConnection);
   }
 }
 

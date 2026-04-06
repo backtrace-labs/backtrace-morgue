@@ -1,3 +1,10 @@
+import type {
+  SymboldQueueListCommand,
+  SymboldQueueAddCommand,
+  SymboldQueueSizeCommand,
+  SymboldQueueSymbolsCommand,
+} from '../cli/generated/types';
+
 export class SymboldQueue {
   symboldClient: any;
 
@@ -5,71 +12,18 @@ export class SymboldQueue {
     this.symboldClient = client;
   }
 
-  routeMethod(argv) {
-    const method = argv._.shift();
-    if (!method) {
-      return this.showQueueUsage();
-    }
-    switch (method) {
-      case 'list':
-      case 'get': {
-        this.getAllEvents();
-        break;
-      }
-      case 'create':
-      case 'add': {
-        const universeProject = argv._.shift();
-        const missingSymbols = argv._.shift();
-        const objectId = argv._.shift();
-        this.add(universeProject, objectId, missingSymbols);
-        break;
-      }
-      case 'size': {
-        this.getSize();
-        break;
-      }
-      case 'symbols': {
-        this.getMissingSymbols();
-        break;
-      }
-      default: {
-        this.showQueueUsage('Cannot find a correct method');
-      }
-    }
-  }
-
-  getMissingSymbols() {
-    if (this.symboldClient.debug) {
-      console.log('Trying to fetch missing symbols from queue');
-    }
-    this.symboldClient.get('/queue/missingSymbols');
-  }
-
-  getAllEvents() {
+  listEvents(_cmd: SymboldQueueListCommand) {
     if (this.symboldClient.debug) {
       console.log('Trying to fetch all events in symbold queue');
     }
     this.symboldClient.get('/queue/events');
   }
 
-  getSize() {
-    if (this.symboldClient.debug) {
-      console.log('Trying to queue size');
-    }
-    this.symboldClient.get('/queue/events/count');
-  }
-
-  getSymbols() {
-    if (this.symboldClient.debug) {
-      console.log('Trying to fetch symbols');
-    }
-    this.symboldClient.get('/queue/missingSymbols');
-  }
-
-  add(universeProject, objectId, missingSymbols) {
+  add(cmd: SymboldQueueAddCommand) {
     if (this.symboldClient.debug) {
       console.log('Trying to add new event to symbold queue.');
     }
+    const universeProject = cmd.project;
     if (!universeProject) {
       if (this.symboldClient.debug) {
         console.log('Missing universe/project name in parameters');
@@ -77,12 +31,14 @@ export class SymboldQueue {
       return this.showQueueUsage('Missing universe and project name');
     }
     const [universeName, projectName] = universeProject.split('/');
-    if (!objectId || isNaN(objectId)) {
+    const objectId = cmd.oid;
+    if (!objectId || isNaN(Number(objectId))) {
       if (this.symboldClient.debug) {
         console.log('ObjectId is NaN');
       }
       return this.showQueueUsage('objectId is not defined');
     }
+    const missingSymbols = cmd.symbol;
     if (!missingSymbols) {
       if (this.symboldClient.debug) {
         console.log('Missing symbols array is empty');
@@ -100,6 +56,20 @@ export class SymboldQueue {
     });
   }
 
+  getSize(_cmd: SymboldQueueSizeCommand) {
+    if (this.symboldClient.debug) {
+      console.log('Trying to queue size');
+    }
+    this.symboldClient.get('/queue/events/count');
+  }
+
+  getMissingSymbols(_cmd: SymboldQueueSymbolsCommand) {
+    if (this.symboldClient.debug) {
+      console.log('Trying to fetch missing symbols from queue');
+    }
+    this.symboldClient.get('/queue/missingSymbols');
+  }
+
   showQueueUsage(err?: any) {
     if (err) {
       console.warn(`
@@ -109,19 +79,19 @@ export class SymboldQueue {
 
     console.warn(`
     Note: Morgue Queue command can be executed only by Backtrace admins or super users.
-      Usage: morgue symbold queue <subcommand:      
-      
-      morgue symbold queue <get | list> 
+      Usage: morgue symbold queue <subcommand:
+
+      morgue symbold queue <get | list>
           returns all symbold events
-      
-      morgue symbold queue <add | create> <universe/project> <missingSymbol> <object_id> 
+
+      morgue symbold queue <add | create> <universe/project> <missingSymbol> <object_id>
           create new symbold event on the top of the queue
-      
+
       morgue symbold queue size
           returns queue size
-      
+
       morgue symbold queue symbols
-          returns all list of missing_symbols          
+          returns all list of missing_symbols
       `);
   }
 }

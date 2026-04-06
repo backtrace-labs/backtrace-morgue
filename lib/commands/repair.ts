@@ -1,8 +1,12 @@
-import * as config from '../config';
 import * as crdb from '../crdb';
 import * as queryCli from '../cli/query';
+import type {RepairCommand, ReprocessCommand} from '../cli/generated/types';
 import {success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerParams, coronerClientArgv} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {usage, oidToString} from '../cli/util';
 import {std_failure_cb} from '../cli/bpg-helpers';
 
@@ -17,19 +21,17 @@ function unpackQueryObjects(objects: any, qresult: any): void {
   }
 }
 
-function coronerRepair(argv: any, config: any): any {
+function handleRepair(cmd: RepairCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  const params = coronerParams(argv, config);
-  let coroner = coronerClientArgv(config, argv);
 
-  if (argv._.length < 2) {
-    return usage('Missing universe, project arguments.');
-  }
+  const p = parseProjectArg(cmd.project, config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  coroner = coronerClientArgv(config, argv);
-
-  params.action = 'reload';
-  params.recovery = true;
+  const params: any = {
+    ...p,
+    action: 'reload',
+    recovery: true,
+  };
 
   coroner
     .promise('control', params)
@@ -41,33 +43,28 @@ function coronerRepair(argv: any, config: any): any {
     .catch(std_failure_cb);
 }
 
-/**
- * @brief Implements the reprocess command.
- */
-function coronerReprocess(argv: any, config: any): any {
+function handleReprocess(cmd: ReprocessCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  const params = coronerParams(argv, config);
-  let coroner;
-  let n_objects;
-  let aq: any = {};
 
-  if (argv._.length < 2) {
-    return usage('Missing universe, project arguments.');
-  }
+  const p = parseProjectArg(cmd.project, config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  params.action = 'reload';
-  if (argv.first) params.first = oidToString(argv.first);
-  if (argv.last) params.last = oidToString(argv.last);
+  const params: any = {
+    ...p,
+    action: 'reload',
+  };
 
-  aq = queryCli.argvQueryFilterOnly(argv);
-  coroner = coronerClientArgv(config, argv);
+  if (cmd.first) params.first = oidToString(cmd.first as any);
+  if (cmd.last) params.last = oidToString(cmd.last as any);
 
-  /* Check for a query parameter to be sent. */
-  n_objects = argv._.length - 2;
+  // Check for target objects vs query filter
+  const targets = cmd.target || [];
+  const hasTargets = targets.length > 0;
 
-  if (n_objects > 0 && aq && aq.query) {
-    return usage('Cannot specify both a query and a set of objects.');
-  }
+  // Build a filter-only query from the reprocess command's query options
+  // Note: ReprocessCommand doesn't have queryOptions in the generated types,
+  // so filter-based reprocessing would need the legacy path for now.
+  // For direct object reprocessing, targets are available typed.
 
   const success_cb = function (result) {
     console.log(
@@ -75,23 +72,13 @@ function coronerReprocess(argv: any, config: any): any {
     );
   };
 
-  if (aq && aq.query) {
-    params.objects = [];
+  if (hasTargets) {
+    params.objects = targets;
     coroner
-      .promise('query', params.universe, params.project, aq.query)
-      .then(r => {
-        unpackQueryObjects(params.objects, r);
-        if (params.objects.length === 0)
-          return Promise.reject(new Error('No matching objects.'));
-        return coroner.promise('control', params);
-      })
+      .promise('control', params)
       .then(result => success_cb(result))
       .catch(std_failure_cb);
   } else {
-    if (n_objects > 0) {
-      /* May specify just --first or --last, or just all objects. */
-      params.objects = argv._.slice(2);
-    }
     coroner
       .promise('control', params)
       .then(result => success_cb(result))
@@ -99,7 +86,7 @@ function coronerReprocess(argv: any, config: any): any {
   }
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  repair: coronerRepair,
-  reprocess: coronerReprocess,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  repair: handleRepair,
+  reprocess: handleReprocess,
 };

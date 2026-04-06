@@ -33,40 +33,55 @@ export class UpdateAlert {
     this.executionDelay = executionDelay;
   }
 
-  static fromArgv(argv, init) {
+  static fromCmd(
+    fields: {
+      name?: string;
+      conditionName?: string;
+      state?: string;
+      filter?: string;
+      threshold?: string;
+      frequency?: string;
+      integration?: string;
+      executionDelay?: string;
+    },
+    init: any,
+  ) {
     return new UpdateAlert(
       assignDeep(
         init,
         skipNotDefinedKeys({
-          name: cliOptions.convertAtMostOne('name', argv.name || init.name),
+          name: cliOptions.convertAtMostOne('name', fields.name || init.name),
           condition: cliOptions.convertObject(
             'condition',
-            argv.condition || init.condition,
+            fields.conditionName || init.condition,
             {},
           ),
-          state: cliOptions.convertAtMostOne('state', argv.state || init.state),
-          filters: argv.filter
+          state: cliOptions.convertAtMostOne(
+            'state',
+            fields.state || init.state,
+          ),
+          filters: fields.filter
             ? cliOptions
-                .convertMany('filter', argv.filter, true)
+                .convertMany('filter', fields.filter, true)
                 .map(parseFilter)
                 .map(filter => ({type: 'attribute', ...filter}))
             : cliOptions.convertMany('filter', init.filters, true),
           threshold: cliOptions.convertAtMostOne(
             'threshold',
-            argv.threshold ?? init.threshold,
+            fields.threshold ?? init.threshold,
           ),
           frequency: cliOptions.convertAtMostOne(
             'frequency',
-            argv.frequency ?? init.frequency,
+            fields.frequency ?? init.frequency,
           ),
           integrations: cliOptions.convertMany(
             'integration',
-            argv.integration ?? init.integrations,
+            fields.integration ?? init.integrations,
             true,
           ),
           executionDelay: cliOptions.convertAtMostOne(
             'execution-delay',
-            argv['execution-delay'] || init.executionDelay,
+            fields.executionDelay || init.executionDelay,
           ),
         }),
       ),

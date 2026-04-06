@@ -2092,9 +2092,47 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AlertsAlertGetCommand;
     });
   cmd_alerts_alert.command('update')
+    .option('--filter <filter>', 'Filter expression: attribute,operation,value')
+    .option('--limit <limit>', 'Number of rows to return')
+    .option('--offset <offset>', 'Skip first N rows')
+    .option('--select <select>', 'Select specific attributes', collectRepeatable, [])
+    .addOption(new Option('--select-wildcard <select-wildcard>', 'Select all attributes of the given type').choices(["physical","derived","virtual"]))
+    .option('--age <age>', 'Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)')
+    .option('--time <time>', 'Time range using natural language')
+    .option('--unique <unique>', 'Count distinct values')
+    .option('--histogram <histogram>', 'Show all distinct values')
+    .option('--distribution <distribution>', 'Show truncated histogram')
+    .option('--mean <mean>', 'Calculate mean')
+    .option('--sum <sum>', 'Sum all values')
+    .option('--range <range>', 'Show min and max values')
+    .option('--count <count>', 'Count non-null values')
+    .option('--bin <bin>', 'Linear histogram of values')
+    .option('--head <head>', 'First value in factor')
+    .option('--tail <tail>', 'Last value in factor')
+    .option('--object <object>', 'Maximum object identifier')
+    .addOption(new Option('--last <last>', 'Last object identifier').hideHelp(!revealHidden))
+    .addOption(new Option('--first <first>', 'First object identifier').hideHelp(!revealHidden))
+    .addOption(new Option('--min <min>', 'Min object identifier').hideHelp(!revealHidden))
+    .addOption(new Option('--max <max>', 'Max object identifier').hideHelp(!revealHidden))
+    .option('--sort <sort>', 'Sort results: [-](column|fold_term)', collectRepeatable, [])
+    .option('--quantize-uint <quantize-uint>', 'Compute quantized column: output_column,input_column,size[,offset]', collectRepeatable, [])
+    .addOption(new Option('--raw-query <raw-query>', 'Raw query to use (overrides all other flags)').hideHelp(!revealHidden))
+    .addOption(new Option('--table <table>', 'Table to query against').hideHelp(!revealHidden))
+    .addOption(new Option('--timestamp-attribute <timestamp-attribute>', 'Attribute to use as timestamp').hideHelp(!revealHidden))
+    .option('--reverse <reverse>', 'Reverse sort order')
+    .option('--template <template>', 'TODO: (ex: select)')
+    .option('--factor <factor>', 'Group by attribute')
+    .option('--fingerprint <fingerprint>', 'Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint')
     .option('--id <id>', 'Alert ID')
     .option('--name <name>', 'Alert name')
     .option('--rename <rename>', 'New name')
+    .option('--enabled <enabled>', 'Enable alert')
+    .option('--query-period <query-period>', 'Query period')
+    .option('--min-notification-interval <min-notification-interval>', 'Min notification interval')
+    .option('--mute-until <mute-until>', 'Mute until timestamp')
+    .option('--target-name <target-name>', 'Target name', collectRepeatable, [])
+    .option('--target-id <target-id>', 'Target ID', collectRepeatable, [])
+    .option('--trigger <trigger>', 'Trigger spec: column,index,op,warn,crit')
     .option('--replace-query', 'Replace query', false)
     .option('--clear-targets', 'Clear targets', false)
     .action((opts, cmd) => {
@@ -2102,9 +2140,49 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       result = {
         kind: 'alerts.alert.update',
         globalOptions: g,
+        queryOptions: {
+          filter: opts['filter'],
+          limit: opts['limit'],
+          offset: opts['offset'],
+          select: opts['select'],
+          selectWildcard: opts['selectWildcard'],
+          age: opts['age'],
+          time: opts['time'],
+          unique: opts['unique'],
+          histogram: opts['histogram'],
+          distribution: opts['distribution'],
+          mean: opts['mean'],
+          sum: opts['sum'],
+          range: opts['range'],
+          count: opts['count'],
+          bin: opts['bin'],
+          head: opts['head'],
+          tail: opts['tail'],
+          object: opts['object'],
+          last: opts['last'],
+          first: opts['first'],
+          min: opts['min'],
+          max: opts['max'],
+          sort: opts['sort'],
+          quantizeUint: opts['quantizeUint'],
+          rawQuery: opts['rawQuery'],
+          table: opts['table'],
+          timestampAttribute: opts['timestampAttribute'],
+          reverse: opts['reverse'],
+          template: opts['template'],
+          factor: opts['factor'],
+          fingerprint: opts['fingerprint'],
+        },
         id: opts['id'],
         name: opts['name'],
         rename: opts['rename'],
+        enabled: opts['enabled'],
+        queryPeriod: opts['queryPeriod'],
+        minNotificationInterval: opts['minNotificationInterval'],
+        muteUntil: opts['muteUntil'],
+        targetName: opts['targetName'],
+        targetId: opts['targetId'],
+        trigger: opts['trigger'],
         replaceQuery: opts['replaceQuery'],
         clearTargets: opts['clearTargets'],
       } satisfies AlertsAlertUpdateCommand;

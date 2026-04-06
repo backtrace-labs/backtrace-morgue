@@ -1,28 +1,18 @@
-import * as cliOptions from '../cli/options';
 import {errx} from '../cli/errors';
 import {WorkflowsClient} from './client';
-import * as router from '../cli/router';
 import {WorkflowsIntegrationsCli} from './integrations';
 import {WorkflowsAlertsCli} from './alerts';
 import {WorkflowsConnectionsCli} from './connections';
 
-const HELP_MESSAGE = `
-Usage:
-
-morgue workflows connection [create | list | get | update | delete] <options>
-morgue workflows integration [create | list | get | update | delete] <options>
-morgue workflows alert [create | list | get | update | delete] <options>
-
-See the Morgue README for option documentation.
-`;
+import type {GlobalOptions} from '../cli/generated/types';
 
 export class WorkflowsCli {
   client: any;
   universe: any;
   project: any;
-  integrations: any;
-  alerts: any;
-  connections: any;
+  integrations: WorkflowsIntegrationsCli;
+  alerts: WorkflowsAlertsCli;
+  connections: WorkflowsConnectionsCli;
 
   constructor(client, universe, project) {
     this.client = client;
@@ -33,9 +23,13 @@ export class WorkflowsCli {
     this.connections = new WorkflowsConnectionsCli(client, universe);
   }
 
-  static async fromCoroner(coroner, argv, config) {
-    let universe = cliOptions.convertAtMostOne('universe', argv.universe);
-    const project = cliOptions.convertAtMostOne('project', argv.project);
+  static async fromCoroner(
+    coroner,
+    globalOptions: GlobalOptions,
+    config,
+  ): Promise<WorkflowsCli> {
+    let universe = globalOptions.universe;
+    const project = globalOptions.project;
     /*
      * Currently the service infrastructure doesn't support inferring
      * universe, so do it on our end if we can.
@@ -50,15 +44,5 @@ export class WorkflowsCli {
     }
     const client = await WorkflowsClient.fromCoroner(coroner);
     return new WorkflowsCli(client, universe, project);
-  }
-
-  async routeMethod(args) {
-    const routes = {
-      integration: this.integrations.routeMethod.bind(this.integrations),
-      alert: this.alerts.routeMethod.bind(this.alerts),
-      connection: this.connections.routeMethod.bind(this.connections),
-    };
-
-    await router.route(routes, HELP_MESSAGE, args);
   }
 }

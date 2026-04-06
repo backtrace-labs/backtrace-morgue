@@ -1,207 +1,103 @@
+import type {
+  AttributeCreateCommand,
+  AttributeDeleteCommand,
+  ViewCreateCommand,
+  ViewDeleteCommand,
+} from '../cli/generated/types';
 import * as config from '../config';
 import {errx, err} from '../cli/errors';
-import {coronerBpgSetup, coronerParams} from '../cli/context';
-import {bpgPost, bpgSingleRequest, bpgCbFn, subcmdProcess} from '../cli/bpg-helpers';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg} from '../cli/context';
+import {bpgPost, bpgSingleRequest, bpgCbFn} from '../cli/bpg-helpers';
 
-function viewUsageFn(str) {
-  if (str) {
-    err(str + '\n');
-  }
-  console.error(
-    'Usage: morgue view <create|delete> <project> <name> <queries> <payload>',
+function setupAttributeContext(config: any, globalOptions: any, project: string) {
+  const coroner = coronerClientFromGlobal(config, globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, globalOptions);
+  const model = bpg.get();
+  const ctx = parseProjectArg(project, config);
+
+  const universe = model.universe.find(univ => univ.fields.name === ctx.universe);
+  if (!universe) errx(`Universe ${ctx.universe} not found.`);
+
+  const proj = model.project.find(
+    p => p.fields.universe === universe.fields.id && p.fields.name === ctx.project,
   );
-  process.exit(1);
+  if (!proj) errx(`Project ${ctx.universe}/${ctx.project} not found.`);
+
+  return {bpg, model, universe, project: proj};
 }
 
-function viewSetupFn(config, argv, opts, subcmd) {
-  if (argv.length < 4) {
-    return attributeUsageFn('Incomplete command.');
-  }
+function attributeCreate(cmd: AttributeCreateCommand, config: any) {
+  abortIfNotLoggedIn(config);
 
-  opts.params = {
-    attrname: argv._[2],
-  };
-  if (!opts.params.attrname) return viewUsageFn('Missing attribute name.');
+  if (!cmd.type) errx('Must specify type.');
+  if (!cmd.description) errx('Must specify description.');
 
-  opts.state.bpg = coronerBpgSetup(opts.state.coroner, argv);
-  opts.state.model = opts.state.bpg.get();
-  opts.state.context = coronerParams(argv, config);
-
-  const ctx = opts.state.context;
-  opts.state.universe = opts.state.model.universe.find(univ => {
-    return univ.fields.name === ctx.universe;
-  });
-  if (!opts.state.universe)
-    return viewUsageFn(`Universe ${ctx.universe} not found.`);
-  opts.state.project = opts.state.model.project.find(
-    proj =>
-      proj.fields.universe === opts.state.universe.fields.id &&
-      proj.fields.name === ctx.project,
-  );
-  if (!opts.state.project) {
-    return viewUsageFn(`Project ${ctx.universe}/${ctx.project} not found.`);
-  }
-
-  if (subcmd !== 'create') {
-    // First search for a view by its query name.
-    opts.state.query = opts.state.model.query.find(
-      query => query.fields.name === opts.params.attrname,
-    );
-    // If not found, search for a view using the dashboard query name.
-    if (!opts.state.query) {
-      opts.state.query = opts.state.model.query.find(
-        query => query.fields.name === '%dashboard% ' + opts.params.attrname,
-      );
-    }
-    if (!opts.state.query) return viewUsageFn('View not found.');
-    opts.state.attr_key = {
-      project: opts.state.query.fields.project,
-      name: opts.state.query.fields.name,
-    };
-  }
-}
-
-function attributeUsageFn(str: any): never {
-  const formats = [
-    'none',
-    'commit',
-    'semver',
-    'callstack',
-    'hostname',
-    'bytes',
-    'kilobytes',
-    'megabytes',
-    'gigabytes',
-    'nanoseconds',
-    'milliseconds',
-    'seconds',
-    'unix_timestamp',
-    'js_timestamp',
-    'gps_timestamp',
-    'memory_address',
-    'labels',
-    'commit',
-    'sha256',
-    'uuid',
-    'ipv4',
-    'ipv6',
-  ];
-
-  const types = [
-    'bitmap',
-    'uint8',
-    'uint16',
-    'uint32',
-    'uint64',
-    'uint128',
-    'uuid',
-    'dictionary',
-  ];
-
-  if (str) err(str + '\n');
-  console.error(
-    'Usage: morgue attribute <create|delete> <project> <name> [options]',
-  );
-  console.error('');
-  console.error('Options for create (all but format are required): ');
-  console.error('  --description=D  Specify description.');
-  console.error('  --type=T         Specify type. Can be of the following: ');
-  console.error('                     ' + types.join(', '));
-  console.error(
-    '  --format=F       Specify formatting hint. Can be of the following: ',
-  );
-  console.error(
-    '                     ' + formats.slice(0, 10).join(', ') + ', ',
-  );
-  console.error('                     ' + formats.slice(10).join(', '));
-
-  process.exit(1);
-}
-
-function attributeSetupFn(config, argv, opts, subcmd): any {
-  if (argv.length < 3) {
-    return attributeUsageFn('Incomplete command.');
-  }
-
-  opts.params = {
-    attrname: argv._[2],
-  };
-  if (!opts.params.attrname) return attributeUsageFn('Missing attribute name.');
-
-  opts.state.bpg = coronerBpgSetup(opts.state.coroner, argv);
-  opts.state.model = opts.state.bpg.get();
-  opts.state.context = coronerParams(argv, config);
-
-  const ctx = opts.state.context;
-  opts.state.universe = opts.state.model.universe.find(univ => {
-    return univ.fields.name === ctx.universe;
-  });
-  if (!opts.state.universe)
-    return attributeUsageFn(`Universe ${ctx.universe} not found.`);
-  opts.state.project = opts.state.model.project.find(proj => {
-    return (
-      proj.fields.universe === opts.state.universe.fields.id &&
-      proj.fields.name === ctx.project
-    );
-  });
-  if (!opts.state.project) {
-    return attributeUsageFn(
-      `Project ${ctx.universe}/${ctx.project} not found.`,
-    );
-  }
-
-  if (subcmd !== 'create') {
-    opts.state.attribute = opts.state.model.attribute.find(attrib => {
-      return attrib.fields.name === opts.params.attrname;
-    });
-    if (!opts.state.attribute) return attributeUsageFn('Attribute not found.');
-    opts.state.attr_key = {
-      project: opts.state.attribute.fields.project,
-      name: opts.state.attribute.fields.name,
-    };
-  }
-}
-
-function attributeSet(argv, config, opts): any {
-  const state = opts.state;
-  if (!argv.description) {
-    return attributeUsageFn('Must specify new description.');
-  }
+  const state = setupAttributeContext(config, cmd.globalOptions, cmd.project);
 
   const request = bpgSingleRequest({
-    action: 'modify',
+    action: 'create',
     type: 'configuration/attribute',
-    key: state.attr_key,
-    fields: {
-      description: argv.description,
+    object: {
+      name: cmd.name,
+      project: state.project.fields.pid,
+      type: cmd.type,
+      description: cmd.description,
+      format: cmd.format,
     },
   });
 
-  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'update'));
+  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'create'));
 }
 
-function viewCreate(argv, config, opts) {
-  const state = opts.state;
+function attributeDelete(cmd: AttributeDeleteCommand, config: any) {
+  abortIfNotLoggedIn(config);
 
-  if (!argv.queries) return viewUsageFn('Must specify queries.');
-  if (!argv.payload) return viewUsageFn('Must specify payload.');
-  if (!state.project.fields && !state.project.fields.pid)
-    return viewUsageFn('Invalid Project.');
-  if (!config.config.uid) return viewUsageFn('Invalid user.');
+  const state = setupAttributeContext(config, cmd.globalOptions, cmd.project);
+
+  const attribute = state.model.attribute.find(
+    attrib => attrib.fields.name === cmd.name,
+  );
+  if (!attribute) errx('Attribute not found.');
+
+  const attr_key = {
+    project: attribute.fields.project,
+    name: attribute.fields.name,
+  };
+
+  const request = bpgSingleRequest({
+    action: 'delete',
+    type: 'configuration/attribute',
+    key: attr_key,
+  });
+
+  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'delete'));
+}
+
+function viewCreate(cmd: ViewCreateCommand, config: any) {
+  abortIfNotLoggedIn(config);
+
+  if (!cmd.queries) errx('Must specify queries.');
+  if (!cmd.payload) errx('Must specify payload.');
+
+  const state = setupAttributeContext(config, cmd.globalOptions, cmd.project);
+
+  if (!state.project.fields || !state.project.fields.pid)
+    errx('Invalid Project.');
+  if (!config.config.uid) errx('Invalid user.');
 
   // json parse or keep input as json
   const queries =
-    typeof argv.queries === 'string' ? JSON.parse(argv.queries) : argv.queries;
+    typeof cmd.queries === 'string' ? JSON.parse(cmd.queries) : cmd.queries;
   const payload =
-    typeof argv.payload === 'string' ? JSON.parse(argv.payload) : argv.payload;
+    typeof cmd.payload === 'string' ? JSON.parse(cmd.payload) : cmd.payload;
   // update name
-  payload.name = opts.params.attrname;
+  payload.name = cmd.name;
 
   const request = bpgSingleRequest({
     action: 'create',
     type: 'configuration/query',
     object: {
-      name: opts.params.attrname,
+      name: cmd.name,
       project: state.project.fields.pid,
       owner: config.config.uid,
       queries: JSON.stringify(queries),
@@ -212,71 +108,40 @@ function viewCreate(argv, config, opts) {
   bpgPost(state.bpg, request, bpgCbFn('View', 'create'));
 }
 
-function viewDelete(argv, config, opts) {
-  const state = opts.state;
+function viewDelete(cmd: ViewDeleteCommand, config: any) {
+  abortIfNotLoggedIn(config);
+
+  const state = setupAttributeContext(config, cmd.globalOptions, cmd.project);
+
+  // First search for a view by its query name.
+  let query = state.model.query.find(
+    q => q.fields.name === cmd.name,
+  );
+  // If not found, search for a view using the dashboard query name.
+  if (!query) {
+    query = state.model.query.find(
+      q => q.fields.name === '%dashboard% ' + cmd.name,
+    );
+  }
+  if (!query) errx('View not found.');
+
+  const attr_key = {
+    project: query.fields.project,
+    name: query.fields.name,
+  };
+
   const request = bpgSingleRequest({
     action: 'delete',
     type: 'configuration/query',
-    key: state.attr_key,
+    key: attr_key,
   });
+
   bpgPost(state.bpg, request, bpgCbFn('View', 'delete'));
 }
 
-function attributeDelete(argv, config, opts) {
-  const state = opts.state;
-  const request = bpgSingleRequest({
-    action: 'delete',
-    type: 'configuration/attribute',
-    key: state.attr_key,
-  });
-  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'delete'));
-}
-
-function attributeCreate(argv, config, opts): any {
-  const state = opts.state;
-
-  if (!argv.type) return attributeUsageFn('Must specify type.');
-  if (!argv.description) return attributeUsageFn('Must specify description.');
-
-  const request = bpgSingleRequest({
-    action: 'create',
-    type: 'configuration/attribute',
-    object: {
-      name: opts.params.attrname,
-      project: state.project.fields.pid,
-      type: argv.type,
-      description: argv.description,
-      format: argv.format,
-    },
-  });
-
-  bpgPost(state.bpg, request, bpgCbFn('Attribute', 'create'));
-}
-
-function coronerAttribute(argv: any, config: any) {
-  subcmdProcess(argv, config, {
-    usageFn: attributeUsageFn,
-    setupFn: attributeSetupFn,
-    subcmds: {
-      //set: attributeSet, - not supported
-      create: attributeCreate,
-      delete: attributeDelete,
-    },
-  });
-}
-
-function coronerView(argv: any, config: any) {
-  subcmdProcess(argv, config, {
-    usageFn: viewUsageFn,
-    setupFn: viewSetupFn,
-    subcmds: {
-      create: viewCreate,
-      delete: viewDelete,
-    },
-  });
-}
-
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  attribute: coronerAttribute,
-  view: coronerView,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'attribute.create': attributeCreate,
+  'attribute.delete': attributeDelete,
+  'view.create': viewCreate,
+  'view.delete': viewDelete,
 };

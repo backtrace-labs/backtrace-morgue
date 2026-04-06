@@ -4,16 +4,17 @@ import {spawn} from 'child_process';
 import * as fs from 'fs';
 import * as config from '../config';
 import * as crdb from '../crdb';
-import * as queryCli from '../cli/query';
+import type {SimilarityCommand, FlamegraphCommand, QueryOptions} from '../cli/generated/types';
+import {buildQuery} from '../cli/query';
 import {errx} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerParams} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, parseProjectArg} from '../cli/context';
 import {usage} from '../cli/util';
 import {flamegraphScript} from '../cli/constants';
 
-const similarityParams = ['threshold', 'intersection', 'distance', 'truncate'];
+const similarityParams = ['threshold', 'intersection', 'distance', 'truncate'] as const;
 const similarityDefaultFilter = [{timestamp: [['at-least', '1.']]}];
 
-async function coronerSimilarity(argv: any, config: any): Promise<any> {
+async function coronerSimilarity(cmd: SimilarityCommand, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const similarityService = config.config.services.find(service => {
@@ -24,43 +25,37 @@ async function coronerSimilarity(argv: any, config: any): Promise<any> {
     errx('morgue similarity is unavailable on your host');
   }
 
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const similarityEndpoint = similarityService.endpoint.startsWith('http')
     ? similarityService.endpoint
     : `${coroner.endpoint}${similarityService.endpoint}`;
 
-  if (argv._.length < 2) {
-    return usage('Missing project, universe arguments.');
-  }
-
-  let fingerprint;
-  if (argv.fingerprint) {
-    fingerprint = argv.fingerprint;
-    delete argv.fingerprint;
-  }
-  const project = coronerParams(argv, config).project;
+  const p = parseProjectArg(cmd.project, config);
+  const project = p.project;
   const xCoronerToken = config.config.token;
   const xCoronerLocation = config.endpoint;
 
   // Default options
-  const candidacyOptions = {
+  const candidacyOptions: any = {
     type: 'distance',
     truncate: 100,
     distance: 10,
     intersection: 1,
     threshold: 1,
   };
-  const limit = argv.limit || 20;
-  const filter = argv.filter || similarityDefaultFilter;
+  const limit = 20;
+  const filter = cmd.filter ? JSON.parse(cmd.filter) : similarityDefaultFilter;
 
   similarityParams.forEach(param => {
-    if (argv[param]) {
-      candidacyOptions[param] = argv[param];
+    if (cmd[param]) {
+      candidacyOptions[param] = cmd[param];
     }
   });
 
   let body;
   let url;
+
+  const fingerprint = cmd.fingerprint;
 
   // If we have fingerprint, get candidates. Otherwise get project summary.
   const requestType = fingerprint ? 'candidates' : 'summary';
@@ -94,7 +89,7 @@ async function coronerSimilarity(argv: any, config: any): Promise<any> {
     errx(err);
   }
 
-  if (argv.json) {
+  if (cmd.json) {
     console.log(JSON.stringify(results.data, null, 2));
     return;
   }
@@ -187,24 +182,35 @@ async function coronerSimilarity(argv: any, config: any): Promise<any> {
   }
 }
 
-function coronerFlamegraph(argv: any, config: any): any {
+function flamegraphQueryOptions(cmd: FlamegraphCommand): QueryOptions {
+  return {
+    filter: cmd.filter,
+    limit: cmd.limit,
+    offset: cmd.offset,
+    select: cmd.select,
+    selectWildcard: cmd.selectWildcard,
+    age: cmd.age,
+    time: cmd.time,
+    sort: cmd.sort,
+    quantizeUint: cmd.quantizeUint,
+    rawQuery: cmd.rawQuery,
+    table: cmd.table,
+    timestampAttribute: cmd.timestampAttribute,
+    template: cmd.template,
+    factor: cmd.factor,
+    fingerprint: cmd.fingerprint,
+  };
+}
+
+function coronerFlamegraph(cmd: FlamegraphCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  let query, p;
-  const unique = argv.unique;
-  const reverse = argv.reverse;
 
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
 
-  if (argv._.length < 2) {
-    return usage('Missing project, universe arguments.');
-  }
-
-  p = coronerParams(argv, config);
-
-  const aq = queryCli.argvQuery(argv);
-  query = aq.query;
-  const d_age = aq.age;
-  const data = '';
+  const queryOpts = flamegraphQueryOptions(cmd);
+  const aq = buildQuery(queryOpts);
+  const query = aq.query;
 
   query.fold = {
     callstack: [['histogram']],
@@ -237,7 +243,7 @@ function coronerFlamegraph(argv: any, config: any): any {
       const count = samples[i][1];
       let line = '';
 
-      if (argv.reverse) {
+      if (cmd.reverse) {
         for (var j = 0; j < callstack.length; j++) {
           if (j != 0) line += ';';
 
@@ -251,7 +257,7 @@ function coronerFlamegraph(argv: any, config: any): any {
         }
       }
 
-      if (unique) {
+      if (cmd.unique) {
         line += ' 1';
       } else {
         line += ' ' + count;
@@ -262,15 +268,15 @@ function coronerFlamegraph(argv: any, config: any): any {
 
     child.stdin.end();
 
-    if (argv.o) {
+    if (cmd.output) {
       try {
-        fs.accessSync(argv.o);
-        errx('File ' + argv.o + ' already exists.');
+        fs.accessSync(cmd.output);
+        errx('File ' + cmd.output + ' already exists.');
       } catch (error) {
         /* We are fine, not replacing a file probably. */
       }
 
-      const stream = fs.createWriteStream(argv.o);
+      const stream = fs.createWriteStream(cmd.output);
       child.stdout.pipe(stream);
     } else {
       child.stdout.on('data', data => {
@@ -280,7 +286,7 @@ function coronerFlamegraph(argv: any, config: any): any {
   });
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
   similarity: coronerSimilarity,
   flamegraph: coronerFlamegraph,
 };

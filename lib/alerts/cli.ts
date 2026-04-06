@@ -1,4 +1,3 @@
-import * as router from '../cli/router';
 import * as options from '../cli/options';
 import * as time from '../cli/time';
 import {errx} from '../cli/errors';
@@ -6,14 +5,18 @@ import * as queryCli from '../cli/query';
 
 import * as client from './client';
 
-const HELP_MESSAGE = `
-USAGE:
+import type {
+  AlertsTargetCreateCommand,
+  AlertsTargetGetCommand,
+  AlertsTargetUpdateCommand,
+  AlertsTargetDeleteCommand,
+  AlertsAlertGetCommand,
+  AlertsAlertCreateCommand,
+  AlertsAlertUpdateCommand,
+  AlertsAlertDeleteCommand,
+  GlobalOptions,
+} from '../cli/generated/types';
 
-morgue alerts target [create | list | get | update | delete] <args>
-morgue alerts alert [create | list | get | update | delete] <args>
-
-See the Morgue README for option documentation.
-`;
 export class AlertsCli {
   client: any;
 
@@ -22,28 +25,7 @@ export class AlertsCli {
     this.client.setDefaultQs({universe, project});
   }
 
-  async routeMethod(args) {
-    const routes = {
-      target: {
-        get: this.getTarget.bind(this),
-        list: this.listTargets.bind(this),
-        create: this.createTarget.bind(this),
-        delete: this.deleteTarget.bind(this),
-        update: this.updateTarget.bind(this),
-      },
-      alert: {
-        get: this.getAlert.bind(this),
-        list: this.listAlerts.bind(this),
-        create: this.createAlert.bind(this),
-        update: this.updateAlert.bind(this),
-        delete: this.deleteAlert.bind(this),
-      },
-    };
-
-    await router.route(routes, HELP_MESSAGE, args);
-  }
-
-  async targetIdFromName(name) {
+  async targetIdFromName(name: string) {
     for await (const t of this.client.listTargets()) {
       if (t.name == name) {
         return t.id;
@@ -52,14 +34,12 @@ export class AlertsCli {
     errx(`Target ${name} not found`);
   }
 
-  async targetIdFromArgs(argv) {
-    let id = options.convertAtMostOne('id', argv.id);
-    const name = options.convertAtMostOne('name', argv.name);
+  async targetIdFromIdOrName(id?: string, name?: string) {
     if (!id && !name) {
       errx('One of --id or --name is required');
     }
     if (!id) {
-      id = await this.targetIdFromName(name);
+      id = await this.targetIdFromName(name!);
     }
     return id;
   }
@@ -71,8 +51,8 @@ export class AlertsCli {
     );
   }
 
-  async getTarget(argv) {
-    const id = await this.targetIdFromArgs(argv);
+  async getTarget(cmd: AlertsTargetGetCommand) {
+    const id = await this.targetIdFromIdOrName(cmd.id, cmd.name);
     const target = await this.client.getTarget(id);
     this.printTarget(target);
   }
@@ -83,47 +63,37 @@ export class AlertsCli {
     }
   }
 
-  async createTarget(argv) {
-    const name = options.convertOne('name', argv.name);
-    const workflowName = options.convertOne(
-      'workflow-name',
-      argv['workflow-name'],
-    );
+  async createTarget(cmd: AlertsTargetCreateCommand) {
     const res = await this.client.createTarget({
-      name,
+      name: cmd.name,
       target_type: 'workflow1',
       workflow1: {
-        workflow_name: workflowName,
+        workflow_name: cmd.workflowName,
       },
     });
     console.log(`Created target ${res.id}`);
   }
 
-  async deleteTarget(argv) {
-    const id = await this.targetIdFromArgs(argv);
+  async deleteTarget(cmd: AlertsTargetDeleteCommand) {
+    const id = await this.targetIdFromIdOrName(cmd.id, cmd.name);
     await this.client.deleteTarget(id);
     console.log(`Deleted target ${id}`);
   }
 
-  async updateTarget(argv) {
-    const id = await this.targetIdFromArgs(argv);
-    const newName = options.convertAtMostOne('rename', argv.rename);
-    const workflowName = options.convertAtMostOne(
-      'workflow-name',
-      argv['workflow-name'],
-    );
+  async updateTarget(cmd: AlertsTargetUpdateCommand) {
+    const id = await this.targetIdFromIdOrName(cmd.id, cmd.name);
     const target = await this.client.getTarget(id);
-    if (newName) {
-      target.name = newName;
+    if (cmd.rename) {
+      target.name = cmd.rename;
     }
-    if (workflowName) {
-      target.workflow1.workflow_name = workflowName;
+    if (cmd.workflowName) {
+      target.workflow1.workflow_name = cmd.workflowName;
     }
     await this.client.updateTarget(id, target);
     console.log(`Target ${id} updated`);
   }
 
-  async alertIdFromName(name) {
+  async alertIdFromName(name: string) {
     for await (const a of this.client.listAlerts()) {
       if (a.name == name) {
         return a.id;
@@ -132,14 +102,12 @@ export class AlertsCli {
     errx(`Alert ${name} not found`);
   }
 
-  async alertIdFromArgs(argv) {
-    let id = options.convertAtMostOne('id', argv.id);
-    const name = options.convertAtMostOne('name', argv.name);
+  async alertIdFromIdOrName(id?: string, name?: string) {
     if (!id && !name) {
       errx('One of --id or --name is required');
     }
     if (!id) {
-      id = await this.alertIdFromName(name);
+      id = await this.alertIdFromName(name!);
     }
     return id;
   }
@@ -147,22 +115,33 @@ export class AlertsCli {
   /*
    * Generate a possibly partial alert specification, minus the query, which
    * is handled separately.
-   *
    */
-  async generateAlertSpec(argv, isCreate) {
+  async generateAlertSpec(
+    cmd: {
+      name?: string;
+      enabled?: string;
+      queryPeriod?: string;
+      minNotificationInterval?: string;
+      muteUntil?: string;
+      trigger?: string | string[];
+      targetId?: string[];
+      targetName?: string[];
+    },
+    isCreate: boolean,
+  ) {
     const convertOne = isCreate ? options.convertOne : options.convertAtMostOne;
     const partial: any = {
-      name: convertOne('name', argv.name),
+      name: convertOne('name', cmd.name),
       /* This is always optional, defaults true below if in create. */
-      enabled: options.convertAtMostOne('enabled', argv.enabled),
-      query_period: convertOne('query-period', argv['query-period']),
+      enabled: options.convertAtMostOne('enabled', cmd.enabled),
+      query_period: convertOne('query-period', cmd.queryPeriod),
       min_notification_interval: convertOne(
         'min-notification-interval',
-        argv['min-notification-interval'],
+        cmd.minNotificationInterval,
       ),
       /* Also always optional; defaults to 0 if in create. */
-      mute_until: options.convertAtMostOne('mute-until', argv['mute-until']),
-      triggers: options.convertMany('trigger', argv.trigger, true),
+      mute_until: options.convertAtMostOne('mute-until', cmd.muteUntil),
+      triggers: options.convertMany('trigger', cmd.trigger, true),
     };
 
     if (partial.enabled === undefined || partial.enabled === null) {
@@ -181,10 +160,10 @@ export class AlertsCli {
     /*
      * targets are always optional, even on create.
      */
-    const targetIds = options.convertMany('target-id', argv['target-id'], true);
+    const targetIds = options.convertMany('target-id', cmd.targetId, true);
     const targetNames = options.convertMany(
       'target-name',
-      argv['target-name'],
+      cmd.targetName,
       true,
     );
 
@@ -255,11 +234,11 @@ export class AlertsCli {
     return partial;
   }
 
-  async createAlert(argv) {
-    const spec = await this.generateAlertSpec(argv, true);
+  async createAlert(cmd: AlertsAlertCreateCommand) {
+    const spec = await this.generateAlertSpec(cmd, true);
 
-    const query = queryCli.argvQuery(
-      argv,
+    const query = queryCli.buildQuery(
+      cmd.queryOptions,
       /*implicitTimestampOps=*/ false,
       /*doFolds=*/ true,
     ).query;
@@ -274,8 +253,8 @@ export class AlertsCli {
     console.log(`Created alert ${res.id}`);
   }
 
-  async updateAlert(argv) {
-    const unfilteredSpec = this.generateAlertSpec(argv, false);
+  async updateAlert(cmd: AlertsAlertUpdateCommand) {
+    const unfilteredSpec = this.generateAlertSpec(cmd, false);
 
     /*
      * Filter out anything which wasn't set.
@@ -292,20 +271,18 @@ export class AlertsCli {
      * get rid of name, if set.
      */
     delete spec.name;
-    const newName = options.convertAtMostOne('rename', argv.rename);
-    if (newName) {
-      spec.name = newName;
+    if (cmd.rename) {
+      spec.name = cmd.rename;
     }
 
     /*
-     * because argvQuery is happy to generate queries from empty args, require
+     * because buildQuery is happy to generate queries from empty args, require
      * the user to be explicit.
      */
-    // cstrahan: note that updated was previously undefined :(
     var updated: any = {};
-    if (argv['replace-query']) {
-      const query = queryCli.argvQuery(
-        argv,
+    if (cmd.replaceQuery) {
+      const query = queryCli.buildQuery(
+        cmd.queryOptions,
         /*implicitTimestampOps=*/ false,
         /*doFolds=*/ true,
       ).query;
@@ -315,14 +292,13 @@ export class AlertsCli {
       updated.query = JSON.stringify(query);
     }
 
-    if (argv['clear-targets']) {
+    if (cmd.clearTargets) {
       updated.targets = [];
     }
 
-    // cstrahan: note that this used to be spelled alertIdFromArgv; this function has been buggy for a while.
-    const id = this.alertIdFromArgs(argv);
+    const id = await this.alertIdFromIdOrName(cmd.id, cmd.name);
     const alert = await this.client.getAlert(id);
-    var updated = {...alert, ...spec};
+    updated = {...alert, ...spec, ...updated};
     await this.client.updateAlert(id, updated);
     console.log(`Updated alert ${id}`);
   }
@@ -340,22 +316,29 @@ export class AlertsCli {
     }
   }
 
-  async getAlert(argv) {
-    const id = await this.alertIdFromArgs(argv);
+  async getAlert(cmd: AlertsAlertGetCommand) {
+    const id = await this.alertIdFromIdOrName(cmd.id, cmd.name);
     const alert = await this.client.getAlert(id);
     this.printAlert(alert);
   }
 
-  async deleteAlert(argv) {
-    const id = await this.alertIdFromArgs(argv);
+  async deleteAlert(cmd: AlertsAlertDeleteCommand) {
+    const id = await this.alertIdFromIdOrName(cmd.id, cmd.name);
     await this.client.deleteAlert(id);
     console.log(`Deleted alert ${id}`);
   }
 }
 
-export async function alertsCliFromCoroner(coroner, argv, config) {
-  let universe = options.convertAtMostOne('universe', argv.universe);
-  const project = options.convertOne('project', argv.project);
+export async function alertsCliFromCoroner(
+  coroner,
+  globalOptions: GlobalOptions,
+  config,
+) {
+  let universe = globalOptions.universe;
+  const project = globalOptions.project;
+  if (!project) {
+    errx('--project is required');
+  }
   /*
    * Currently the Rust service infrastructure doesn't support inferring
    * universe, so do it on our end if we can.

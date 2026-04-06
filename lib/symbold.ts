@@ -1,7 +1,5 @@
 import axios from 'axios';
-import * as symbolServer from './symbold/symboldSymbolServer';
-import * as symbolItem from './symbold/symboldSymbolItem';
-import * as queue from './symbold/symboldQueue';
+import type {SymboldStatusCommand} from './cli/generated/types';
 
 /**
  * Symbold morgue client
@@ -11,7 +9,6 @@ export class SymboldClient {
   debug: boolean;
   timeout: number;
   symboldEndpoint: string;
-  routing: any;
 
   constructor(coronerdClient) {
     this.coronerdClient = coronerdClient;
@@ -19,43 +16,10 @@ export class SymboldClient {
     this.timeout = this.coronerdClient.timeout;
 
     this.symboldEndpoint = `${coronerdClient.endpoint}/api/symbold`;
-    this.routing = {
-      symbolserver: argv =>
-        new symbolServer.SymboldSymbolServer(this).routeMethod(argv),
-      whitelist: argv =>
-        new symbolItem.SymboldSymbolItem('whitelist', this).routeMethod(argv),
-      blacklist: argv =>
-        new symbolItem.SymboldSymbolItem('blacklist', this).routeMethod(argv),
-      skiplist: argv =>
-        new symbolItem.SymboldSymbolItem('skiplist', this).routeMethod(argv),
-      status: argv => this.status(argv),
-      queue: argv => new queue.SymboldQueue(this).routeMethod(argv),
-      help: () => this.showSymbolServerUsage(),
-    };
   }
 
-  routeMethod(argv) {
-    if (!this.coronerdClient || !this.coronerdClient.endpoint) {
-      return this.showSymbolServerUsage('To use symbold command please login');
-    }
-    const handlerName = argv._.shift();
-    if (!handlerName) {
-      return this.showSymbolServerUsage();
-    }
-    const handler = this.routing[handlerName.toLowerCase()];
-    if (!handler) {
-      return this.showSymbolServerUsage();
-    }
-
-    handler.apply(this, [argv]);
-  }
-
-  status(argv) {
-    const universeProject = argv._.shift();
-    if (universeProject === 'help') {
-      this.showStatusHelp();
-      return;
-    }
+  status(cmd: SymboldStatusCommand) {
+    const universeProject = cmd.project;
     if (!universeProject) {
       this.showSymbolServerUsage();
       return;
@@ -71,7 +35,7 @@ export class SymboldClient {
     this.get(url);
   }
 
-  async remove(url, callback) {
+  async remove(url, callback?) {
     if (this.debug) {
       console.log(`Trying to remove resource under url : ${url}`);
     }
@@ -107,7 +71,7 @@ export class SymboldClient {
     }
   }
 
-  async put(url, data, callback) {
+  async put(url, data, callback?) {
     const requestHeaders = this.getCoronerdHeaders();
     requestHeaders['Content-Type'] = 'application/json';
 
@@ -138,7 +102,7 @@ export class SymboldClient {
       throw err;
     }
   }
-  async post(url, data, callback) {
+  async post(url, data, callback?) {
     const requestHeaders = this.getCoronerdHeaders();
     requestHeaders['Content-Type'] = 'application/json';
 
@@ -230,8 +194,8 @@ export class SymboldClient {
     console.warn(`
       Usage: morgue symbold <subcommand>:
           morgue symbold <symbolserver | queue | whitelist | blacklist | skiplist | status> <action>
-      
-      If you need detailed information please use help command. For example: 
+
+      If you need detailed information please use help command. For example:
         $ morgue symbold symbolserver help
   `);
   }

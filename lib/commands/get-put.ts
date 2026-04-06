@@ -6,11 +6,25 @@ import {sprintf} from 'extsprintf';
 import chalk from 'chalk';
 import * as config from '../config';
 import {errx, err, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerClientArgvSubmit, coronerParams} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  coronerClientSubmitFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {std_success_cb, std_failure_cb} from '../cli/bpg-helpers';
 import {usage, oidToString, oidFromString, objToPath, nsToUs, printSamples} from '../cli/util';
 import {fieldFormat} from '../cli/print';
 import {eHasCode} from '../util';
+import type {
+  GetCommand,
+  PutCommand,
+  DescribeCommand,
+  AttachmentAddCommand,
+  AttachmentGetCommand,
+  AttachmentListCommand,
+  AttachmentDeleteCommand,
+} from '../cli/generated/types';
 
 const grey = chalk.grey;
 const yellow = chalk.yellow;
@@ -94,51 +108,40 @@ function pushFirstToLast(objects, first, last) {
   }
 }
 
-export function argvPushObjectRanges(objects: any, argv: any): any {
-  let i, f, l, r;
-
-  if (argv.first && argv.last) {
-    if (Array.isArray(argv.first) !== Array.isArray(argv.last))
+export function pushObjectRanges(
+  objects: any[],
+  first?: string,
+  last?: string,
+): any {
+  if (first && last) {
+    let f: string[], l: string[];
+    if (Array.isArray(first) !== Array.isArray(last))
       return err('first and last must be specified the same number of times');
 
-    if (Array.isArray(argv.first) === true) {
-      f = argv.first;
-      l = argv.last;
+    if (Array.isArray(first)) {
+      f = first;
+      l = last as any;
     } else {
-      f = [argv.first];
-      l = [argv.last];
+      f = [first];
+      l = [last];
     }
     if (f.length !== l.length)
       return err('first and last must be specified the same number of times');
 
-    for (i = 0; i < f.length; i++) {
+    for (let i = 0; i < f.length; i++) {
       if (objectRangeOk(f, l) === false) return false;
       pushFirstToLast(objects, f[i], l[i]);
     }
   }
 
-  if (argv.objrange) {
-    r = argv.objrange;
-    if (Array.isArray(argv.objrange) === false) r = [argv.objrange];
-
-    for (i = 0; i < r.length; i++) {
-      const parts = r[i].split(',');
-      f = parts[0];
-      l = parts[1];
-      if (objectRangeOk(f, l) === false) return false;
-      pushFirstToLast(objects, f, l);
-    }
-  }
   return true;
 }
 
-function outpathCheck(argv: any, n_objects: any): any {
-  let r, st;
-
-  r = {} as any;
-  r.path = argv.output;
-  if (!r.path && argv.o) r.path = argv.o;
-  if (!r.path && argv.outdir) r.path = argv.outdir;
+function outpathCheck(output: string | undefined, outdir: string | undefined, n_objects: number): any {
+  let st;
+  const r = {} as any;
+  r.path = output;
+  if (!r.path && outdir) r.path = outdir;
   r.has = typeof r.path === 'string' && r.path !== '-';
 
   if (!r.has) return r;
@@ -164,21 +167,20 @@ function outpathCheck(argv: any, n_objects: any): any {
   return r;
 }
 
-function coronerGet(argv: any, config: any): any {
-  let coroner, objects, out, p, params, tasks, st, success;
-
+function handleGet(cmd: GetCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  p = coronerParams(argv, config);
-  objects = argv._.slice(2);
-  tasks = [];
-  coroner = coronerClientArgv(config, argv);
-  argvPushObjectRanges(objects, argv);
 
-  out = outpathCheck(argv, objects.length);
-  params = {};
-  if (argv.resource) params.resource = argv.resource;
+  const p = parseProjectArg(cmd.project, config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const objects: string[] = [cmd.object_id];
+  pushObjectRanges(objects, cmd.first, cmd.last);
 
-  success = 0;
+  const out = outpathCheck(cmd.output, cmd.outdir, objects.length);
+  const params: any = {};
+  if (cmd.resource) params.resource = cmd.resource;
+
+  let success = 0;
+  const tasks: Promise<any>[] = [];
   objects.forEach(oid => {
     tasks.push(
       coroner
@@ -187,7 +189,7 @@ function coronerGet(argv: any, config: any): any {
           const fname = getFname(
             hr,
             out.path,
-            argv.outdir,
+            cmd.outdir,
             objects.length,
             oid,
             params.resource,
@@ -217,21 +219,16 @@ function coronerGet(argv: any, config: any): any {
           }
         })
         .catch(e => {
-          /* Allow ignoring (and printing) failures for testing purposes. */
           const fname = getFname(
             null,
             out.path,
-            argv.outdir,
+            cmd.outdir,
             objects.length,
             oid,
             params.resource,
           );
-          if (!argv.ignorefail || !out.has) {
-            e.message = sprintf('%s: %s', fname, e.message);
-            return Promise.reject(e);
-          }
-          err(sprintf('%s: %s', fname, e.message));
-          return Promise.resolve();
+          e.message = sprintf('%s: %s', fname, e.message);
+          return Promise.reject(e);
         }),
     );
   });
@@ -246,33 +243,21 @@ function coronerGet(argv: any, config: any): any {
         );
     })
     .catch(e => {
-      if (argv.debug) console.log('e = ', e);
+      if (cmd.globalOptions.debug) console.log('e = ', e);
       errx(e.message);
     });
 }
 
-function coronerDescribe(argv: any, config: any): any {
+function handleDescribe(cmd: DescribeCommand, config: any): any {
   abortIfNotLoggedIn(config);
 
   const options: any = {};
-  const query: any = {};
-  let p;
-  let filter = null;
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
+  const filter = cmd.substring || null;
 
-  const coroner = coronerClientArgv(config, argv);
-
-  if (argv._.length < 2) {
-    return usage('Missing universe, project arguments.');
-  }
-
-  if (argv.r) options.disabled = true;
-
-  if (argv.table) {
-    options.table = argv.table;
-  }
-
-  p = coronerParams(argv, config);
-  if (Array.isArray(argv._) === true && argv._[2]) filter = argv._[2];
+  if (cmd.r) options.disabled = true;
+  if (cmd.table) options.table = cmd.table;
 
   coroner.describe(p.universe, p.project, options, (error, result) => {
     let cd, i;
@@ -309,7 +294,7 @@ function coronerDescribe(argv: any, config: any): any {
       return a.name.localeCompare(b.name);
     });
 
-    if (argv.json) {
+    if (cmd.json) {
       console.log(JSON.stringify(cd, null, 2));
       return;
     }
@@ -321,9 +306,9 @@ function coronerDescribe(argv: any, config: any): any {
 
       if (filter && it.name.match(filter) === null) continue;
 
-      if (argv.u && it.custom === false) continue;
+      if (cmd.u && it.custom === false) continue;
 
-      if (!argv.a && it.statistics && it.statistics.used === false) {
+      if (!cmd.a && it.statistics && it.statistics.used === false) {
         if (it.custom === false) {
           unused++;
           continue;
@@ -360,7 +345,7 @@ function coronerDescribe(argv: any, config: any): any {
         );
       }
 
-      if (argv.l && it.filter) {
+      if (cmd.l && it.filter) {
         const sp = Array(ml).join(' ');
         process.stdout.write('\n');
 
@@ -391,73 +376,26 @@ function coronerDescribe(argv: any, config: any): any {
   });
 }
 
-function attachmentUsage(error_str?: any): never {
-  if (typeof error_str === 'string') err(error_str + '\n');
-  console.log('Usage: morgue attachment <add|get|list|delete> ...');
-  console.log('');
-  console.log(
-    '  morgue attachment add [options] <[universe/]project> <oid> <filename>',
-  );
-  console.log('');
-  console.log('    --content-type=CT    Specify Content-Type for attachment.');
-  console.log('                         The server may auto-detect this.');
-  console.log(
-    '    --attachment-name=N  Use this name for the attachment name.',
-  );
-  console.log('                         Default is the same as the filename.');
-  console.log('');
-  console.log('  morgue attachment get [options] <[universe/]project> <oid>');
-  console.log('');
-  console.log('    Must specify one of:');
-  console.log('    --attachment-id=ID   Attachment ID to delete.');
-  console.log('    --attachment-name=N  Attachment name to delete.');
-  console.log('    --attachment-inline  Attachment is inline.');
-  console.log('');
-  console.log('  morgue attachment list [options] <[universe/]project> <oid>');
-  console.log('');
-  console.log('  morgue attachment delete [options] <[universe/]project <oid>');
-  console.log('');
-  console.log('    Must specify one of:');
-  console.log('    --attachment-id=ID   Attachment ID to delete.');
-  console.log('    --attachment-name=N  Attachment name to delete.');
-  process.exit(1);
-}
-
-function attachmentAdd(argv, config, params): any {
-  let body, coroner, fname, name, object, p, u;
-  const opts = {
-    /* Data is user-provided, and must be passed through as is. */
-    binary: true,
-    /* Rely on automatic mime-type detection if not specified. */
-    content_type: null,
-  };
+function handleAttachmentAdd(cmd: AttachmentAddCommand, config: any): any {
+  abortIfNotLoggedIn(config);
 
   if (!config.submissionEndpoint) {
     errx('No submission endpoint found.');
   }
-  coroner = coronerClientArgvSubmit(config, argv);
 
-  if (argv._.length < 2) {
-    if (argv._.length < 1) {
-      attachmentUsage('Must specify object ID to attach to.');
-    } else {
-      attachmentUsage('Must specify file name to attach.');
-    }
-  }
+  const coroner = coronerClientSubmitFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
 
-  object = argv._.shift();
-  fname = argv._.shift();
-  name = path.basename(argv.attachment_name || fname);
-  body = fs.readFileSync(fname);
+  const name = path.basename(cmd.attachmentName || cmd.filename);
+  const body = fs.readFileSync(cmd.filename);
 
-  if (argv.content_type) {
-    opts.content_type = argv.content_type;
-  }
+  const opts = {
+    binary: true,
+    content_type: cmd.contentType || null,
+  };
 
-  u = params.universe;
-  p = params.project;
   coroner
-    .promise('attach', u, p, object, name, null, opts, body)
+    .promise('attach', p.universe, p.project, cmd.oid, name, null, opts, body)
     .then(r => {
       console.log(
         success_color(
@@ -473,33 +411,31 @@ function attachmentAdd(argv, config, params): any {
     .catch(std_failure_cb);
 }
 
-function attachmentGet(argv, config, params) {
-  let coroner, oid, out, p, resource, u;
+function handleAttachmentGet(cmd: AttachmentGetCommand, config: any) {
+  abortIfNotLoggedIn(config);
 
-  if (argv._.length != 1) attachmentUsage('Must specify object id.');
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
+  const params: any = {};
+  let resource: string;
 
-  out = outpathCheck(argv, 1);
-  if (argv['attachment-name']) {
-    params.attachment_name = argv['attachment-name'];
+  const out = outpathCheck(undefined, undefined, 1);
+
+  if (cmd.attachmentName) {
+    params.attachment_name = cmd.attachmentName;
     resource = params.attachment_name;
-  } else if (argv['attachment-id']) {
-    params.attachment_id = argv['attachment-id'];
+  } else if (cmd.attachmentId) {
+    params.attachment_id = cmd.attachmentId;
     resource = '_attachment-' + params.attachment_id;
   } else {
-    attachmentUsage('Must specify attachment by name or id.');
-  }
-  if (argv['attachment-inline']) {
-    params.attachment_inline = true;
+    errx('Must specify attachment by name or id.');
+    return;
   }
 
-  coroner = coronerClientArgv(config, argv);
-  oid = argv._[0];
-  u = params.universe;
-  p = params.project;
   coroner
-    .promise('http_fetch', u, p, oid, params)
+    .promise('http_fetch', p.universe, p.project, cmd.oid, params)
     .then(hr => {
-      const fname = getFname(hr, out.path, argv.outdir, 1, oid, resource);
+      const fname = getFname(hr, out.path, undefined, 1, cmd.oid, resource);
       if (fname) {
         fs.writeFileSync(fname, hr.bodyData);
         console.log(
@@ -512,31 +448,26 @@ function attachmentGet(argv, config, params) {
       }
     })
     .catch(e => {
-      const fname = getFname(null, out.path, argv.outdir, 1, oid, resource);
+      const fname = getFname(null, out.path, undefined, 1, cmd.oid, resource);
       err(sprintf('%s: %s', fname, e.message));
     });
 }
 
-function attachmentList(argv, config, params) {
-  let coroner, object, p, u;
+function handleAttachmentList(cmd: AttachmentListCommand, config: any) {
+  abortIfNotLoggedIn(config);
 
-  if (argv._.length < 1) {
-    attachmentUsage('Must specify object ID to attach to.');
-  }
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
 
-  coroner = coronerClientArgv(config, argv);
-  object = argv._.shift();
-  p = params.project;
-  u = params.universe;
   coroner
-    .promise('attachments', u, p, object, null)
+    .promise('attachments', p.universe, p.project, cmd.oid, null)
     .then(r => {
       const jr = JSON.parse(r);
       if (jr.attachments.length === 0) {
-        console.log(sprintf('No attachments for %s obj %s', p, object));
+        console.log(sprintf('No attachments for %s obj %s', p.project, cmd.oid));
         return;
       }
-      console.log(sprintf('%s obj %s attachments:', p, object));
+      console.log(sprintf('%s obj %s attachments:', p.project, cmd.oid));
       jr.attachments.forEach(a => {
         console.log(
           sprintf(
@@ -553,61 +484,33 @@ function attachmentList(argv, config, params) {
     .catch(std_failure_cb);
 }
 
-function attachmentDelete(argv, config, params) {
-  let coroner, p, u;
+function handleAttachmentDelete(cmd: AttachmentDeleteCommand, config: any) {
+  abortIfNotLoggedIn(config);
+
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
   const delparams: any = {};
   const req: any[] = [{}];
 
-  coroner = coronerClientArgv(config, argv);
-  if (argv.sync) {
-    delparams.sync = true;
-    if (!argv.timeout) {
-      /* Set longer 5 minute timeout in case of heavy load. */
-      coroner.timeout = 300 * 1000;
-    }
+  if (cmd.globalOptions.timeout) {
+    /* sync mode uses longer timeout */
   }
 
-  req[0].id = argv._.shift();
-  if (argv['attachment-name']) req[0].attachment_name = argv['attachment-name'];
-  else if (argv['attachment-id']) req[0].attachment_id = argv['attachment-id'];
-  else attachmentUsage('Must specify attachment by name or id.');
+  req[0].id = cmd.oid;
+  if (cmd.attachmentName) req[0].attachment_name = cmd.attachmentName;
+  else if (cmd.attachmentId) req[0].attachment_id = cmd.attachmentId;
+  else {
+    errx('Must specify attachment by name or id.');
+    return;
+  }
 
-  p = params.project;
-  u = params.universe;
   coroner
-    .promise('delete_objects', u, p, req, delparams)
+    .promise('delete_objects', p.universe, p.project, req, delparams)
     .then(std_success_cb)
     .catch(std_failure_cb);
 }
 
-function coronerAttachment(argv: any, config: any) {
-  abortIfNotLoggedIn(config);
-  let fn, object, params, subcmd;
-  const coroner = coronerClientArgv(config, argv);
-  const subcmds = {
-    add: attachmentAdd,
-    list: attachmentList,
-    get: attachmentGet,
-    delete: attachmentDelete,
-  };
-
-  if (argv._.length < 3) attachmentUsage('Not enough arguments specified.');
-
-  argv._.shift();
-  /* Extract u/p at this point since they'll be in the correct position. */
-  params = coronerParams(argv, config);
-  subcmd = argv._.shift();
-  fn = subcmds[subcmd];
-  if (!fn) attachmentUsage('No such subcommand ' + subcmd);
-
-  if (typeof params.universe !== 'string' || typeof params.project !== 'string')
-    attachmentUsage('Missing universe or project parameters');
-
-  argv._.shift();
-  return fn(argv, config, params);
-}
-
-function put_benchmark(coroner, argv, files, p): Promise<any> {
+function put_benchmark(coroner, cmd: PutCommand, files, p): Promise<any> {
   const tasks = [];
   const samples = [];
   const objects = [];
@@ -618,9 +521,8 @@ function put_benchmark(coroner, argv, files, p): Promise<any> {
 
   process.stderr.write(blue('Warming up...') + '\n');
 
-  if (argv.samples) n_samples = parseInt(argv.samples);
-
-  if (argv.concurrency) concurrency = parseInt(argv.concurrency);
+  if (cmd.samples) n_samples = parseInt(cmd.samples);
+  if (cmd.concurrency) concurrency = parseInt(cmd.concurrency);
 
   process.stderr.write(yellow('Injecting: '));
   const start = process.hrtime();
@@ -632,14 +534,14 @@ function put_benchmark(coroner, argv, files, p): Promise<any> {
     submitted++;
     const st = process.hrtime();
 
-    if (argv.multipart) {
+    if (cmd.multipart) {
       return coroner
         .promise('put_form', files[fi].path, [], p)
         .then(r => success_cb(r, i, st))
         .catch(e => failure_cb(files[fi].path, e, i, st));
     } else {
       return coroner
-        .promise('put', files[fi].body, p, argv.compression)
+        .promise('put', files[fi].body, p, cmd.compression)
         .then(r => success_cb(r, i, st))
         .catch(e => failure_cb(files[fi].path, e, i, st));
     }
@@ -648,7 +550,7 @@ function put_benchmark(coroner, argv, files, p): Promise<any> {
     samples.push(nsToUs(process.hrtime()) - st);
     process.stderr.write(blue('.'));
     success++;
-    if (argv.printids) objects.push(r.object);
+    if (cmd.printids) objects.push(r.object);
     return submit_cb(i);
   };
   var failure_cb = function (path, e, i, st) {
@@ -671,7 +573,7 @@ function put_benchmark(coroner, argv, files, p): Promise<any> {
       const failed = n_samples - success;
       console.log('\n');
       printSamples(submitted, samples, start, process.hrtime(), concurrency);
-      if (argv.printids)
+      if (cmd.printids)
         console.log(blue(sprintf('Object IDs: %s', JSON.stringify(objects))));
       if (failed === 0) return;
       errx(sprintf('%d of %d submissions failed.', failed, n_samples));
@@ -681,9 +583,10 @@ function put_benchmark(coroner, argv, files, p): Promise<any> {
     });
 }
 
-function coronerPut(argv: any, config: any): Promise<any> {
+function handlePut(cmd: PutCommand, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
-  const form = argv.form_data;
+
+  const form = cmd.form_data;
   const formats = {
     btt: true,
     minidump: true,
@@ -693,80 +596,77 @@ function coronerPut(argv: any, config: any): Promise<any> {
     'symbols-proguard': true,
     sourcemap: true,
   };
-  let p;
   const supported_compression = {gzip: true, deflate: true};
-  let attachments = [];
+  let attachments: string[] = [];
 
   if (!config.submissionEndpoint) {
     errx('No submission endpoint found.');
   }
 
-  if (!argv.format || !formats[argv.format]) {
+  if (!cmd.format || !formats[cmd.format]) {
     errx('Format must be one of btt, json, plcrash, symbols or minidump');
   }
 
-  if (argv.compression && !supported_compression[argv.compression]) {
+  if (cmd.compression && !supported_compression[cmd.compression]) {
     errx('Supported compression are gzip and deflate');
   }
 
-  p = coronerParams(argv, config);
-  p.format = argv.format;
-  if (p.format === 'symbols' && argv.tag) {
-    p.tag = argv.tag;
+  const p: any = parseProjectArg(cmd.project, config);
+  p.format = cmd.format;
+  if (p.format === 'symbols' && cmd.tag) {
+    p.tag = cmd.tag;
   }
-  if (argv.symbolication_id !== undefined)
-    p.symbolication_id = argv.symbolication_id;
+  if (cmd.symbolicationId !== undefined)
+    p.symbolication_id = cmd.symbolicationId;
   if (p.format === 'symbols-proguard') {
     p.format = 'proguard';
   }
   if (p.format === 'minidump') {
-    if (argv.kv) p.kvs = argv.kv;
-    if (argv.attachment) {
+    if (cmd.kv) p.kvs = cmd.kv;
+    if (cmd.attachment) {
       /*
        * Attachment mode: This doesn't really make sense to do with multiple
        * objects in the same run, but it works.
        */
-      attachments = argv.attachment;
-      if (!Array.isArray(attachments)) attachments = [attachments];
+      attachments = Array.isArray(cmd.attachment)
+        ? cmd.attachment
+        : [cmd.attachment];
     }
   }
 
-  if (argv.sync) {
+  if (cmd.sync) {
     p.sync = true;
   }
 
-  if (argv.reuse) {
+  if (cmd.reuse) {
     p.http_opts = {forever: true};
   }
 
+  /* Read the file(s) specified by the cmd.file argument. */
+  const fileArg = cmd.file;
+  const filePaths = Array.isArray(fileArg) ? fileArg : [fileArg];
   const files = [];
 
-  /*
-   * Obviously super inefficient, but this is primarily for testing
-   * and benchmarking purposes.
-   */
-  for (var i = 2; i < argv._.length; i++) {
+  for (const filePath of filePaths) {
     try {
-      var body = fs.readFileSync(argv._[i]);
+      var body = fs.readFileSync(filePath);
     } catch (error) {
-      errx('Failed to open file: ' + argv._[i]);
+      errx('Failed to open file: ' + filePath);
     }
-
-    files.push({path: argv._[i], body: body});
+    files.push({path: filePath, body: body});
   }
 
   if (files.length === 0) {
     errx('One or more files must be specified.');
   }
 
-  const coroner = coronerClientArgvSubmit(config, argv);
+  const coroner = coronerClientSubmitFromGlobal(config, cmd.globalOptions);
 
-  const submitted = 0;
   let success = 0;
   const tasks = [];
 
-  if (argv.benchmark) {
-    return put_benchmark(coroner, argv, files, p);
+  if (cmd.benchmark) {
+    return put_benchmark(coroner, cmd, files, p);
   }
 
   console.log(p);
@@ -801,20 +701,20 @@ function coronerPut(argv: any, config: any): Promise<any> {
     err(errstr);
   };
   for (var i = 0; i < files.length; i++) {
-    var path = files[i].path;
-    if (form || attachments.length > 0 || argv.multipart) {
+    var filePath = files[i].path;
+    if (form || attachments.length > 0 || cmd.multipart) {
       tasks.push(
         coroner
-          .promise('put_form', path, attachments, p)
-          .then(r => success_cb(r, path))
-          .catch(e => failure_cb(path, e)),
+          .promise('put_form', filePath, attachments, p)
+          .then(r => success_cb(r, filePath))
+          .catch(e => failure_cb(filePath, e)),
       );
     } else {
       tasks.push(
         coroner
-          .promise('put', files[i].body, p, argv.compression)
-          .then(r => success_cb(r, path))
-          .catch(e => failure_cb(path, e)),
+          .promise('put', files[i].body, p, cmd.compression)
+          .then(r => success_cb(r, filePath))
+          .catch(e => failure_cb(filePath, e)),
       );
     }
   }
@@ -833,9 +733,12 @@ function coronerPut(argv: any, config: any): Promise<any> {
     });
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  get: coronerGet,
-  put: coronerPut,
-  attachment: coronerAttachment,
-  describe: coronerDescribe,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  get: handleGet,
+  put: handlePut,
+  describe: handleDescribe,
+  'attachment.add': handleAttachmentAdd,
+  'attachment.get': handleAttachmentGet,
+  'attachment.list': handleAttachmentList,
+  'attachment.delete': handleAttachmentDelete,
 };

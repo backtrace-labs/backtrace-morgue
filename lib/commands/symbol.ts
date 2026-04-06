@@ -1,9 +1,13 @@
 import * as fs from 'fs';
 import {table, TableUserConfig} from 'table';
 import * as ta from 'time-ago';
-import * as config from '../config';
+import type {SymbolCommand} from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerParams} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {usage} from '../cli/util';
 
 const bold = chalk.bold;
@@ -12,34 +16,26 @@ const yellow = chalk.yellow;
 /**
  * @brief: Implements the symbol list command.
  */
-function coronerSymbol(argv: any, config: any): any {
+function handleSymbol(cmd: SymbolCommand, config: any): any {
   abortIfNotLoggedIn(config);
 
   const query: any = {form: {}};
-  let action = argv._[2];
-  let filter;
+  let action = cmd.action;
+  let filter = cmd.filter;
 
-  if (argv.tag) {
-    if (Array.isArray(argv.tag)) {
-      query.form.tags = argv.tag;
+  if (cmd.tag) {
+    if (Array.isArray(cmd.tag)) {
+      query.form.tags = cmd.tag;
     } else {
-      query.form.tags = [argv.tag];
+      query.form.tags = [cmd.tag];
     }
   }
 
-  if (argv.filter) {
-    filter = argv.filter;
-  }
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  const coroner = coronerClientArgv(config, argv);
+  const p = parseProjectArg(cmd.project, config);
 
-  if (argv._.length < 2) {
-    return usage('Missing project and universe arguments.');
-  }
-
-  const p = coronerParams(argv, config);
-
-  if (action === 'status' || action == 'summary' || !action) {
+  if (action === 'status' || action === 'summary' || !action) {
     query.action = 'summary';
     action = 'summary';
   } else if (action === 'list') {
@@ -70,15 +66,14 @@ function coronerSymbol(argv: any, config: any): any {
 
     let output = null;
 
-    if (argv.debug) return;
+    if (cmd.globalOptions.debug) return;
 
-    if (argv.json) {
+    if (cmd.json) {
       console.log(JSON.stringify(result));
       return;
     }
 
-    if (argv.output) output = argv.output;
-    if (argv.o) output = argv.o;
+    if (cmd.output) output = cmd.output;
 
     if (output) {
       const json = JSON.stringify(result);
@@ -190,11 +185,7 @@ function coronerSymbol(argv: any, config: any): any {
           let label = '--';
           var dt;
 
-          if (!argv.a) {
-            dt = ta.ago(file.upload_time * 1000);
-          } else {
-            dt = new Date(file.upload_time * 1000);
-          }
+          dt = ta.ago(file.upload_time * 1000);
 
           if (file.errors.length > 0) {
             label = file.errors.join('. ');
@@ -249,11 +240,7 @@ function coronerSymbol(argv: any, config: any): any {
           var file = files[j];
           var dt;
 
-          if (!argv.a) {
-            dt = ta.ago(file.timestamp * 1000);
-          } else {
-            dt = new Date(file.timestamp * 1000);
-          }
+          dt = ta.ago(file.timestamp * 1000);
 
           data.push([dt, file.debug_file, file.debug_id]);
         }
@@ -314,11 +301,7 @@ function coronerSymbol(argv: any, config: any): any {
             if (string.indexOf(filter) === -1) continue;
           }
 
-          if (!argv.a) {
-            dt = ta.ago(file.upload_time * 1000);
-          } else {
-            dt = new Date(file.upload_time * 1000);
-          }
+          dt = ta.ago(file.upload_time * 1000);
 
           data.push([
             file.archive_id === 'ffffffffffffffff' ? '--' : file.archive_id,
@@ -342,6 +325,6 @@ function coronerSymbol(argv: any, config: any): any {
   });
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  symbol: coronerSymbol,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  symbol: handleSymbol,
 };

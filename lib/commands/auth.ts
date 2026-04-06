@@ -2,8 +2,9 @@ import promptLib from 'prompt';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as config from '../config';
+import type {LoginCommand, LogoutCommand, SetupCommand} from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerClient, coronerBpgSetup, saveConfig} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerClient, coronerBpgFromGlobal, saveConfig} from '../cli/context';
 import {usage} from '../cli/util';
 import * as BPG from '../bpg';
 
@@ -173,11 +174,11 @@ async function coronerSetupUniverse(coroner, bpg, setupCfg): Promise<any> {
   return coronerSetupNext(coroner, bpg, setupCfg);
 }
 
-function coronerSetupStart(coroner: any, argv: any): any {
-  const bpg = coronerBpgSetup(coroner, argv);
+function coronerSetupStart(coroner: any, cmd: SetupCommand): any {
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   let setupCfg;
-  if (argv.setup_json && fs.existsSync(argv.setup_json)) {
-    setupCfg = JSON.parse(fs.readFileSync(argv.setup_json, 'utf8'));
+  if ((cmd as any).setup_json && fs.existsSync((cmd as any).setup_json)) {
+    setupCfg = JSON.parse(fs.readFileSync((cmd as any).setup_json, 'utf8'));
   }
 
   coronerSetupNext(coroner, bpg, setupCfg)
@@ -185,7 +186,7 @@ function coronerSetupStart(coroner: any, argv: any): any {
     .catch(err => console.log(`Setup failed: ${err}`));
 }
 
-function loginComplete(coroner, argv, err, cb) {
+function loginComplete(coroner, cmd, err, cb) {
   if (err) {
     errx('Unable to authenticate: ' + err.message + '.');
   }
@@ -200,7 +201,7 @@ function loginComplete(coroner, argv, err, cb) {
     );
 
     if (cb) {
-      cb(coroner, argv);
+      cb(coroner, cmd);
     }
 
     return coroner;
@@ -209,33 +210,34 @@ function loginComplete(coroner, argv, err, cb) {
   return;
 }
 
-function coronerLogin(argv, config, cb?) {
-  const endpoint = argv._[1];
+function coronerLogin(cmd: LoginCommand, config: any, cb?) {
+  const endpoint = cmd.url;
 
   if (!endpoint) {
     return usage('Expected endpoint argument.');
   }
 
+  const opts = cmd.globalOptions;
   const coroner = coronerClient(
     config,
-    !!argv.k,
-    argv.debug,
+    !!opts.k,
+    opts.debug,
     endpoint,
-    argv.timeout,
+    opts.timeout ? Number(opts.timeout) : undefined,
   );
 
   /*
    * If a token is supplied, immediately to go login path.
    */
-  if (argv.token) {
-    return coroner.login_token(argv.token, err => {
-      loginComplete(coroner, argv, err, cb);
+  if (opts.token) {
+    return coroner.login_token(opts.token, err => {
+      loginComplete(coroner, cmd, err, cb);
     });
   }
 
   const loginCb = (username, password) => {
     coroner.login(username, password, err => {
-      loginComplete(coroner, argv, err, cb);
+      loginComplete(coroner, cmd, err, cb);
     });
   };
 
@@ -273,13 +275,13 @@ function coronerLogin(argv, config, cb?) {
   );
 }
 
-function coronerLogout(argv: any, config: any): any {
+function coronerLogout(cmd: LogoutCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
   coroner.http_get(
     '/api/logout',
-    {token: argv.token || coroner.config.token},
+    {token: cmd.globalOptions.token || coroner.config.token},
     null,
     (error, result) => {
       if (error) errx(error + '');
@@ -289,12 +291,13 @@ function coronerLogout(argv: any, config: any): any {
   );
 }
 
-function coronerSetup(argv: any, config: any): any {
+function coronerSetup(cmd: SetupCommand, config: any): any {
   let coroner, pu;
+  const opts = cmd.globalOptions;
 
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = !argv.k ? '1' : '0';
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = !opts.k ? '1' : '0';
   try {
-    pu = url.parse(argv._[1]);
+    pu = url.parse(cmd.url);
   } catch (error) {
     errx('Usage: morgue setup <url>');
   }
@@ -303,7 +306,7 @@ function coronerSetup(argv: any, config: any): any {
     errx('Usage: morgue setup <url>');
   }
 
-  coroner = coronerClient(config, true, !!argv.debug, argv._[1], argv.timeout);
+  coroner = coronerClient(config, true, !!opts.debug, cmd.url, opts.timeout ? Number(opts.timeout) : undefined);
 
   process.stderr.write(bold('Determining system state...'));
 
@@ -312,12 +315,12 @@ function coronerSetup(argv: any, config: any): any {
 
     if (response === 0) {
       process.stderr.write(red('unconfigured\n'));
-      return coronerSetupStart(coroner, argv);
+      return coronerSetupStart(coroner, cmd);
     } else if (response === 1) {
       process.stderr.write(green('configured\n\n'));
 
       console.log(bold('Please login to continue setup.'));
-      return coronerLogin(argv, config, coronerSetupStart);
+      return coronerLogin(cmd as any, config, coronerSetupStart);
     } else {
       process.stderr.write(
         red("\n\nUnexpected response when checking the server's status.\n\n"),
@@ -347,13 +350,13 @@ function coronerSetup(argv: any, config: any): any {
           'To view the response from the server, try running the following command:\n',
         ),
       );
-      process.stderr.write(red('  curl ' + argv._[1] + '/api/is_configured\n'));
+      process.stderr.write(red('  curl ' + cmd.url + '/api/is_configured\n'));
       process.exit(1);
     }
   });
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
   login: coronerLogin,
   logout: coronerLogout,
   setup: coronerSetup,

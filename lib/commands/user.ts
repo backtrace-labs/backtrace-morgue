@@ -1,7 +1,19 @@
 import printf from 'printf';
-import * as config from '../config';
+import type {
+  UserResetCommand,
+  UsersAddSignupWhitelistCommand,
+  UsersListTeamlessUsersCommand,
+  InviteCreateCommand,
+  InviteListCommand,
+  InviteDeleteCommand,
+} from '../cli/generated/types';
 import {errx, err, chalk, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerBpgSetup, tenantURL} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  coronerBpgFromGlobal,
+  tenantURL,
+} from '../cli/context';
 import {bpgPostAsync, bpgSingleRequest} from '../cli/bpg-helpers';
 import {sequence, prompt_for} from '../cli/util';
 import {BACKTRACE_ROLES} from '../cli/constants';
@@ -17,21 +29,25 @@ function userUsage(error_str?: any): never {
   process.exit(1);
 }
 
-function userReset(argv: any, config: any): void {
+function userReset(cmd: UserResetCommand, config: any): void {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
+
   const ctx: any = {
-    user: argv.user,
-    password: argv.password,
-    role: argv.role,
-    coroner: coronerClientArgv(config, argv),
+    user: cmd.user,
+    password: cmd.password,
+    role: cmd.role,
+    coroner,
+    bpg,
+    model: bpg.get(),
   };
 
   const prompts = [];
   const tasks = [];
 
-  (ctx.bpg = coronerBpgSetup(ctx.coroner, argv)), (ctx.model = ctx.bpg.get());
-
   /* If no universe specified, use the first one. */
-  ctx.universe = argv.universe;
+  ctx.universe = cmd.universe || cmd.globalOptions.universe;
   if (!ctx.universe && config && config.config && config.config.universes)
     ctx.universe = Object.keys(config.config.universes)[0];
   if (!ctx.universe) {
@@ -109,14 +125,15 @@ function userReset(argv: any, config: any): void {
   });
 }
 
-function addDomainWhitelist(argv: any, config: any): Promise<any> {
-  const domain = argv.domain;
-  const role = argv.role;
-  const method = argv.method;
-  const coroner = coronerClientArgv(config, argv);
-  const bpg = coronerBpgSetup(coroner, argv);
+function usersAddSignupWhitelist(
+  cmd: UsersAddSignupWhitelistCommand,
+  config: any,
+): Promise<any> {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
-  let universe = argv.universe;
+  let universe = cmd.universe || cmd.globalOptions.universe;
   if (!universe) universe = Object.keys(config.config.universes)[0];
 
   const model = bpg.get();
@@ -132,6 +149,10 @@ function addDomainWhitelist(argv: any, config: any): Promise<any> {
   if (!universeId) {
     return Promise.reject('Missing config universe.');
   }
+
+  const domain = cmd.domain;
+  const role = cmd.role;
+  const method = cmd.method;
 
   if (!domain || !role || !method) {
     return Promise.reject('Missing arguments: domain, role, or method.');
@@ -153,9 +174,13 @@ function addDomainWhitelist(argv: any, config: any): Promise<any> {
   return Promise.resolve();
 }
 
-async function listTeamlessUsers(argv: any, config: any): Promise<any> {
-  const coroner = coronerClientArgv(config, argv);
-  const bpg = coronerBpgSetup(coroner, argv);
+async function usersListTeamlessUsers(
+  cmd: UsersListTeamlessUsersCommand,
+  config: any,
+): Promise<any> {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
   // Get all users and team_members
   const allUsers: any = await bpgPostAsync(
@@ -202,194 +227,163 @@ function isBacktraceUser(user: any): boolean {
   return user.username === 'Backtrace' || user.email.includes('@backtrace.io');
 }
 
-function coronerUser(argv: any, config: any): any {
-  argv._.shift();
-  if (argv._.length === 0) {
-    userUsage();
-  }
-
-  if (argv._[0] !== 'reset') {
-    userUsage('Only the reset subcommand is supported.');
-  }
-
-  argv._.shift();
-  userReset(argv, config);
-}
-
-function coronerUsers(argv: any, config: any): any {
-  argv._.shift();
-  const action = argv._[0];
-
-  switch (action) {
-    case 'add-domain-whitelist':
-      addDomainWhitelist(argv, config);
-      break;
-    case 'list-teamless-users':
-      listTeamlessUsers(argv, config);
-      break;
-  }
-}
-
-function coronerInvite(argv: any, config: any): any {
-  const options = null;
-
+function inviteList(cmd: InviteListCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
+  const model = bpg.get();
 
-  const usageText =
-    'Usage: morgue invite <create | list | resend>\n' +
-    '  create <username> <email>\n' +
-    '    --role=<"guest" | "member" | "admin">\n' +
-    '    --metadata=<metadata>\n' +
-    '    --tenant=<tenant name>\n' +
-    '    --method=<password | saml | pam>\n' +
-    '  delete --universe <universe> <email>\n' +
-    '  resend <token>';
+  console.log(
+    printf(
+      '%6s %20s %8s %8s %30s',
+      'Tenant',
+      'Username',
+      'Method',
+      'Role',
+      'Email',
+    ),
+  );
 
-  if (argv.h || argv.help) {
-    console.log(usageText);
-    return;
+  for (var i = 0; i < model.signup_pending.length; i++) {
+    var username = model.signup_pending[i].get('username');
+    var email = model.signup_pending[i].get('email');
+    var method = model.signup_pending[i].get('method');
+    var role = model.signup_pending[i].get('role');
+    const sp_universe = model.signup_pending[i].get('universe');
+
+    console.log(
+      printf(
+        '%6d %20s %8s %8s %30s',
+        sp_universe,
+        username,
+        method,
+        role,
+        email,
+      ),
+    );
+  }
+}
+
+function inviteDelete(cmd: InviteDeleteCommand, config: any): any {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
+  const model = bpg.get();
+
+  const universe = cmd.universe;
+  const email = cmd.email;
+
+  if (!universe || !email)
+    errx('Usage: morgue invite delete --universe <universe> <email>');
+
+  const u = model.universe.find(u => u.get('name') === universe);
+  if (!u) errx('Universe not found');
+
+  let matchToken;
+  for (var i = 0; i < model.signup_pending.length; i++) {
+    const sp_email = model.signup_pending[i].get('email');
+    const sp_universe = model.signup_pending[i].get('universe');
+    if (sp_email === email && sp_universe === u.get('id')) {
+      matchToken = model.signup_pending[i];
+      break;
+    }
   }
 
-  let universe = argv.universe;
+  if (!matchToken) errx('invitation not found.');
+
+  bpg.delete(matchToken);
+  try {
+    bpg.commit();
+  } catch (e) {
+    errx(e + '');
+  }
+
+  console.log(success_color('Invitation successfully deleted.'));
+}
+
+function inviteCreate(cmd: InviteCreateCommand, config: any): any {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+
+  let universe = cmd.globalOptions.universe;
   if (!universe && config && config.config && config.config.universes)
     universe = Object.keys(config.config.universes)[0];
 
-  const bpg = coronerBpgSetup(coroner, argv);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
 
-  const action = argv._[1];
-  if (!action) errx(usageText);
+  const username = cmd.username;
+  const email = cmd.email;
+  const metadata = cmd.metadata ? cmd.metadata : ' ';
+  const role = cmd.role ? cmd.role : 'member';
+  const method = cmd.method ? cmd.method : 'password';
+  const tenant = cmd.tenant ? cmd.tenant : universe;
 
-  if (action === 'list') {
-    console.log(
-      printf(
-        '%6s %20s %8s %8s %30s',
-        'Tenant',
-        'Username',
-        'Method',
-        'Role',
-        'Email',
-      ),
+  if (!tenant || !username || !email || !metadata || !role || !method)
+    errx(
+      'Usage: morgue invite create <username> <email>\n' +
+        '  --role=<"guest" | "member" | "admin">\n' +
+        '  --metadata=<metadata>\n' +
+        '  --tenant=<tenant name>\n' +
+        '  --method=<password | saml | pam>',
     );
 
-    for (var i = 0; i < model.signup_pending.length; i++) {
-      var username = model.signup_pending[i].get('username');
-      var email = model.signup_pending[i].get('email');
-      var method = model.signup_pending[i].get('method');
-      var role = model.signup_pending[i].get('role');
-      const sp_universe = model.signup_pending[i].get('universe');
-
-      console.log(
-        printf(
-          '%6d %20s %8s %8s %30s',
-          sp_universe,
-          username,
-          method,
-          role,
-          email,
-        ),
-      );
+  /* First, validate that a universe with the specified name exists. */
+  let un;
+  for (var i = 0; i < model.universe.length; i++) {
+    if (model.universe[i].get('name') === tenant) {
+      un = model.universe[i];
+      break;
     }
-
-    return;
-  } else if (action === 'delete') {
-    var email = argv._[2];
-    let matchToken;
-
-    if (!universe || !email)
-      errx('Usage: morgue invite delete --universe <universe> <email>');
-
-    const u = model.universe.find(u => u.get('name') === universe);
-    if (!u) errx('Universe not found');
-
-    for (var i = 0; i < model.signup_pending.length; i++) {
-      const sp_email = model.signup_pending[i].get('email');
-      const sp_universe = model.signup_pending[i].get('universe');
-      if (sp_email === email && sp_universe === u.get('id')) {
-        matchToken = model.signup_pending[i];
-        break;
-      }
-    }
-
-    if (!matchToken) errx('invitation not found.');
-
-    bpg.delete(matchToken);
-    try {
-      bpg.commit();
-    } catch (e) {
-      errx(e + '');
-    }
-
-    console.log(success_color('Invitation successfully deleted.'));
-    return;
-  } else if (action === 'create') {
-    var username = argv._[2];
-    var email = argv._[3];
-    const metadata = argv.metadata ? argv.metadata : ' ';
-    var role = argv.role ? argv.role : 'member';
-    var method = argv.method ? argv.method : 'password';
-    const tenant = argv.tenant ? argv.tenant : universe;
-    let un;
-
-    if (!tenant || !username || !email || !metadata || !role || !method)
-      errx(usageText);
-
-    /* First, validate that a universe with the specified name exists. */
-    for (var i = 0; i < model.universe.length; i++) {
-      if (model.universe[i].get('name') === tenant) {
-        un = model.universe[i];
-        break;
-      }
-    }
-
-    if (!un) errx('failed to find tenant ' + tenant + '.');
-
-    const signup = bpg.new('signup_pending');
-    signup.set('token', '0');
-    signup.set('role', role);
-    signup.set('method', method);
-    signup.set('universe', un.get('id'));
-    signup.set('email', email);
-    signup.set('username', username);
-    bpg.create(signup);
-
-    try {
-      bpg.commit();
-    } catch (e) {
-      errx(e + '');
-    }
-
-    console.log(success_color('Invitation successfully created for ' + email));
-
-    process.stderr.write('Sending e-mail...');
-    coroner.endpoint = tenantURL(config, un.get('name'));
-    coroner.post(
-      '/api/signup',
-      {universe: un.get('name')},
-      {
-        action: 'resend',
-        form: {
-          username: username,
-        },
-      },
-      null,
-      (e, r) => {
-        if (e) errx(e);
-
-        if (r.status !== 'ok') errx(r.message);
-
-        process.stderr.write('done\n');
-        return;
-      },
-    );
-  } else {
-    errx(usageText);
   }
+
+  if (!un) errx('failed to find tenant ' + tenant + '.');
+
+  const signup = bpg.new('signup_pending');
+  signup.set('token', '0');
+  signup.set('role', role);
+  signup.set('method', method);
+  signup.set('universe', un.get('id'));
+  signup.set('email', email);
+  signup.set('username', username);
+  bpg.create(signup);
+
+  try {
+    bpg.commit();
+  } catch (e) {
+    errx(e + '');
+  }
+
+  console.log(success_color('Invitation successfully created for ' + email));
+
+  process.stderr.write('Sending e-mail...');
+  coroner.endpoint = tenantURL(config, un.get('name'));
+  coroner.post(
+    '/api/signup',
+    {universe: un.get('name')},
+    {
+      action: 'resend',
+      form: {
+        username: username,
+      },
+    },
+    null,
+    (e, r) => {
+      if (e) errx(e);
+
+      if (r.status !== 'ok') errx(r.message);
+
+      process.stderr.write('done\n');
+      return;
+    },
+  );
 }
 
-export const commands: Record<string, (argv: any, config: any) => any> = {
-  user: coronerUser,
-  users: coronerUsers,
-  invite: coronerInvite,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'user.reset': userReset,
+  'users.add-signup-whitelist': usersAddSignupWhitelist,
+  'users.list-teamless-users': usersListTeamlessUsers,
+  'invite.create': inviteCreate,
+  'invite.list': inviteList,
+  'invite.delete': inviteDelete,
 };

@@ -11,12 +11,12 @@ export class UpdateConnection {
     this.options = options;
   }
 
-  static fromArgv(argv, init, options) {
+  static fromCmd(fields: {name?: string}, init: any, options: any) {
     return new UpdateConnection(
       assignDeep(
         init,
         skipNotDefinedKeys({
-          name: cliOptions.convertAtMostOne('name', argv.name || init.name),
+          name: cliOptions.convertAtMostOne('name', fields.name || init.name),
           options,
         }),
       ),

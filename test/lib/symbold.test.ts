@@ -355,8 +355,7 @@ describe('SymboldClient', () => {
         request: {},
       });
 
-      const argv = {_: ['test-universe']};
-      client.status(argv);
+      client.status({kind: 'symbold.status', globalOptions: {}, project: 'test-universe'} as any);
 
       expect(mockedAxios.get).toHaveBeenCalledWith(
         `${mockEndpoint}/api/symbold/status/universe/test-universe`,
@@ -379,8 +378,7 @@ describe('SymboldClient', () => {
         request: {},
       });
 
-      const argv = {_: ['test-universe/test-project']};
-      client.status(argv);
+      client.status({kind: 'symbold.status', globalOptions: {}, project: 'test-universe/test-project'} as any);
 
       expect(mockedAxios.get).toHaveBeenCalledWith(
         `${mockEndpoint}/api/symbold/status/universe/test-universe/project/test-project`,
@@ -388,24 +386,14 @@ describe('SymboldClient', () => {
       );
     });
 
-    it('should show usage when no arguments provided', () => {
+    it('should show usage when no project provided', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const argv = {_: []};
 
       client.showSymbolServerUsage = jest.fn();
-      client.status(argv);
+      client.status({kind: 'symbold.status', globalOptions: {}, project: ''} as any);
 
       expect(client.showSymbolServerUsage).toHaveBeenCalled();
       consoleSpy.mockRestore();
-    });
-
-    it('should show help when help argument is provided', () => {
-      const argv = {_: ['help']};
-
-      client.showStatusHelp = jest.fn();
-      client.status(argv);
-
-      expect(client.showStatusHelp).toHaveBeenCalled();
     });
   });
 

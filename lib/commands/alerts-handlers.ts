@@ -1,0 +1,105 @@
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+} from '../cli/context';
+import {AlertsCli, alertsCliFromCoroner} from '../alerts/cli';
+import type {
+  AlertsTargetCreateCommand,
+  AlertsTargetListCommand,
+  AlertsTargetGetCommand,
+  AlertsTargetUpdateCommand,
+  AlertsTargetDeleteCommand,
+  AlertsAlertListCommand,
+  AlertsAlertGetCommand,
+  AlertsAlertCreateCommand,
+  AlertsAlertUpdateCommand,
+  AlertsAlertDeleteCommand,
+} from '../cli/generated/types';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function buildCli(
+  globalOptions: {universe?: string; project?: string} & Record<string, any>,
+  config: any,
+): Promise<AlertsCli> {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, globalOptions);
+  return alertsCliFromCoroner(coroner, globalOptions, config);
+}
+
+// ---------------------------------------------------------------------------
+// Target handlers
+// ---------------------------------------------------------------------------
+
+async function targetCreate(cmd: AlertsTargetCreateCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.createTarget(cmd);
+}
+
+async function targetList(cmd: AlertsTargetListCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.listTargets();
+}
+
+async function targetGet(cmd: AlertsTargetGetCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.getTarget(cmd);
+}
+
+async function targetUpdate(cmd: AlertsTargetUpdateCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.updateTarget(cmd);
+}
+
+async function targetDelete(cmd: AlertsTargetDeleteCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.deleteTarget(cmd);
+}
+
+// ---------------------------------------------------------------------------
+// Alert handlers
+// ---------------------------------------------------------------------------
+
+async function alertList(cmd: AlertsAlertListCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.listAlerts();
+}
+
+async function alertGet(cmd: AlertsAlertGetCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.getAlert(cmd);
+}
+
+async function alertCreate(cmd: AlertsAlertCreateCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.createAlert(cmd);
+}
+
+async function alertUpdate(cmd: AlertsAlertUpdateCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.updateAlert(cmd);
+}
+
+async function alertDelete(cmd: AlertsAlertDeleteCommand, config: any) {
+  const cli = await buildCli(cmd.globalOptions, config);
+  await cli.deleteAlert(cmd);
+}
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'alerts.target.create': targetCreate,
+  'alerts.target.list': targetList,
+  'alerts.target.get': targetGet,
+  'alerts.target.update': targetUpdate,
+  'alerts.target.delete': targetDelete,
+  'alerts.alert.list': alertList,
+  'alerts.alert.get': alertGet,
+  'alerts.alert.create': alertCreate,
+  'alerts.alert.update': alertUpdate,
+  'alerts.alert.delete': alertDelete,
+};

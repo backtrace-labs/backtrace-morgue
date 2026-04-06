@@ -23,25 +23,37 @@ export class UpdateIntegration {
     this.connectionId = connectionId;
   }
 
-  static fromArgv(argv, init, options) {
+  static fromCmd(
+    fields: {
+      state?: string;
+      synchronizeIssues?: string;
+      synchronizeIssuesOnAdd?: string;
+      connection?: string;
+    },
+    init: any,
+    options: any,
+  ) {
     return new UpdateIntegration(
       assignDeep(
         init,
         skipNotDefinedKeys({
-          state: cliOptions.convertAtMostOne('state', argv.state || init.state),
+          state: cliOptions.convertAtMostOne(
+            'state',
+            fields.state || init.state,
+          ),
           synchronizeIssues: cliOptions.convertBool(
             'synchronize-issues',
-            argv['synchronize-issues'] || init.synchronizeIssues,
+            fields.synchronizeIssues || init.synchronizeIssues,
             null,
           ),
           synchronizeIssuesOnAdd: cliOptions.convertBool(
             'synchronize-issues-on-add',
-            argv['synchronize-issues-on-add'] || init.synchronizeIssuesOnAdd,
+            fields.synchronizeIssuesOnAdd || init.synchronizeIssuesOnAdd,
             null,
           ),
           connectionId: cliOptions.convertAtMostOne(
             'connection',
-            argv.connectionId || init.connectionId,
+            fields.connection || init.connectionId,
           ),
           options,
         }),

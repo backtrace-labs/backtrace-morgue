@@ -1,35 +1,49 @@
 import {sprintf} from 'extsprintf';
 import printf from 'printf';
+import type {
+  SamplingStatusCommand,
+  SamplingResetCommand,
+  SamplingConfigureCommand,
+} from '../cli/generated/types';
 import * as config from '../config';
 import {err, errx, chalk, success_color, error_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerBpgSetup, coronerParams} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg} from '../cli/context';
 import {std_success_cb, std_failure_cb} from '../cli/bpg-helpers';
 import * as timeCli from '../cli/time';
 
 const yellow = chalk.yellow;
 
-function samplingParams(coroner, action, argv, config) {
-  const params = coronerParams(argv, config);
-  params.action = action;
-  if (argv.group) argv.fingerprint = argv.group;
-  if (argv.fingerprint) {
-    params.fingerprints = argv.fingerprint;
-    if (!Array.isArray(params.fingerprints)) {
-      params.fingerprints = [params.fingerprints];
-    }
-  }
-  if (argv.universe) {
-    params.universe = argv.universe;
-  }
-  if (argv.project) {
-    const a = argv.project.split('/');
+type SamplingCommand = SamplingStatusCommand | SamplingResetCommand | SamplingConfigureCommand;
 
-    params.project = a[0];
+function samplingParamsFromCmd(coroner: any, action: string, cmd: SamplingCommand, config: any) {
+  const params: any = {};
+
+  // Parse project arg if present
+  if (cmd.project) {
+    const a = cmd.project.split('/');
     if (a.length === 2) {
       params.universe = a[0];
       params.project = a[1];
+    } else {
+      params.project = a[0];
     }
   }
+
+  if (cmd.globalOptions.universe) {
+    params.universe = cmd.globalOptions.universe;
+  }
+
+  // Fall back to config universe
+  if (!params.universe) {
+    params.universe = Object.keys(config.config.universes)[0];
+  }
+
+  params.action = action;
+
+  if ('fingerprint' in cmd && cmd.fingerprint) {
+    params.fingerprints = Array.isArray(cmd.fingerprint) ? cmd.fingerprint : [cmd.fingerprint];
+  }
+
   params.token = coroner.config.token;
   return params;
 }
@@ -38,7 +52,7 @@ function samplingPost(coroner: any, params: any): Promise<any> {
   return coroner.promise('post', '/api/sampling', null, params, null);
 }
 
-function samplingBucketFor(buckets: any, count: any): Promise<any> {
+function samplingBucketFor(buckets: any, count: any): any {
   let b, i;
   let total = 0;
 
@@ -65,7 +79,7 @@ function strHashCode(str: string): number {
   return hash;
 }
 
-function samplingStatusProject(argv, config, universe, project) {
+function samplingStatusProject(cmd: SamplingStatusCommand, config: any, universe: any, project: any) {
   const name = sprintf('%s/%s', universe.name, project.name);
   let top_line = '';
   const backoffs = project.backoffs;
@@ -95,10 +109,10 @@ function samplingStatusProject(argv, config, universe, project) {
     return;
   }
 
-  if (argv.a || argv.all) {
+  if (cmd.all) {
     max_groups = -1;
   } else {
-    max_groups = parseInt(argv['max-groups']);
+    max_groups = parseInt(cmd.maxGroups);
     if (isNaN(max_groups)) max_groups = 16;
   }
 
@@ -122,7 +136,7 @@ function samplingStatusProject(argv, config, universe, project) {
     );
   }
 
-  if (argv.verbose && backoffs.accepts) {
+  if (cmd.verbose && backoffs.accepts) {
     top_line += sprintf(
       ' (accepts %d rejects %d misses %d failures %d)',
       backoffs.accepts,
@@ -180,13 +194,13 @@ function samplingStatusProject(argv, config, universe, project) {
   }
 }
 
-function samplingStatus(coroner, argv, config) {
-  const params = samplingParams(coroner, 'status', argv, config);
+function samplingStatus(cmd: SamplingStatusCommand, config: any) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const params = samplingParamsFromCmd(coroner, 'status', cmd, config);
 
   samplingPost(coroner, params)
     .then(r => {
-      let first, last;
-
       if (r.universes) {
         if (r.universes.length === 0) {
           console.log('No groups yet.');
@@ -196,7 +210,7 @@ function samplingStatus(coroner, argv, config) {
               console.log(sprintf('%s: No groups yet.', universe.name));
             } else {
               universe.projects.forEach(project => {
-                samplingStatusProject(argv, config, universe, project);
+                samplingStatusProject(cmd, config, universe, project);
               });
             }
           });
@@ -208,42 +222,12 @@ function samplingStatus(coroner, argv, config) {
     .catch(std_failure_cb);
 }
 
-function samplingReset(coroner, argv, config) {
-  const params = samplingParams(coroner, 'reset', argv, config);
+function samplingReset(cmd: SamplingResetCommand, config: any) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const params = samplingParamsFromCmd(coroner, 'reset', cmd, config);
 
   samplingPost(coroner, params).then(std_success_cb).catch(std_failure_cb);
-}
-
-function samplingUsage(str?: string): Promise<any> {
-  if (str) err(str + '\n');
-  console.error('Usage: morgue sampling <status|reset> [options]');
-  console.error('');
-  console.error('Options for either status or reset:');
-  console.error(
-    '  --fingerprint=group             Specify a fingerprint to apply to.',
-  );
-  console.error(
-    '                                  Without this, applies to all.',
-  );
-  console.error(
-    '  --project=[universe/]project    Specify a project to apply to.',
-  );
-  console.error(
-    '                                  Without this, applies to all.',
-  );
-  console.error('');
-  console.error('Options for status only:');
-  console.error(
-    '  --max-groups=N                  Specify max number of groups to display',
-  );
-  console.error(
-    '                                  per project.  Default is 16.  0 displays',
-  );
-  console.error(
-    '                                  no groups; < 0 displays all.',
-  );
-  console.error('  -a, --all                       Display all groups.');
-  process.exit(1);
 }
 
 function parseBool(value: any): boolean {
@@ -257,33 +241,28 @@ function parseBool(value: any): boolean {
   return recognized_bools.has(value);
 }
 
-function samplingConfigFromArgv(argv: any): any {
+function samplingConfigFromCmd(cmd: SamplingConfigureCommand): any {
   /*
    * For now all we support is backoff; don't expose as an arg.
    */
   const type = 'backoff';
 
-  let attributes = argv.attribute;
-  if (attributes === undefined) {
-    attributes = [];
-  }
-  if (!Array.isArray(attributes)) {
-    attributes = [attributes];
+  let attributes: string[] = [];
+  if (cmd.attribute !== undefined) {
+    attributes = Array.isArray(cmd.attribute) ? cmd.attribute : [cmd.attribute];
   }
 
-  let backoffsUnparsed = argv.backoff;
+  let backoffsUnparsed = cmd.backoff;
   if (backoffsUnparsed === undefined) {
     errx('At least one --backoff is required');
   }
-  if (!Array.isArray(backoffsUnparsed)) {
-    backoffsUnparsed = [backoffsUnparsed];
-  }
+  const backoffList = Array.isArray(backoffsUnparsed) ? backoffsUnparsed : [backoffsUnparsed];
 
   /*
    * Each backoff is count,interval.
    */
   const backoffs = [];
-  for (const unparsed of backoffsUnparsed) {
+  for (const unparsed of backoffList) {
     const split = unparsed.split(',');
     if (split.length !== 2) {
       errx('Usage of --backoff is --backoff count,interval');
@@ -298,51 +277,45 @@ function samplingConfigFromArgv(argv: any): any {
   }
 
   /* Set the non-optional fields. */
-  const config: any = {
+  const samplingConfig: any = {
     type,
     backoffs,
     object_attributes: attributes,
   };
 
-  if (argv['reset-interval'] !== undefined) {
-    if (Array.isArray(argv['reset-interval'])) {
-      errx('Only one --reset-interval is allowed');
-    }
-    config.reset_interval = timeCli.parseTimeInt(argv['reset-interval']);
+  if (cmd.resetInterval !== undefined) {
+    samplingConfig.reset_interval = timeCli.parseTimeInt(cmd.resetInterval);
   }
 
-  config.missing_symbols = {};
-  const keepWhitelisted = argv['process-whitelisted'];
-  if (keepWhitelisted !== undefined) {
-    config.missing_symbols.process_whitelisted = parseBool(keepWhitelisted);
+  samplingConfig.missing_symbols = {};
+  if (cmd.processWhitelisted !== undefined) {
+    samplingConfig.missing_symbols.process_whitelisted = parseBool(cmd.processWhitelisted);
   }
-  const keepPrivate = argv['process-private'];
-  if (keepPrivate !== undefined) {
-    config.missing_symbols.process_private = parseBool(keepPrivate);
+  if (cmd.processPrivate !== undefined) {
+    samplingConfig.missing_symbols.process_private = parseBool(cmd.processPrivate);
   }
 
-  const bucketsUnparsed = argv.buckets;
-  if (bucketsUnparsed !== undefined) {
-    if (typeof bucketsUnparsed !== 'number') {
+  if (cmd.buckets !== undefined) {
+    const bucketsNum = Number(cmd.buckets);
+    if (isNaN(bucketsNum)) {
       errx('--buckets must be integer');
     }
-    config.buckets = bucketsUnparsed;
+    samplingConfig.buckets = bucketsNum;
   }
 
-  const resetIntervalUnparsed = argv['reset-interval'];
-  if (resetIntervalUnparsed !== undefined) {
-    config.reset_interval = timeCli.parseTimeInt(resetIntervalUnparsed);
-  }
-  return config;
+  return samplingConfig;
 }
 
-function samplingConfigure(coroner, argv, config) {
-  let universe = argv.universe;
+function samplingConfigure(cmd: SamplingConfigureCommand, config: any) {
+  abortIfNotLoggedIn(config);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+
+  let universe = cmd.universe || cmd.globalOptions.universe;
   if (!universe) {
     universe = Object.keys(config.config.universes)[0];
   }
 
-  const project = argv.project;
+  const project = cmd.project;
 
   if (!universe) {
     errx('--universe is required');
@@ -352,7 +325,7 @@ function samplingConfigure(coroner, argv, config) {
     errx('--project is required');
   }
 
-  const bpg = coronerBpgSetup(coroner, argv);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
 
   /* Find universe. */
@@ -378,7 +351,7 @@ function samplingConfigure(coroner, argv, config) {
     errx('Project not found');
   }
 
-  const disabled = argv.disable ? 1 : 0;
+  const disabled = cmd.disable ? 1 : 0;
 
   let projectSampling = null;
   if (model.project_sampling) {
@@ -389,7 +362,7 @@ function samplingConfigure(coroner, argv, config) {
     }
   }
 
-  if (argv.clear) {
+  if (cmd.clear) {
     if (projectSampling) {
       bpg.delete(projectSampling);
       bpg.commit();
@@ -409,7 +382,7 @@ function samplingConfigure(coroner, argv, config) {
    * Allow --disable by itself, by not trying to parse the config
    */
   if (disabled === 0) {
-    configurationObj = samplingConfigFromArgv(argv);
+    configurationObj = samplingConfigFromCmd(cmd);
   }
 
   const configuration = JSON.stringify(configurationObj);
@@ -433,40 +406,8 @@ Changes in coronerd.conf will not enable sampling for this project.`);
   }
 }
 
-/**
- * @brief Implements the sampling command.
- */
-function coronerSampling(argv: any, config: any): any {
-  abortIfNotLoggedIn(config);
-  let coroner;
-  let fn;
-  let subcmd;
-  const subcmd_map = {
-    status: samplingStatus,
-    configure: samplingConfigure,
-    reset: samplingReset,
-  };
-
-  argv._.shift();
-  if (argv._.length === 0) {
-    return samplingUsage('No request specified.');
-  }
-  if (argv._.length >= 2) {
-    return samplingUsage('No arguments accepted for this command.');
-  }
-
-  subcmd = argv._.shift();
-  if (subcmd === '--help' || subcmd === 'help') return samplingUsage();
-
-  fn = subcmd_map[subcmd];
-  if (fn) {
-    coroner = coronerClientArgv(config, argv);
-    return fn(coroner, argv, config);
-  }
-
-  samplingUsage("Invalid sampling subcommand '" + subcmd + "'.");
-}
-
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  sampling: coronerSampling,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'sampling.status': samplingStatus,
+  'sampling.reset': samplingReset,
+  'sampling.configure': samplingConfigure,
 };

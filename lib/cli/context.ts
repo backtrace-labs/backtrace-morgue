@@ -244,3 +244,83 @@ export function projectIdFromFlags(cfg: any, model: any, argv: any): number {
 
   return pid;
 }
+
+// ---------------------------------------------------------------------------
+// Typed helpers (accept GlobalOptions instead of argv)
+// ---------------------------------------------------------------------------
+
+import type {GlobalOptions} from './generated/types';
+
+/**
+ * Create a CoronerClient from typed GlobalOptions.
+ * Replaces coronerClientArgv for migrated commands.
+ */
+export function coronerClientFromGlobal(
+  cfg: config.Config,
+  opts: GlobalOptions,
+): any {
+  if (opts.token && opts.endpoint) {
+    cfg.config.token = opts.token;
+    cfg.endpoint = opts.endpoint;
+  }
+  return coronerClient(
+    cfg,
+    !!opts.k,
+    !!opts.debug,
+    cfg.endpoint,
+    opts.timeout ? parseInt(opts.timeout) : undefined,
+  );
+}
+
+/**
+ * Create a submission-endpoint CoronerClient from typed GlobalOptions.
+ * Replaces coronerClientArgvSubmit for migrated commands.
+ */
+export function coronerClientSubmitFromGlobal(
+  cfg: config.Config,
+  opts: GlobalOptions,
+): any {
+  return coronerClient(
+    cfg,
+    !!opts.k,
+    !!opts.debug,
+    cfg.submissionEndpoint,
+    opts.timeout ? parseInt(opts.timeout) : undefined,
+  );
+}
+
+/**
+ * Create a BPG client from typed GlobalOptions.
+ * Replaces coronerBpgSetup for migrated commands.
+ */
+export function coronerBpgFromGlobal(coroner: any, opts: GlobalOptions): any {
+  const coronerd = {
+    url: coroner.endpoint,
+    session: {token: '000000000'},
+  };
+  const bpgOpts: any = {};
+
+  if (coroner.config && coroner.config.token)
+    coronerd.session.token = coroner.config.token;
+
+  if (opts.debug) bpgOpts.debug = true;
+
+  return new BPG.BPG(coronerd, bpgOpts);
+}
+
+/**
+ * Parse a "universe/project" or "project" positional arg into components.
+ * Replaces coronerParams for migrated commands.
+ */
+export function parseProjectArg(
+  project: string,
+  cfg: any,
+): {universe: string; project: string} {
+  const split = project.split('/');
+  if (split.length === 2) {
+    return {universe: split[0], project: split[1]};
+  }
+  let first;
+  for (first in cfg.config.universes) break;
+  return {universe: first, project};
+}

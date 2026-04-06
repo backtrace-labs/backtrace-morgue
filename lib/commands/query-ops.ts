@@ -3,43 +3,47 @@ import {sprintf} from 'extsprintf';
 import * as config from '../config';
 import * as crdb from '../crdb';
 import * as BPG from '../bpg';
-import * as queryCli from '../cli/query';
+import {buildQuery, buildQueryFilterOnly} from '../cli/query';
 import {errx, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerParams, coronerClientArgv} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  parseProjectArg,
+} from '../cli/context';
 import {std_success_cb, std_failure_cb} from '../cli/bpg-helpers';
 import {usage} from '../cli/util';
-import {argvPushObjectRanges} from './get-put';
+import type {
+  SetCommand,
+  DeleteCommand,
+  CleanCommand,
+  NukeCommand,
+} from '../cli/generated/types';
 
-function coronerNuke(argv: any, config: any): any {
+function handleNuke(cmd: NukeCommand, config: any): any {
   abortIfNotLoggedIn(config);
 
-  const coroner = coronerClientArgv(config, argv);
-  let query, project, universe, un, target;
-  let ru;
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  let un, target;
 
   const coronerd = {
     url: coroner.endpoint,
     session: {token: '000000000'},
   };
   const opts: any = {};
-  let bpg: any = {};
 
   if (coroner.config && coroner.config.token)
     coronerd.session.token = coroner.config.token;
 
-  if (argv.debug) opts.debug = true;
+  if (cmd.globalOptions.debug) opts.debug = true;
 
-  bpg = new BPG.BPG(coronerd, opts);
-
-  if (argv.universe) universe = argv.universe;
-  if (argv.project) project = argv.project;
+  const bpg: any = new BPG.BPG(coronerd, opts);
 
   const model = bpg.get();
 
-  if (universe) {
+  if (cmd.universe) {
     /* Find the universe with the specified name. */
     for (var i = 0; i < model.universe.length; i++) {
-      if (model.universe[i].get('name') === universe) {
+      if (model.universe[i].get('name') === cmd.universe) {
         un = target = model.universe[i];
       }
     }
@@ -49,11 +53,11 @@ function coronerNuke(argv: any, config: any): any {
     errx('Universe not found.');
   }
 
-  if (project) {
+  if (cmd.project) {
     target = null;
     for (var i = 0; i < model.project.length; i++) {
       if (
-        model.project[i].get('name') === project &&
+        model.project[i].get('name') === cmd.project &&
         model.project[i].get('universe') === un.get('id')
       ) {
         target = model.project[i];
@@ -78,47 +82,44 @@ function coronerNuke(argv: any, config: any): any {
   return;
 }
 
-function coronerSet(argv: any, config: any): any {
+function handleSet(cmd: SetCommand, config: any): any {
   abortIfNotLoggedIn(config);
-  let query;
-  let p;
 
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
 
-  if (argv._.length < 2) {
-    return usage('Missing project, universe arguments');
+  const queryOpts = {...cmd.queryOptions};
+  if (!queryOpts.table) {
+    queryOpts.table = 'objects';
   }
 
-  p = coronerParams(argv, config);
-
-  if (!argv.table) {
-    argv.table = 'objects';
-  }
-
-  const aq = queryCli.argvQuery(argv);
-  query = aq.query;
+  const aq = buildQuery(queryOpts);
+  const query = aq.query;
 
   delete query.fold;
   delete query.factor;
 
-  if (!argv.time && !argv.age) {
+  if (!queryOpts.time && !queryOpts.age) {
     for (var i = 0; i < query.filter.length; i++) {
       delete query.filter[i].timestamp;
     }
   }
 
+  /* Parse the assignment string (key=value pairs). */
   const set: any = {};
-  for (var i = 0; i < argv._.length; i++) {
-    if (argv._[i].indexOf('=') === -1) continue;
-
-    const kv = argv._[i].split('=');
-
-    set[kv[0]] = kv[1];
+  const assignment = cmd.assignment;
+  if (assignment) {
+    const parts = Array.isArray(assignment) ? assignment : [assignment];
+    for (const part of parts) {
+      if (part.indexOf('=') === -1) continue;
+      const kv = part.split('=');
+      set[kv[0]] = kv[1];
+    }
   }
 
   query.set = set;
 
-  if (argv.table) query.table = argv.table;
+  if (queryOpts.table) query.table = queryOpts.table;
 
   coroner.query(p.universe, p.project, query, (err, result) => {
     if (err) {
@@ -132,7 +133,10 @@ function coronerSet(argv: any, config: any): any {
   return;
 }
 
-async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
+async function coronerCleanFingerprints(cmd: CleanCommand, coroner, fingerprints, query, p) {
+  const keep = cmd.keep ? parseInt(cmd.keep) : (cmd.oldest ? 0 : 3);
+  const oldest = cmd.oldest ? parseInt(cmd.oldest) : 0;
+
   query.limit = 10000;
   query.order = [{name: '_tx', ordering: 'descending'}];
   query.select = ['object.size'];
@@ -145,7 +149,7 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
 
   /*
    * Perform independent queries for each fingerprint.  This allows
-   * argv.{keep,oldest} to reserve objects per fingerprint.  Objects
+   * keep/oldest to reserve objects per fingerprint.  Objects
    * shouldn't switch fingerprints between queries.
    */
   for (const fp of fingerprints) {
@@ -180,15 +184,15 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
        * objects when they appear, and they will ultimately not be
        * considered for deletion.
        */
-      if (argv.oldest > 0) {
+      if (oldest > 0) {
         objects.unshift(...reserved);
         const off =
-          objects.length < argv.oldest ? 0 : objects.length - argv.oldest;
-        reserved = objects.splice(off, argv.oldest);
+          objects.length < oldest ? 0 : objects.length - oldest;
+        reserved = objects.splice(off, oldest);
       }
 
       for (let i = 0; i < objects.length; i++) {
-        if (kept < argv.keep) {
+        if (kept < keep) {
           kept++;
           continue;
         }
@@ -197,14 +201,14 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
         oids.push(objects[i].id);
         saved += objects[i]['object.size'];
       }
-      if (argv.output && oids.length > 0) {
+      if (cmd.output && oids.length > 0) {
         process.stdout.write(oids.join(' '));
         process.stdout.write('\n');
         oids = [];
       }
 
       total += objects.length;
-      if (argv.verbose) {
+      if (cmd.verbose) {
         process.stderr.write(
           `${objects.length} objects processed, ` +
             `setting object <= ${lowest_id.toString(16)} ...\n`,
@@ -217,7 +221,7 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
 
     /* Include reserved objects in total at this point. */
     total += reserved.length;
-    if (argv.verbose) {
+    if (cmd.verbose) {
       reserved = reserved.map(obj => obj.id);
       process.stderr.write(
         `reserved(${reserved.length}]: ${reserved.join(' ')}\n`,
@@ -233,39 +237,22 @@ async function coronerCleanFingerprints(argv, coroner, fingerprints, query, p) {
   );
 }
 
-async function coronerCleanAsync(argv: any, config: any): Promise<any> {
+async function coronerCleanAsync(cmd: CleanCommand, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
-  let query;
-  let p;
 
-  const coroner = coronerClientArgv(config, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   coroner.sync_query = coroner.query;
   coroner.query = util.promisify(coroner.sync_query);
 
-  if (argv._.length < 2) {
-    return usage('Missing project, universe arguments');
+  const p = parseProjectArg(cmd.project, config);
+
+  const queryOpts = {...cmd.queryOptions};
+  if (!queryOpts.table) {
+    queryOpts.table = 'objects';
   }
 
-  /* Process --oldest, defaulting to 0. */
-  argv.oldest = argv.oldest ? parseInt(argv.oldest) : 0;
-
-  /* Process --keep, defaulting to 3 if no --oldest set. */
-  if (argv.keep) {
-    argv.keep = parseInt(argv.keep);
-    if (argv.keep === 0) errx('--keep must be greater than 0');
-  } else if (!argv.oldest) {
-    argv.keep = 3;
-  }
-
-  p = coronerParams(argv, config);
-
-  if (!argv.table) {
-    argv.table = 'objects';
-  }
-
-  const aq = queryCli.argvQuery(argv);
-  query = aq.query;
-  const d_age = aq.age;
+  const aq = buildQuery(queryOpts);
+  const query = aq.query;
 
   /* Only consider non-deleted objects, period. */
   if (!query.filter) query.filter = [];
@@ -274,10 +261,10 @@ async function coronerCleanAsync(argv: any, config: any): Promise<any> {
 
   /* First, unless specified, extract the top N fingerprint objects. */
   let fingerprints = [];
-  if (argv.fingerprint) {
-    fingerprints = Array.isArray(argv.fingerprint)
-      ? argv.fingerprint
-      : [argv.fingerprint];
+  if (queryOpts.fingerprint) {
+    fingerprints = Array.isArray(queryOpts.fingerprint)
+      ? queryOpts.fingerprint
+      : [queryOpts.fingerprint];
   }
   if (fingerprints.length === 0) {
     query.group = ['fingerprint'];
@@ -294,49 +281,44 @@ async function coronerCleanAsync(argv: any, config: any): Promise<any> {
   delete query.fold;
   delete query.order;
 
-  await coronerCleanFingerprints(argv, coroner, fingerprints, query, p);
+  await coronerCleanFingerprints(cmd, coroner, fingerprints, query, p);
 }
 
 /**
  * @brief: Implements the clean command.
  */
-async function coronerClean(argv: any, config: any): Promise<any> {
-  await coronerCleanAsync(argv, config).catch(err => {
+async function handleClean(cmd: CleanCommand, config: any): Promise<any> {
+  await coronerCleanAsync(cmd, config).catch(err => {
     console.error(err);
   });
 }
 
-async function coronerDelete(argv: any, config: any): Promise<any> {
-  let aq, coroner, o, p;
-  const tasks = [];
-  const chunklen = argv.chunklen || 16384;
-  const params: any = {};
-  const physical_only = argv['physical-only'];
-  const crdb_only = argv['crdb-only'];
-
+async function handleDelete(cmd: DeleteCommand, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
 
-  aq = queryCli.argvQueryFilterOnly(argv);
-  coroner = coronerClientArgv(config, argv);
-  p = coronerParams(argv, config);
-  o = argv._.slice(2);
-  argvPushObjectRanges(o, argv);
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const p = parseProjectArg(cmd.project, config);
+  const aq = buildQueryFilterOnly(cmd.queryOptions);
+  const o: string[] = cmd.target ? [...cmd.target] : [];
+  const chunklen = cmd.chunklen ? parseInt(cmd.chunklen) : 16384;
+  const params: any = {};
+  const tasks: Promise<any>[] = [];
 
   if (o.length === 0 && !(aq && aq.query)) {
     errx('Must specify either objects to be deleted or a query.');
   }
 
-  if (argv.sync) {
+  if (cmd.sync) {
     params.sync = true;
-    if (!argv.timeout) {
+    if (!cmd.globalOptions.timeout) {
       /* Set longer 5 minute timeout in case of heavy load. */
       coroner.timeout = 300 * 1000;
     }
   }
 
-  if (!argv.all) {
+  if (!cmd.all) {
     params.subsets = [];
-    if (!crdb_only) params.subsets.push('physical');
+    if (!cmd.crdbOnly) params.subsets.push('physical');
     else params.subsets.push('crdb');
   }
 
@@ -373,9 +355,9 @@ async function coronerDelete(argv: any, config: any): Promise<any> {
   }
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  set: coronerSet,
-  delete: coronerDelete,
-  clean: coronerClean,
-  nuke: coronerNuke,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  set: handleSet,
+  delete: handleDelete,
+  clean: handleClean,
+  nuke: handleNuke,
 };

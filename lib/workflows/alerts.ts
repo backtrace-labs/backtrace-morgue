@@ -1,17 +1,14 @@
 import {output, loadInit} from './utils';
-import * as cliOptions from '../cli/options';
 import {CreateAlert} from './models/createAlert';
-import * as router from '../cli/router';
 import {UpdateAlert} from './models/updateAlert';
-import {errx} from '../cli/errors';
 
-const HELP_MESSAGE = `
-Usage:
-
-morgue workflows alert [create | list | get | update | delete] <args>
-
-See the Morgue README for option documentation.
-`;
+import type {
+  WorkflowsAlertCreateCommand,
+  WorkflowsAlertListCommand,
+  WorkflowsAlertGetCommand,
+  WorkflowsAlertUpdateCommand,
+  WorkflowsAlertDeleteCommand,
+} from '../cli/generated/types';
 
 export class WorkflowsAlertsCli {
   client: any;
@@ -24,40 +21,24 @@ export class WorkflowsAlertsCli {
     this.project = project;
   }
 
-  async routeMethod(argv) {
-    if (!this.project) {
-      errx('--project is required');
-    }
-
-    const routes = {
-      get: this.getAlert.bind(this),
-      list: this.getAlerts.bind(this),
-      create: this.createAlert.bind(this),
-      update: this.updateAlert.bind(this),
-      delete: this.deleteAlert.bind(this),
-    };
-
-    await router.route(routes, HELP_MESSAGE, argv);
+  async getAlert(cmd: WorkflowsAlertGetCommand) {
+    const alert = await this.client.getAlert(this.universe, this.project, cmd.id);
+    output(alert, cmd.raw ?? false, printAlert);
   }
 
-  async getAlert(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
-    const alert = await this.client.getAlert(this.universe, this.project, id);
-    output(alert, argv, printAlert);
-  }
-
-  async getAlerts(argv) {
+  async getAlerts(cmd: WorkflowsAlertListCommand) {
     const alerts = await this.client.getAlerts(this.universe, this.project);
 
     output(
       alerts.sort((a1, a2) => a1.name.localeCompare(a2.name)),
-      argv,
+      cmd.raw ?? false,
       printAlert,
     );
   }
 
-  async createAlert(argv) {
-    const body = CreateAlert.fromArgv(argv, loadInit(argv));
+  async createAlert(cmd: WorkflowsAlertCreateCommand) {
+    const init = loadInit(cmd.fromFile);
+    const body = CreateAlert.fromCmd(cmd, init);
 
     const alert = await this.client.createAlert(
       this.universe,
@@ -65,32 +46,31 @@ export class WorkflowsAlertsCli {
       body,
     );
 
-    output(alert, argv, printAlert);
+    output(alert, cmd.raw ?? false, printAlert);
   }
 
-  async updateAlert(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
-    const body = UpdateAlert.fromArgv(argv, loadInit(argv));
+  async updateAlert(cmd: WorkflowsAlertUpdateCommand) {
+    const init = loadInit(cmd.fromFile);
+    const body = UpdateAlert.fromCmd(cmd, init);
 
     const alert = await this.client.updateAlert(
       this.universe,
       this.project,
-      id,
+      cmd.id,
       body,
     );
 
-    output(alert, argv, printAlert);
+    output(alert, cmd.raw ?? false, printAlert);
   }
 
-  async deleteAlert(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
+  async deleteAlert(cmd: WorkflowsAlertDeleteCommand) {
     const alert = await this.client.deleteAlert(
       this.universe,
       this.project,
-      id,
+      cmd.id,
     );
 
-    output(alert, argv, printAlert);
+    output(alert, cmd.raw ?? false, printAlert);
   }
 }
 

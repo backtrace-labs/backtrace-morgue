@@ -889,9 +889,17 @@ export interface AlertsAlertGetCommand {
 export interface AlertsAlertUpdateCommand {
   kind: 'alerts.alert.update';
   globalOptions: GlobalOptions;
+  queryOptions: QueryOptions;
   id?: string;
   name?: string;
   rename?: string;
+  enabled?: string;
+  queryPeriod?: string;
+  minNotificationInterval?: string;
+  muteUntil?: string;
+  targetName?: string[];
+  targetId?: string[];
+  trigger?: string;
   replaceQuery?: boolean;
   clearTargets?: boolean;
 }

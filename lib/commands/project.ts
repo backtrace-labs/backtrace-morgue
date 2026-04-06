@@ -1,30 +1,22 @@
-import * as config from '../config';
-import * as BPG from '../bpg';
+import type {
+  ProjectCreateCommand,
+  ProjectsListCommand,
+} from '../cli/generated/types';
 import {errx} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientArgv, coronerBpgSetup} from '../cli/context';
+import {
+  abortIfNotLoggedIn,
+  coronerClientFromGlobal,
+  coronerBpgFromGlobal,
+} from '../cli/context';
 import {bpgSingleRequest, bpgPost, bpgCbFn, bpgPostAsync} from '../cli/bpg-helpers';
 
-function coronerProject(argv: any, config: any): any {
+function projectCreate(cmd: ProjectCreateCommand, config: any): any {
   abortIfNotLoggedIn(config);
 
-  const subcommand = argv._[1];
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
-  const coroner = coronerClientArgv(config, argv);
-  const bpg = coronerBpgSetup(coroner, argv);
-
-  if (!subcommand) {
-    errx(
-      "Invalid project command. Try 'morgue project create <your-project-name>'",
-    );
-  }
-
-  if (subcommand !== 'create') {
-    errx(
-      "Invalid project command. Try 'morgue project create <your-project-name>'",
-    );
-  }
-
-  const project = argv._[2];
+  const project = cmd.name;
   if (!project) {
     errx('Missing project name');
   }
@@ -64,17 +56,11 @@ function coronerProject(argv: any, config: any): any {
   bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
-async function coronerProjects(argv: any, config: config.Config): Promise<any> {
+async function projectsList(cmd: ProjectsListCommand, config: any): Promise<any> {
   abortIfNotLoggedIn(config);
 
-  const subcommand = argv._[1];
-
-  const coroner = coronerClientArgv(config, argv);
-  const bpg = coronerBpgSetup(coroner, argv);
-
-  if (subcommand !== 'list') {
-    errx("Invalid projects command. Try 'morgue project list'");
-  }
+  const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
+  const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
   if (!config || !config.config) {
     errx('Invalid config');
@@ -113,7 +99,7 @@ async function coronerProjects(argv: any, config: config.Config): Promise<any> {
   );
 }
 
-export const commands: Record<string, (argv: any, config: config.Config) => any> = {
-  project: coronerProject,
-  projects: coronerProjects,
+export const handlers: Record<string, (cmd: any, config: any) => any> = {
+  'project.create': projectCreate,
+  'projects.list': projectsList,
 };

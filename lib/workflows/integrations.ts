@@ -1,18 +1,16 @@
 import {CreateIntegration} from './models/createIntegration';
-import * as cliOptions from '../cli/options';
-import * as router from '../cli/router';
 import {UpdateIntegration} from './models/updateIntegration';
-import {output, loadInit, getPluginId} from './utils';
-import {errx} from '../cli/errors';
+import {output, loadInit} from './utils';
 import {integrationOptions} from './plugins/plugins';
+import * as cliOptions from '../cli/options';
 
-const HELP_MESSAGE = `
-Usage:
-
-morgue workflows integration [create | list | get | update | delete] <args>
-
-See the Morgue README for option documentation.
-`;
+import type {
+  WorkflowsIntegrationCreateCommand,
+  WorkflowsIntegrationListCommand,
+  WorkflowsIntegrationGetCommand,
+  WorkflowsIntegrationUpdateCommand,
+  WorkflowsIntegrationDeleteCommand,
+} from '../cli/generated/types';
 
 export class WorkflowsIntegrationsCli {
   client: any;
@@ -25,34 +23,17 @@ export class WorkflowsIntegrationsCli {
     this.project = project;
   }
 
-  async routeMethod(argv) {
-    if (!this.project) {
-      errx('--project is required');
-    }
-
-    const routes = {
-      get: this.getIntegration.bind(this),
-      list: this.getIntegrations.bind(this),
-      create: this.createIntegration.bind(this),
-      update: this.updateIntegration.bind(this),
-      delete: this.deleteIntegration.bind(this),
-    };
-
-    await router.route(routes, HELP_MESSAGE, argv);
-  }
-
-  async getIntegration(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
+  async getIntegration(cmd: WorkflowsIntegrationGetCommand) {
     const integration = await this.client.getIntegration(
       this.universe,
       this.project,
-      id,
+      cmd.id,
     );
 
-    output(integration, argv, printIntegration);
+    output(integration, cmd.raw ?? false, printIntegration);
   }
 
-  async getIntegrations(argv) {
+  async getIntegrations(cmd: WorkflowsIntegrationListCommand) {
     const integrations = await this.client.getIntegrations(
       this.universe,
       this.project,
@@ -60,18 +41,21 @@ export class WorkflowsIntegrationsCli {
 
     integrations
       .sort((i1, i2) => i1.watcherName.localeCompare(i2.watcherName))
-      .forEach(i => output(i, argv, printIntegration));
+      .forEach(i => output(i, cmd.raw ?? false, printIntegration));
   }
 
-  async createIntegration(argv) {
-    const init = loadInit(argv);
-    const pluginId = getPluginId(argv, init);
+  async createIntegration(cmd: WorkflowsIntegrationCreateCommand) {
+    const init = loadInit(cmd.fromFile);
+    const pluginId = cliOptions.convertOne(
+      'plugin',
+      cmd.plugin || init.pluginId,
+    );
     const optionsInitFn = integrationOptions(pluginId);
 
-    const body = CreateIntegration.fromArgv(
-      argv,
+    const body = CreateIntegration.fromCmd(
+      cmd,
       init,
-      optionsInitFn(argv, init),
+      optionsInitFn(cmd.options, init),
     );
 
     const integration = await this.client.createIntegration(
@@ -80,46 +64,44 @@ export class WorkflowsIntegrationsCli {
       body,
     );
 
-    output(integration, argv, printIntegration);
+    output(integration, cmd.raw ?? false, printIntegration);
   }
 
-  async updateIntegration(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
+  async updateIntegration(cmd: WorkflowsIntegrationUpdateCommand) {
     const integration = await this.client.getIntegration(
       this.universe,
       this.project,
-      id,
+      cmd.id,
     );
 
-    const init = loadInit(argv);
+    const init = loadInit(cmd.fromFile);
     const pluginId = integration.pluginId;
     const optionsInitFn = integrationOptions(pluginId);
 
-    const body = UpdateIntegration.fromArgv(
-      argv,
+    const body = UpdateIntegration.fromCmd(
+      cmd,
       init,
-      optionsInitFn(argv, init),
+      optionsInitFn(cmd.options, init),
     );
 
     const updated = await this.client.updateIntegration(
       this.universe,
       this.project,
-      id,
+      cmd.id,
       body,
     );
 
-    output(updated, argv, printIntegration);
+    output(updated, cmd.raw ?? false, printIntegration);
   }
 
-  async deleteIntegration(argv) {
-    const id = cliOptions.convertOne('id', argv.id || argv._[0]);
+  async deleteIntegration(cmd: WorkflowsIntegrationDeleteCommand) {
     const integration = await this.client.deleteIntegration(
       this.universe,
       this.project,
-      id,
+      cmd.id,
     );
 
-    output(integration, argv, printIntegration);
+    output(integration, cmd.raw ?? false, printIntegration);
   }
 }
 
