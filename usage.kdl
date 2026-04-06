@@ -55,6 +55,12 @@ cmd "login" help="Log into a Backtrace server" {
         variables are set, the interactive prompt will be suppressed, and the values
         in the aforementioned environment variables used instead.
 
+        For non-interactive token-based login, use the global `--token` flag:
+
+        ```
+        $ morgue login http://localhost --token=<your-api-token>
+        ```
+
         If you have SSO enabled please follow [this document](https://docs.saucelabs.com/error-reporting/troubleshooting/#how-can-i-login-to-the-morgue-tool-via-sso) to log in with a token.
         """#
 }
@@ -200,6 +206,15 @@ cmd "describe" help="Requests a list and description of all metadata that can be
     arg "<project>" help="Project name or universe/project"
     arg "<substring>" help="Filter by substring" required=#false
 
+    flag "-r" help="Show disabled attributes"
+    flag "-u" help="Show only custom attributes"
+    flag "-a" help="Show all attributes including unused"
+    flag "-l" help="Show filter and aggregation info"
+    flag "--json" help="Output JSON format"
+    flag "--table" help="Table to query against" hide=#true {
+        arg "<table>"
+    }
+
     after_long_help #"""
         Examples:
 
@@ -223,6 +238,15 @@ cmd "get" help="Download object from the Backtrace object store." {
     flag "--resource" help="Fetch specific resource" {
         arg "<name>"
     }
+    flag "--outdir" help="Output directory for multiple objects" hide=#true {
+        arg "<dir>"
+    }
+    flag "--first" help="First object ID in range" hide=#true {
+        arg "<id>"
+    }
+    flag "--last" help="Last object ID in range" hide=#true {
+        arg "<id>"
+    }
 
     long_help #"""
         Downloads the specified object from the Backtrace object store and prints to standard output.
@@ -236,7 +260,7 @@ cmd "put" help="Uploads object file to the Backtrace object store." {
 
     flag "--format" help="File format" required=#true {
         arg "<format>" {
-            choices btt minidump json plcrash symbols
+            choices btt minidump json plcrash symbols symbols-proguard sourcemap
         }
     }
     flag "--compression" help="Compression: gzip|deflate" {
@@ -248,6 +272,26 @@ cmd "put" help="Uploads object file to the Backtrace object store." {
         arg "<pairs>"
     }
     flag "--form_data" help="Upload using multipart/form-data POST request"
+    flag "--tag" help="Symbol tag (used with symbols format)" hide=#true {
+        arg "<tag>"
+    }
+    flag "--symbolication-id" help="Symbolication identifier" hide=#true {
+        arg "<id>"
+    }
+    flag "--sync" help="Synchronous submission" hide=#true
+    flag "--reuse" help="Reuse HTTP connections" hide=#true
+    flag "--attachment" help="Attachment file(s) for minidump uploads" hide=#true {
+        arg "<file>"
+    }
+    flag "--multipart" help="Force multipart form submission" hide=#true
+    flag "--benchmark" help="Run submission benchmark" hide=#true
+    flag "--samples" help="Number of benchmark samples" hide=#true {
+        arg "<n>"
+    }
+    flag "--concurrency" help="Benchmark concurrency level" hide=#true {
+        arg "<n>"
+    }
+    flag "--printids" help="Print object IDs after upload" hide=#true
 }
 
 cmd "set" help="Modify object attributes" {
@@ -545,6 +589,23 @@ cmd "list" help="Query and list objects with filters and aggregations" {
     flag "--json" help="Output JSON format"
     flag "--query" help="Show the built query JSON and exit without performing the request"
     flag "--verbose" help="Show detailed query performance data"
+    flag "--raw" help="Output raw JSON response (use with --query to also execute)" hide=#true
+    flag "--set" help="Set attributes on matching objects: key=value" hide=#true {
+        arg "<assignment>"
+    }
+    flag "--clear" help="Clear attributes on matching objects" hide=#true {
+        arg "<attribute>"
+    }
+    flag "--implicit-filters" help="Control implicit time filters (default: true)" hide=#true {
+        arg "<bool>"
+    }
+    flag "--benchmark" help="Run query benchmark" hide=#true
+    flag "--concurrency" help="Benchmark concurrency level" hide=#true {
+        arg "<n>"
+    }
+    flag "--samples" help="Number of benchmark samples" hide=#true {
+        arg "<n>"
+    }
 
     before_long_help #"""
         Allows you to perform queries on object metadata. You can perform
@@ -798,6 +859,16 @@ cmd "delete" help="Delete objects by query or ID" {
     flag "--physical-only" help="Delete only physical data (default)"
     flag "--crdb-only" help="Delete only indexed data"
     flag "--all" help="Delete all related data"
+    flag "--sync" help="Synchronous deletion" hide=#true
+    flag "--chunklen" help="Batch size for deletions" hide=#true {
+        arg "<n>"
+    }
+    flag "--first" help="First object ID in range" hide=#true {
+        arg "<id>"
+    }
+    flag "--last" help="Last object ID in range" hide=#true {
+        arg "<id>"
+    }
 
     // TODO: argvQuery (argvQueryFilterOnly)
     // Filters
@@ -984,59 +1055,12 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
             choices physical derived virtual
         }
     }
-    // Aggregations
+    // argvQuery (filter/time flags only — fold flags not applicable here)
     flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
         arg "<time>"
     }
     flag "--time" help="Time range using natural language" {
         arg "<range>"
-    }
-    flag "--unique" help="Count distinct values" {
-        arg "<attribute>"
-    }
-    flag "--histogram" help="Show all distinct values" {
-        arg "<attribute>"
-    }
-    flag "--distribution" help="Show truncated histogram" {
-        arg "<attribute>"
-    }
-    flag "--mean" help="Calculate mean" {
-        arg "<attribute>"
-    }
-    flag "--sum" help="Sum all values" {
-        arg "<attribute>"
-    }
-    flag "--range" help="Show min and max values" {
-        arg "<attribute>"
-    }
-    flag "--count" help="Count non-null values" {
-        arg "<attribute>"
-    }
-    flag "--bin" help="Linear histogram of values" {
-        // alias "quantize"
-        arg "<attribute>"
-    }
-    flag "--head" help="First value in factor" {
-        arg "<attribute>"
-    }
-    flag "--tail" help="Last value in factor" {
-        arg "<attribute>"
-    }
-    flag "--object" help="Maximum object identifier" {
-        arg "<attribute>"
-    }
-    // Aggregations (undocumented)
-    flag "--last" help="Last object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    flag "--first" help="First object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    flag "--min" help="Min object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    flag "--max" help="Max object identifier" hide=#true {
-        arg "<attribute>"
     }
     // Sorting
     flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
@@ -1056,9 +1080,6 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
     flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
         arg "<query>"
     }
-    // flag "--reverse" help="Reverse sort order" {
-    //     arg "<attribute>"
-    // }
     flag "--template" help="TODO: (ex: select)" { // TODO
         arg "<attribute>"
     }
@@ -1089,6 +1110,12 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
     cmd "symbolserver" subcommand_required=#true help="Manage symbol servers" {
         cmd "list" help="List symbol servers" {
             arg "<project>" help="Project name"
+            flag "--page" help="Page number" {
+                arg "<n>"
+            }
+            flag "--take" help="Items per page" {
+                arg "<n>"
+            }
             after_long_help #"""
                 Example:
 
@@ -1211,6 +1238,14 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
             flag "--proxy.password" help="Proxy password" {
                 arg "<proxy_password>"
             }
+            flag "--force" help="Force creation" {
+                arg "<bool>" {
+                    choices "true" "false"
+                }
+            }
+            flag "--retrytimeout" help="Download retry timeout" {
+                arg "<ms>"
+            }
 
             after_long_help #"""
                 Example:
@@ -1308,6 +1343,10 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
                 """#
         }
 
+        cmd "delete" help="Delete symbol server" {
+            arg "<id>" help="Symbol server ID"
+        }
+
         cmd "disable" help="Disable symbol server" {
             arg "<id>" help="Symbol server ID"
         }
@@ -1319,7 +1358,8 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
 
     cmd "whitelist" subcommand_required=#true help="Manage whitelist" {
         cmd "add" help="Add to whitelist" {
-            flag "--name" help="Item name" required=#true {
+            arg "<server_id>" help="Symbol server ID"
+            flag "--name" help="Item name" {
                 arg "<name>"
             }
         }
@@ -1329,6 +1369,7 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
         }
 
         cmd "list" help="List whitelist items" {
+            arg "<server_id>" help="Symbol server ID"
             flag "--page" help="Page number" {
                 arg "<n>"
             }
@@ -1340,7 +1381,8 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
 
     cmd "blacklist" subcommand_required=#true help="Manage blacklist" {
         cmd "add" help="Add to blacklist" {
-            flag "--name" help="Item name" required=#true {
+            arg "<server_id>" help="Symbol server ID"
+            flag "--name" help="Item name" {
                 arg "<name>"
             }
         }
@@ -1350,6 +1392,7 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
         }
 
         cmd "list" help="List blacklist items" {
+            arg "<server_id>" help="Symbol server ID"
             flag "--page" help="Page number" {
                 arg "<n>"
             }
@@ -1398,7 +1441,7 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
 
         cmd "size" help="Get queue size"
 
-        cmd "symbold" help="List missing symbols from events"
+        cmd "symbols" help="List missing symbols from events"
     }
 }
 
@@ -1421,8 +1464,14 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         }
         // Undocumented create flags
         // See coronerReport, in: if (action === 'create') { ... }
-        flag "--timezone" help="TImezone for report" hide=#true {
+        flag "--timezone" help="Timezone for report" hide=#true {
             arg "<timezone>"
+        }
+        flag "--day" help="Day of week (1=Monday)" hide=#true {
+            arg "<n>"
+        }
+        flag "--hour" help="Hour of day to send (default: 9)" hide=#true {
+            arg "<n>"
         }
         flag "--include-users" help="Whether to include users in the report" hide=#true
 
@@ -1537,7 +1586,10 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         arg "<id>" help="Report ID"
     }
 
-    cmd "send" help="Send report immediately"
+    cmd "send" help="Send report immediately" {
+        arg "<id>" help="Report ID"
+        arg "<email>" help="Recipient email address"
+    }
 }
 
 cmd "merge" help="Merge fingerprints into group" {
@@ -1601,13 +1653,18 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
     }
 
     cmd "status" help="Get retention status" {
-        arg "<name>" help="Namespace name"
+        arg "<name>" help="Namespace name" required=#false
 
         flag "--type" help="Type: universe|project" {
             arg "<type>" default="project" {
                 choices universe project
             }
         }
+        flag "--recursive" help="Show recursive status for child namespaces"
+        flag "--raw" help="Output raw JSON"
+        flag "--verbose" help="Verbosity level (0-3, repeatable for more detail)"
+        flag "--instances" help="Show namespace instances per rule"
+        flag "--includeall" help="Include all namespaces (e.g. symbols)"
     }
 
     cmd "clear" help="Clear retention policy" {
@@ -1632,6 +1689,8 @@ cmd "sampling" subcommand_required=#true help="Manage object sampling" {
         flag "--max-groups" help="Max groups to display" {
             arg "<n>"
         }
+        flag "-a --all" help="Display all groups (no truncation)"
+        flag "--verbose" help="Show additional accept/reject statistics"
     }
 
     cmd "reset" help="Reset sampling" {
@@ -1676,7 +1735,7 @@ cmd "sampling" subcommand_required=#true help="Manage object sampling" {
 cmd "symbol" help="Manage debug symbols" {
     arg "<project>" help="Project name or universe/project"
     arg "[action]" help="Action to perform" required=#false default=summary {
-        choices summary list missing archives
+        choices summary status list missing archives
     }
     flag "--tag" help="Filter by tag" {
         arg "<tag>"
@@ -1708,17 +1767,34 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
                 choices ssn ccn key env all
             }
         }
+        flag "--format" help="Scrubber format (default: all)" {
+            arg "<format>"
+        }
+        flag "--target" help="Scrubber target (default: all)" {
+            arg "<target>"
+        }
         flag "--enable" help="Enable scrubber" {
             arg "<value>"
         }
     }
 
     cmd "modify" help="Modify scrubber" {
-        flag "--name" help="Scrubber name" required=#true {
+        arg "<id>" help="Scrubber ID"
+
+        flag "--name" help="Scrubber name" {
             arg "<name>"
         }
         flag "--regexp" help="New pattern" {
             arg "<pattern>"
+        }
+        flag "--builtin" help="Builtin type (not modifiable)" {
+            arg "<type>"
+        }
+        flag "--format" help="Scrubber format" {
+            arg "<format>"
+        }
+        flag "--target" help="Scrubber target" {
+            arg "<target>"
         }
         flag "--enable" help="Enable/disable" {
             arg "<value>"
@@ -1726,9 +1802,7 @@ cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
     }
 
     cmd "delete" help="Delete scrubber" {
-        flag "--name" help="Scrubber name" required=#true {
-            arg "<name>"
-        }
+        arg "<id>" help="Scrubber ID"
     }
 }
 
@@ -1754,6 +1828,9 @@ cmd "token" subcommand_required=#true help="Manage API tokens" {
             arg "<cap>" {
                 choices symbol:post error:post query:post sync:post
             }
+        }
+        flag "--metadata" help="Token metadata JSON" {
+            arg "<json>"
         }
     }
 
@@ -1867,11 +1944,11 @@ cmd "invite" subcommand_required=#true help="Invite users to system" {
     cmd "list" help="List pending invitations"
 
     cmd "delete" help="Delete invitation" {
-        arg "<token>" help="Invitation token"
-    }
+        arg "<email>" help="Email address of invitation to delete"
 
-    cmd "resend" help="Resend invitation" {
-        arg "<token>" help="Invitation token"
+        flag "--universe" help="Universe name" required=#true {
+            arg "<universe>"
+        }
     }
 }
 
@@ -2523,7 +2600,6 @@ cmd "control" help="Control operations" hide=#true
 cmd "deduplication" help="Deduplication operations" hide=#true
 cmd "latency" help="Latency testing" hide=#true
 cmd "cts" help="CTS operations" hide=#true
-cmd "ci" help="CI operations" hide=#true
 cmd "session" help="Session operations" hide=#true
 cmd "limit" help="Limit operations" hide=#true
 cmd "service" help="Service operations" hide=#true
