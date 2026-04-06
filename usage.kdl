@@ -1259,10 +1259,10 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
         cmd "update" help="Update symbol server" {
             arg "<id>" help="Symbol server ID"
 
-            flag "--name" help="Server name" required=#true {
+            flag "--name" help="Server name" {
                 arg "<name>"
             }
-            flag "--symbolServerUrl" help="Symbol server URL" required=#true {
+            flag "--symbolServerUrl" help="Symbol server URL" {
                 arg "<url>"
             }
             flag "--concurrentdownload" help="Max concurrent downloads" {
@@ -1457,7 +1457,7 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         flag "--title" help="Report title" required=#true {
             arg "<title>"
         }
-        flag "--period" help="Period: week|day" required=#true {
+        flag "--period" help="Period: week|day (default: week)" {
             arg "<period>" {
                 choices week day
             }
