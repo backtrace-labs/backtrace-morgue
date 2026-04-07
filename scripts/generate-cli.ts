@@ -102,6 +102,7 @@ interface IR {
   queryOptionFlags: IRFlag[];
   leaves: LeafCommand[];
   hiddenPaths: Set<string>; // dot-joined paths of hidden commands (for intermediate nodes)
+  helpByPath: Map<string, string>; // dot-joined path → help text for all nodes
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +225,7 @@ function buildIR(root: UsageRoot, whitelist?: Set<string>): IR {
   // Walk command tree to collect leaves
   const leaves: LeafCommand[] = [];
   const hiddenPaths = new Set<string>();
+  const helpByPath = new Map<string, string>();
 
   function walk(
     cmd: CommandObj,
@@ -236,9 +238,11 @@ function buildIR(root: UsageRoot, whitelist?: Set<string>): IR {
     const hasSubcmds = subcmdKeys.length > 0;
     const isHidden = parentHidden || cmd.hide;
 
-    // Track hidden intermediate nodes for parser emission
-    if (isHidden && cmd.full_cmd.length > 0) {
-      hiddenPaths.add(cmd.full_cmd.join('.'));
+    // Track help text and hidden status for all nodes
+    if (cmd.full_cmd.length > 0) {
+      const path = cmd.full_cmd.join('.');
+      if (cmd.help) helpByPath.set(path, cmd.help);
+      if (isHidden) hiddenPaths.add(path);
     }
 
     // Convert this node's own args and flags
@@ -310,7 +314,7 @@ function buildIR(root: UsageRoot, whitelist?: Set<string>): IR {
   }
 
   const globalFlagFieldNames = new Set(globalFlags.map(f => f.fieldName));
-  return {globalFlags, globalFlagFieldNames, queryOptionFlags, leaves, hiddenPaths};
+  return {globalFlags, globalFlagFieldNames, queryOptionFlags, leaves, hiddenPaths, helpByPath};
 }
 
 // ---------------------------------------------------------------------------
@@ -571,10 +575,14 @@ function emitLeafCommand(
       i === 1 ? 'program' : 'cmd_' + leaf.fullCmd.slice(0, i - 1).map(kebabToCamel).join('_');
     const sVar = 'cmd_' + leaf.fullCmd.slice(0, i).map(kebabToCamel).join('_');
     const nodeHidden = ir.hiddenPaths.has(ancestorPath);
+    const nodeHelp = ir.helpByPath.get(ancestorPath);
     if (nodeHidden) {
       w(`  const ${sVar} = ${pVar}.command('${leaf.fullCmd[i - 1]}', { hidden: !revealHidden });`);
     } else {
       w(`  const ${sVar} = ${pVar}.command('${leaf.fullCmd[i - 1]}');`);
+    }
+    if (nodeHelp) {
+      w(`  ${sVar}.description('${esc(nodeHelp)}');`);
     }
     emittedParents.add(ancestorPath);
   }
@@ -605,10 +613,11 @@ function emitLeafCommand(
 
   // Build the chained call
   const chainLines: string[] = [];
-  if (!alreadyCreated) {
-    chainLines.push(`  ${cmdExpr}`);
-  } else {
-    chainLines.push(`  ${cmdExpr}`);
+  chainLines.push(`  ${cmdExpr}`);
+
+  // Add description from usage.kdl help text
+  if (leaf.help) {
+    chainLines.push(`    .description('${esc(leaf.help)}')`);
   }
 
   // Add arguments
