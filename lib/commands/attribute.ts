@@ -3,13 +3,15 @@ import type {
   AttributeDeleteCommand,
   ViewCreateCommand,
   ViewDeleteCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import * as config from '../config';
+import type {Config} from '../config';
 import {errx, err} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg, requireConfigFile} from '../cli/context';
 import {bpgPost, bpgSingleRequest, bpgCbFn} from '../cli/bpg-helpers';
 
-function setupAttributeContext(config: any, globalOptions: any, project: string) {
+function setupAttributeContext(config: Config, globalOptions: any, project: string) {
   const coroner = coronerClientFromGlobal(config, globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, globalOptions);
   const model = bpg.get();
@@ -26,7 +28,7 @@ function setupAttributeContext(config: any, globalOptions: any, project: string)
   return {bpg, model, universe, project: proj};
 }
 
-function attributeCreate(cmd: AttributeCreateCommand, config: any) {
+function attributeCreate(cmd: AttributeCreateCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   if (!cmd.type) errx('Must specify type.');
@@ -49,7 +51,7 @@ function attributeCreate(cmd: AttributeCreateCommand, config: any) {
   bpgPost(state.bpg, request, bpgCbFn('Attribute', 'create'));
 }
 
-function attributeDelete(cmd: AttributeDeleteCommand, config: any) {
+function attributeDelete(cmd: AttributeDeleteCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   const state = setupAttributeContext(config, cmd.globalOptions, cmd.project);
@@ -73,7 +75,7 @@ function attributeDelete(cmd: AttributeDeleteCommand, config: any) {
   bpgPost(state.bpg, request, bpgCbFn('Attribute', 'delete'));
 }
 
-function viewCreate(cmd: ViewCreateCommand, config: any) {
+function viewCreate(cmd: ViewCreateCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   if (!cmd.queries) errx('Must specify queries.');
@@ -83,6 +85,7 @@ function viewCreate(cmd: ViewCreateCommand, config: any) {
 
   if (!state.project.fields || !state.project.fields.pid)
     errx('Invalid Project.');
+  requireConfigFile(config);
   if (!config.config.uid) errx('Invalid user.');
 
   // json parse or keep input as json
@@ -108,7 +111,7 @@ function viewCreate(cmd: ViewCreateCommand, config: any) {
   bpgPost(state.bpg, request, bpgCbFn('View', 'create'));
 }
 
-function viewDelete(cmd: ViewDeleteCommand, config: any) {
+function viewDelete(cmd: ViewDeleteCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   const state = setupAttributeContext(config, cmd.globalOptions, cmd.project);
@@ -139,7 +142,7 @@ function viewDelete(cmd: ViewDeleteCommand, config: any) {
   bpgPost(state.bpg, request, bpgCbFn('View', 'delete'));
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'attribute.create': attributeCreate,
   'attribute.delete': attributeDelete,
   'view.create': viewCreate,

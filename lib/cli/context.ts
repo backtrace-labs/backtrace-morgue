@@ -83,7 +83,7 @@ export function coronerClient(
   debug: boolean,
   endpoint: string,
   timeout?: number,
-): any {
+): CoronerClient {
   return new CoronerClient({
     insecure: insecure,
     debug: debug,
@@ -93,7 +93,7 @@ export function coronerClient(
   });
 }
 
-export function coronerClientArgv(cfg: config.Config, argv: any): any {
+export function coronerClientArgv(cfg: config.Config, argv: any): CoronerClient {
   if (argv.token && argv.endpoint) {
     cfg.config.token = argv.token;
     cfg.endpoint = argv.endpoint;
@@ -107,7 +107,7 @@ export function coronerClientArgv(cfg: config.Config, argv: any): any {
   );
 }
 
-export function coronerClientArgvSubmit(cfg: config.Config, argv: any): any {
+export function coronerClientArgvSubmit(cfg: config.Config, argv: any): CoronerClient {
   return coronerClient(
     cfg,
     !!argv.k,
@@ -117,7 +117,7 @@ export function coronerClientArgvSubmit(cfg: config.Config, argv: any): any {
   );
 }
 
-export function coronerBpgSetup(coroner: any, argv: any): any {
+export function coronerBpgSetup(coroner: any, argv: any): BPG.BPG {
   const coronerd = {
     url: coroner.endpoint,
     session: {token: '000000000'},
@@ -132,7 +132,7 @@ export function coronerBpgSetup(coroner: any, argv: any): any {
   return new BPG.BPG(coronerd, opts);
 }
 
-function makeConfigDir(callback: any): any {
+function makeConfigDir(callback: any): void {
   mkdirp(configDir, {mode: '0700'}, callback);
 }
 
@@ -167,7 +167,7 @@ export function saveConfig(
 
 export function loadConfig(
   callback: (error: Error | null, result?: config.ConfigFile) => void,
-): any {
+): void {
   makeConfigDir(err => {
     if (err) return callback(err);
     fs.readFile(configFile, {encoding: 'utf8'}, (err, text) => {
@@ -187,8 +187,10 @@ export function loadConfig(
   });
 }
 
-export function tenantURL(cfg: any, tn: any): string {
+export function tenantURL(cfg: config.Config, tn: any): string {
   if (!cfg.config.universe) return cfg.endpoint;
+
+  requireConfigFile(cfg);
 
   const uname = cfg.config.universe.name;
   let pattern = uname;
@@ -250,6 +252,30 @@ export function projectIdFromFlags(cfg: any, model: any, argv: any): number {
 // ---------------------------------------------------------------------------
 
 import type {GlobalOptions} from './generated/types';
+import {isConfigFile} from '../config';
+export {isConfigFile};
+
+/**
+ * Get the first universe name from config, or the provided override.
+ * Returns undefined if no universe is available.
+ */
+export function getDefaultUniverse(cfg: config.Config, override?: string): string | undefined {
+  if (override) return override;
+  if (isConfigFile(cfg)) {
+    for (const name in cfg.config.universes) return name;
+  }
+  return undefined;
+}
+
+/**
+ * Assert config is a full ConfigFile (not synthetic).
+ * Use this before accessing config.config.universes, .user, .uid, etc.
+ */
+export function requireConfigFile(cfg: config.Config): asserts cfg is config.ConfigFile {
+  if (!isConfigFile(cfg)) {
+    errx('This command requires a full login (not --endpoint mode).');
+  }
+}
 
 /**
  * Create a CoronerClient from typed GlobalOptions.

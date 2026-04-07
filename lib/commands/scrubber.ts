@@ -1,8 +1,10 @@
+import type {Config} from '../config';
 import type {
   ScrubberListCommand,
   ScrubberCreateCommand,
   ScrubberModifyCommand,
   ScrubberDeleteCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -40,7 +42,7 @@ function findProjectPid(model: any, universe: string, project: string): {un: any
   return {un, pid};
 }
 
-function handleScrubberList(cmd: ScrubberListCommand, config: any): any {
+function handleScrubberList(cmd: ScrubberListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -70,7 +72,7 @@ function handleScrubberList(cmd: ScrubberListCommand, config: any): any {
   }
 }
 
-function handleScrubberCreate(cmd: ScrubberCreateCommand, config: any): any {
+function handleScrubberCreate(cmd: ScrubberCreateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -149,7 +151,7 @@ function handleScrubberCreate(cmd: ScrubberCreateCommand, config: any): any {
   console.log(success_color('Scrubber successfully created.'));
 }
 
-function handleScrubberModify(cmd: ScrubberModifyCommand, config: any): any {
+function handleScrubberModify(cmd: ScrubberModifyCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -200,7 +202,7 @@ function handleScrubberModify(cmd: ScrubberModifyCommand, config: any): any {
   console.log(success_color('Scrubber successfully modified.'));
 }
 
-function handleScrubberDelete(cmd: ScrubberDeleteCommand, config: any): any {
+function handleScrubberDelete(cmd: ScrubberDeleteCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -231,7 +233,7 @@ function handleScrubberDelete(cmd: ScrubberDeleteCommand, config: any): any {
   errx('Scrubber not found');
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'scrubber.list': handleScrubberList,
   'scrubber.create': handleScrubberCreate,
   'scrubber.modify': handleScrubberModify,

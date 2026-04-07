@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import {err, errx, chalk, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal} from '../cli/context';
 import {std_json_cb, std_failure_cb} from '../cli/bpg-helpers';
@@ -7,9 +8,10 @@ import type {
   ServiceRescanCommand,
   StatusReloadCommand,
   ControlCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 
-function serviceList(cmd: ServiceListCommand, config: any): Promise<any> {
+function serviceList(cmd: ServiceListCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   return coroner
@@ -18,7 +20,7 @@ function serviceList(cmd: ServiceListCommand, config: any): Promise<any> {
     .catch(std_failure_cb);
 }
 
-function serviceTokenCommand(kind: string, cmd: {globalOptions: any}, config: any): Promise<any> {
+function serviceTokenCommand(kind: string, cmd: {globalOptions: any}, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const subcmd = kind.split('.')[1]; // 'service.status' -> 'status', 'service.rescan' -> 'rescan'
@@ -29,15 +31,15 @@ function serviceTokenCommand(kind: string, cmd: {globalOptions: any}, config: an
     .catch(std_failure_cb);
 }
 
-function serviceStatus(cmd: ServiceStatusCommand, config: any): Promise<any> {
+function serviceStatus(cmd: ServiceStatusCommand, config: Config): Promise<any> {
   return serviceTokenCommand(cmd.kind, cmd, config);
 }
 
-function serviceRescan(cmd: ServiceRescanCommand, config: any): Promise<any> {
+function serviceRescan(cmd: ServiceRescanCommand, config: Config): Promise<any> {
   return serviceTokenCommand(cmd.kind, cmd, config);
 }
 
-function statusReload(cmd: StatusReloadCommand, config: any): void {
+function statusReload(cmd: StatusReloadCommand, config: Config): void {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
@@ -54,7 +56,7 @@ function statusReload(cmd: StatusReloadCommand, config: any): void {
     .catch(std_failure_cb);
 }
 
-function coronerControl(cmd: ControlCommand, config: any): any {
+function coronerControl(cmd: ControlCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
@@ -73,7 +75,7 @@ function coronerControl(cmd: ControlCommand, config: any): any {
   }
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'service.list': serviceList,
   'service.status': serviceStatus,
   'service.rescan': serviceRescan,

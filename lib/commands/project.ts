@@ -1,16 +1,19 @@
+import type {Config} from '../config';
 import type {
   ProjectCreateCommand,
   ProjectsListCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
   coronerClientFromGlobal,
   coronerBpgFromGlobal,
+  requireConfigFile,
 } from '../cli/context';
 import {bpgSingleRequest, bpgPost, bpgCbFn, bpgPostAsync} from '../cli/bpg-helpers';
 
-function projectCreate(cmd: ProjectCreateCommand, config: any): any {
+function projectCreate(cmd: ProjectCreateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -31,6 +34,7 @@ function projectCreate(cmd: ProjectCreateCommand, config: any): any {
     errx('Illegal name only use a-z, A-Z, 0-9, or "-"');
   }
 
+  requireConfigFile(config);
   if (!config.config.user || !config.config.user.uid) {
     errx('Invalid user');
   }
@@ -56,7 +60,7 @@ function projectCreate(cmd: ProjectCreateCommand, config: any): any {
   bpgPost(bpg, request, bpgCbFn('Project', 'create'));
 }
 
-async function projectsList(cmd: ProjectsListCommand, config: any): Promise<any> {
+async function projectsList(cmd: ProjectsListCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -99,7 +103,7 @@ async function projectsList(cmd: ProjectsListCommand, config: any): Promise<any>
   );
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'project.create': projectCreate,
   'projects.list': projectsList,
 };

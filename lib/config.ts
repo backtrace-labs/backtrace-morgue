@@ -12,6 +12,14 @@ export interface ConfigFile {
   submissionEndpoint: string;
 }
 
+/**
+ * Type guard: narrows Config to ConfigFile (the full config with universes, user, etc.)
+ * Synthetic configs are created when --endpoint is used without login.
+ */
+export function isConfigFile(cfg: Config): cfg is ConfigFile {
+  return 'universes' in cfg.config;
+}
+
 export interface ConfigMain {
   token: string;
   config: ConfigMeta;

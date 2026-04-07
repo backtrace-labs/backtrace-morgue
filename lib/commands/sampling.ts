@@ -4,10 +4,12 @@ import type {
   SamplingStatusCommand,
   SamplingResetCommand,
   SamplingConfigureCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import * as config from '../config';
+import type {Config} from '../config';
 import {err, errx, chalk, success_color, error_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg, getDefaultUniverse} from '../cli/context';
 import {std_success_cb, std_failure_cb} from '../cli/bpg-helpers';
 import * as timeCli from '../cli/time';
 
@@ -15,7 +17,7 @@ const yellow = chalk.yellow;
 
 type SamplingCommand = SamplingStatusCommand | SamplingResetCommand | SamplingConfigureCommand;
 
-function samplingParamsFromCmd(coroner: any, action: string, cmd: SamplingCommand, config: any) {
+function samplingParamsFromCmd(coroner: any, action: string, cmd: SamplingCommand, config: Config) {
   const params: any = {};
 
   // Parse project arg if present
@@ -35,7 +37,7 @@ function samplingParamsFromCmd(coroner: any, action: string, cmd: SamplingComman
 
   // Fall back to config universe
   if (!params.universe) {
-    params.universe = Object.keys(config.config.universes)[0];
+    params.universe = getDefaultUniverse(config);
   }
 
   params.action = action;
@@ -79,7 +81,7 @@ function strHashCode(str: string): number {
   return hash;
 }
 
-function samplingStatusProject(cmd: SamplingStatusCommand, config: any, universe: any, project: any) {
+function samplingStatusProject(cmd: SamplingStatusCommand, config: Config, universe: any, project: any) {
   const name = sprintf('%s/%s', universe.name, project.name);
   let top_line = '';
   const backoffs = project.backoffs;
@@ -194,7 +196,7 @@ function samplingStatusProject(cmd: SamplingStatusCommand, config: any, universe
   }
 }
 
-function samplingStatus(cmd: SamplingStatusCommand, config: any) {
+function samplingStatus(cmd: SamplingStatusCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const params = samplingParamsFromCmd(coroner, 'status', cmd, config);
@@ -222,7 +224,7 @@ function samplingStatus(cmd: SamplingStatusCommand, config: any) {
     .catch(std_failure_cb);
 }
 
-function samplingReset(cmd: SamplingResetCommand, config: any) {
+function samplingReset(cmd: SamplingResetCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const params = samplingParamsFromCmd(coroner, 'reset', cmd, config);
@@ -306,13 +308,13 @@ function samplingConfigFromCmd(cmd: SamplingConfigureCommand): any {
   return samplingConfig;
 }
 
-function samplingConfigure(cmd: SamplingConfigureCommand, config: any) {
+function samplingConfigure(cmd: SamplingConfigureCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
   let universe = cmd.universe || cmd.globalOptions.universe;
   if (!universe) {
-    universe = Object.keys(config.config.universes)[0];
+    universe = getDefaultUniverse(config);
   }
 
   const project = cmd.project;
@@ -406,7 +408,7 @@ Changes in coronerd.conf will not enable sampling for this project.`);
   }
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'sampling.status': samplingStatus,
   'sampling.reset': samplingReset,
   'sampling.configure': samplingConfigure,

@@ -1,4 +1,5 @@
 import * as config from '../config';
+import type {Config} from '../config';
 import * as crdb from '../crdb';
 import {buildQuery} from '../cli/query';
 import {errx, chalk, success_color} from '../cli/errors';
@@ -9,7 +10,9 @@ import {
 } from '../cli/context';
 import {usage, nsToUs, printSamples} from '../cli/util';
 import {coronerPrint} from '../cli/print';
-import type {ListCommand} from '../cli/generated/types';
+import type {ListCommand,
+  CommandHandler,
+} from '../cli/generated/types';
 
 const yellow = chalk.yellow;
 const blue = chalk.blue;
@@ -17,7 +20,7 @@ const blue = chalk.blue;
 /**
  * @brief: Implements the list command.
  */
-function handleList(cmd: ListCommand, config: any): any {
+function handleList(cmd: ListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -212,6 +215,6 @@ function handleList(cmd: ListCommand, config: any): any {
   }
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   list: handleList,
 };

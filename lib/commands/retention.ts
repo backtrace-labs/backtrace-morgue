@@ -1,10 +1,12 @@
 import * as config from '../config';
+import type {Config} from '../config';
 import {err, errx, success_color, error_color} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
   coronerClientFromGlobal,
   coronerBpgFromGlobal,
   parseProjectArg,
+  requireConfigFile,
 } from '../cli/context';
 import {bpgPost, bpgObjectFind, std_failure_cb} from '../cli/bpg-helpers';
 import * as timeCli from '../cli/time';
@@ -13,6 +15,7 @@ import type {
   RetentionSetCommand,
   RetentionClearCommand,
   RetentionStatusCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 
 function retentionUsage(str?: string): never {
@@ -158,7 +161,7 @@ function normalizeRetentionParam(param: any): string[] {
   return param;
 }
 
-function retentionSet(bpg, objects, cmd: RetentionSetCommand, config): any {
+function retentionSet(bpg, objects, cmd: RetentionSetCommand, config: Config): any {
   const act_obj: any = {};
   let rules = [
     {
@@ -295,7 +298,7 @@ function retentionSet(bpg, objects, cmd: RetentionSetCommand, config): any {
   });
 }
 
-function retentionClear(bpg, objects, cmd: RetentionClearCommand, config) {
+function retentionClear(bpg, objects, cmd: RetentionClearCommand, config: Config) {
   /* Clear is essentially set with zero rules. */
   const setCmd: RetentionSetCommand = {
     kind: 'retention.set',
@@ -698,7 +701,7 @@ function retentionStatusDump(cmd: RetentionStatusCommand, obj, name, level, inde
  * retention status [--type universe|project] [name]
  * -> api/control?action=rpstatus, parse response JSON
  */
-function retentionStatus(cmd: RetentionStatusCommand, config) {
+function retentionStatus(cmd: RetentionStatusCommand, config: Config) {
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const params: any = {action: 'rpstatus'};
   const name = cmd.name;
@@ -726,6 +729,7 @@ function retentionStatus(cmd: RetentionStatusCommand, config) {
       p_project = split[1];
     } else {
       /* Single name: look up as project in default universe. */
+      requireConfigFile(config);
       let first;
       for (first in config.config.universes) break;
       p_universe = first;
@@ -762,7 +766,7 @@ function retentionStatus(cmd: RetentionStatusCommand, config) {
 /**
  * Handler for retention.list
  */
-function handleRetentionList(cmd: RetentionListCommand, config: any): any {
+function handleRetentionList(cmd: RetentionListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -772,7 +776,7 @@ function handleRetentionList(cmd: RetentionListCommand, config: any): any {
 /**
  * Handler for retention.set
  */
-function handleRetentionSet(cmd: RetentionSetCommand, config: any): any {
+function handleRetentionSet(cmd: RetentionSetCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -782,7 +786,7 @@ function handleRetentionSet(cmd: RetentionSetCommand, config: any): any {
 /**
  * Handler for retention.clear
  */
-function handleRetentionClear(cmd: RetentionClearCommand, config: any): any {
+function handleRetentionClear(cmd: RetentionClearCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -792,12 +796,12 @@ function handleRetentionClear(cmd: RetentionClearCommand, config: any): any {
 /**
  * Handler for retention.status
  */
-function handleRetentionStatus(cmd: RetentionStatusCommand, config: any): any {
+function handleRetentionStatus(cmd: RetentionStatusCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   return retentionStatus(cmd, config);
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'retention.list': handleRetentionList,
   'retention.set': handleRetentionSet,
   'retention.clear': handleRetentionClear,

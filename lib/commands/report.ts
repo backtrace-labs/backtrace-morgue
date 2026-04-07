@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import printf from 'printf';
 import moment_tz from 'moment-timezone';
 import type {
@@ -5,6 +6,7 @@ import type {
   ReportCreateCommand,
   ReportDeleteCommand,
   ReportSendCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, chalk, success_color, warn} from '../cli/errors';
 import {
@@ -12,6 +14,7 @@ import {
   coronerClientFromGlobal,
   coronerBpgFromGlobal,
   parseProjectArg,
+  requireConfigFile,
 } from '../cli/context';
 import {buildQuery} from '../cli/query';
 
@@ -41,7 +44,7 @@ function findProjectPid(model: any, universe: string, project: string): {un: any
   return {un, pid};
 }
 
-function handleReportList(cmd: ReportListCommand, config: any): any {
+function handleReportList(cmd: ReportListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -92,7 +95,7 @@ function handleReportList(cmd: ReportListCommand, config: any): any {
   }
 }
 
-function handleReportCreate(cmd: ReportCreateCommand, config: any): any {
+function handleReportCreate(cmd: ReportCreateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -179,6 +182,7 @@ function handleReportCreate(cmd: ReportCreateCommand, config: any): any {
   var report = bpg.new('report');
   report.set('id', 0);
   report.set('project', pid);
+  requireConfigFile(config);
   report.set('owner', config.config.uid);
   report.set('title', title);
   report.set('rcpt', reportRcpt);
@@ -195,7 +199,7 @@ function handleReportCreate(cmd: ReportCreateCommand, config: any): any {
   console.log(success_color('Report successfully created.'));
 }
 
-function handleReportDelete(cmd: ReportDeleteCommand, config: any): any {
+function handleReportDelete(cmd: ReportDeleteCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -225,7 +229,7 @@ function handleReportDelete(cmd: ReportDeleteCommand, config: any): any {
   errx('Report not found');
 }
 
-function handleReportSend(cmd: ReportSendCommand, config: any): any {
+function handleReportSend(cmd: ReportSendCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -252,7 +256,7 @@ function handleReportSend(cmd: ReportSendCommand, config: any): any {
   );
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'report.list': handleReportList,
   'report.create': handleReportCreate,
   'report.delete': handleReportDelete,

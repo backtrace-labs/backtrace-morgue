@@ -3,20 +3,24 @@ import {table} from 'table';
 import {spawn} from 'child_process';
 import * as fs from 'fs';
 import * as config from '../config';
+import type {Config} from '../config';
 import * as crdb from '../crdb';
-import type {SimilarityCommand, FlamegraphCommand, QueryOptions} from '../cli/generated/types';
+import type {SimilarityCommand, FlamegraphCommand, QueryOptions,
+  CommandHandler,
+} from '../cli/generated/types';
 import {buildQuery} from '../cli/query';
 import {errx} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientFromGlobal, parseProjectArg} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, parseProjectArg, requireConfigFile} from '../cli/context';
 import {usage} from '../cli/util';
 import {flamegraphScript} from '../cli/constants';
 
 const similarityParams = ['threshold', 'intersection', 'distance', 'truncate'] as const;
 const similarityDefaultFilter = [{timestamp: [['at-least', '1.']]}];
 
-async function coronerSimilarity(cmd: SimilarityCommand, config: any): Promise<any> {
+async function coronerSimilarity(cmd: SimilarityCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
+  requireConfigFile(config);
   const similarityService = config.config.services.find(service => {
     return service.name === 'similarity';
   });
@@ -202,7 +206,7 @@ function flamegraphQueryOptions(cmd: FlamegraphCommand): QueryOptions {
   };
 }
 
-function coronerFlamegraph(cmd: FlamegraphCommand, config: any): any {
+function coronerFlamegraph(cmd: FlamegraphCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -286,7 +290,7 @@ function coronerFlamegraph(cmd: FlamegraphCommand, config: any): any {
   });
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   similarity: coronerSimilarity,
   flamegraph: coronerFlamegraph,
 };

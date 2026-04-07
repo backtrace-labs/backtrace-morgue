@@ -1,7 +1,10 @@
+import type {Config} from '../config';
 import * as fs from 'fs';
 import {table, TableUserConfig} from 'table';
 import * as ta from 'time-ago';
-import type {SymbolCommand} from '../cli/generated/types';
+import type {SymbolCommand,
+  CommandHandler,
+} from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
@@ -16,7 +19,7 @@ const yellow = chalk.yellow;
 /**
  * @brief: Implements the symbol list command.
  */
-function handleSymbol(cmd: SymbolCommand, config: any): any {
+function handleSymbol(cmd: SymbolCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const query: any = {form: {}};
@@ -325,6 +328,6 @@ function handleSymbol(cmd: SymbolCommand, config: any): any {
   });
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   symbol: handleSymbol,
 };

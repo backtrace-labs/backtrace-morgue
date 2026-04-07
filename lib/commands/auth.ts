@@ -2,7 +2,10 @@ import promptLib from 'prompt';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as config from '../config';
-import type {LoginCommand, LogoutCommand, SetupCommand, GlobalOptions} from '../cli/generated/types';
+import type {Config} from '../config';
+import type {LoginCommand, LogoutCommand, SetupCommand, GlobalOptions,
+  CommandHandler,
+} from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerClient, coronerBpgFromGlobal, saveConfig} from '../cli/context';
 import {usage} from '../cli/util';
@@ -186,7 +189,7 @@ function coronerSetupStart(coroner: any, cmd: SetupCommand): any {
     .catch(err => console.log(`Setup failed: ${err}`));
 }
 
-function loginComplete(coroner, cmd, err, cb) {
+function loginComplete(coroner, cmd, err, cb?) {
   if (err) {
     errx('Unable to authenticate: ' + err.message + '.');
   }
@@ -210,7 +213,7 @@ function loginComplete(coroner, cmd, err, cb) {
   return;
 }
 
-function coronerLogin(cmd: {url: string; globalOptions: GlobalOptions}, config: any, cb?) {
+function coronerLogin(cmd: LoginCommand, config: Config, cb?) {
   const endpoint = cmd.url;
 
   if (!endpoint) {
@@ -275,7 +278,7 @@ function coronerLogin(cmd: {url: string; globalOptions: GlobalOptions}, config: 
   );
 }
 
-function coronerLogout(cmd: LogoutCommand, config: any): any {
+function coronerLogout(cmd: LogoutCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
@@ -291,7 +294,7 @@ function coronerLogout(cmd: LogoutCommand, config: any): any {
   );
 }
 
-function coronerSetup(cmd: SetupCommand, config: any): any {
+function coronerSetup(cmd: SetupCommand, config: Config): any {
   let coroner, pu;
   const opts = cmd.globalOptions;
 
@@ -320,7 +323,7 @@ function coronerSetup(cmd: SetupCommand, config: any): any {
       process.stderr.write(green('configured\n\n'));
 
       console.log(bold('Please login to continue setup.'));
-      return coronerLogin(cmd, config, coronerSetupStart);
+      return coronerLogin({kind: 'login' , globalOptions: cmd.globalOptions, url: cmd.url}, config, coronerSetupStart);
     } else {
       process.stderr.write(
         red("\n\nUnexpected response when checking the server's status.\n\n"),
@@ -356,7 +359,7 @@ function coronerSetup(cmd: SetupCommand, config: any): any {
   });
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   login: coronerLogin,
   logout: coronerLogout,
   setup: coronerSetup,

@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import * as fs from 'fs';
 import {errx} from '../cli/errors';
 import {
@@ -5,6 +6,7 @@ import {
   coronerClientFromGlobal,
   coronerBpgFromGlobal,
   projectIdFromFlags,
+  getDefaultUniverse,
 } from '../cli/context';
 import type {
   ActionsGetCommand,
@@ -13,9 +15,10 @@ import type {
   ActionsUploadCommand,
   ActionsDeleteCommand,
   StabilityCreateMetricCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 
-function actionsGet(cmd: ActionsGetCommand, config: any): any {
+function actionsGet(cmd: ActionsGetCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -41,7 +44,7 @@ function actionsGet(cmd: ActionsGetCommand, config: any): any {
   console.log(ssa.get('configuration'));
 }
 
-function actionsDisable(cmd: ActionsDisableCommand, config: any): any {
+function actionsDisable(cmd: ActionsDisableCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -65,7 +68,7 @@ function actionsDisable(cmd: ActionsDisableCommand, config: any): any {
   console.log('Actions disabled for this project');
 }
 
-function actionsEnable(cmd: ActionsEnableCommand, config: any): any {
+function actionsEnable(cmd: ActionsEnableCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -89,7 +92,7 @@ function actionsEnable(cmd: ActionsEnableCommand, config: any): any {
   console.log('Actions enabled for this project');
 }
 
-function actionsUpload(cmd: ActionsUploadCommand, config: any): any {
+function actionsUpload(cmd: ActionsUploadCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -119,7 +122,7 @@ function actionsUpload(cmd: ActionsUploadCommand, config: any): any {
   console.log('Configuration uploaded');
 }
 
-function actionsDelete(cmd: ActionsDeleteCommand, config: any): any {
+function actionsDelete(cmd: ActionsDeleteCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -143,14 +146,14 @@ function actionsDelete(cmd: ActionsDeleteCommand, config: any): any {
   console.log('Actions configuration deleted');
 }
 
-function stabilityCreateMetric(cmd: StabilityCreateMetricCommand, config: any): any {
+function stabilityCreateMetric(cmd: StabilityCreateMetricCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
   let universe = cmd.universe;
   if (!universe) {
-    universe = Object.keys(config.config.universes)[0];
+    universe = getDefaultUniverse(config);
   }
 
   if (!universe) {
@@ -245,7 +248,7 @@ function stabilityCreateMetric(cmd: StabilityCreateMetricCommand, config: any): 
   console.log('Metric created');
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'actions.get': actionsGet,
   'actions.disable': actionsDisable,
   'actions.enable': actionsEnable,

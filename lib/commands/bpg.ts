@@ -1,9 +1,12 @@
+import type {Config} from '../config';
 import {err} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal} from '../cli/context';
 import {bpgPost} from '../cli/bpg-helpers';
-import type {BpgListCommand} from '../cli/generated/types';
+import type {BpgListCommand,
+  CommandHandler,
+} from '../cli/generated/types';
 
-function coronerBpgList(cmd: BpgListCommand, config: any): any {
+function coronerBpgList(cmd: BpgListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -32,6 +35,6 @@ function coronerBpgList(cmd: BpgListCommand, config: any): any {
   });
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'bpg.list': coronerBpgList,
 };

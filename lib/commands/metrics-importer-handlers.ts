@@ -1,14 +1,16 @@
+import type {Config} from '../config';
 import {metricsImporterCliFromCoroner} from '../metricsImporter/cli';
 import {coronerClientFromGlobal} from '../cli/context';
 import type {
   MetricsImporterImporterCreateCommand,
   MetricsImporterSourceCheckQueryCommand,
   MetricsImporterLogsCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 
 async function makeCli(
   cmd: {globalOptions: any},
-  config: any,
+  config: Config,
 ) {
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   return metricsImporterCliFromCoroner(coroner);
@@ -18,7 +20,7 @@ async function makeCli(
 
 async function handleImporterCreate(
   cmd: MetricsImporterImporterCreateCommand,
-  config: any,
+  config: Config,
 ) {
   const cli = await makeCli(cmd, config);
   await cli.importerCreate(cmd);
@@ -28,7 +30,7 @@ async function handleImporterCreate(
 
 async function handleSourceCheckQuery(
   cmd: MetricsImporterSourceCheckQueryCommand,
-  config: any,
+  config: Config,
 ) {
   const cli = await makeCli(cmd, config);
   await cli.sourceCheckQuery(cmd);
@@ -36,12 +38,12 @@ async function handleSourceCheckQuery(
 
 // --- metrics-importer.logs ---
 
-async function handleLogs(cmd: MetricsImporterLogsCommand, config: any) {
+async function handleLogs(cmd: MetricsImporterLogsCommand, config: Config) {
   const cli = await makeCli(cmd, config);
   await cli.logs(cmd);
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'metrics-importer.importer.create': handleImporterCreate,
   'metrics-importer.source.check-query': handleSourceCheckQuery,
   'metrics-importer.logs': handleLogs,

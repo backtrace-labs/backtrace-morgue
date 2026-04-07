@@ -5,6 +5,7 @@ import printf from 'printf';
 import {sprintf} from 'extsprintf';
 import chalk from 'chalk';
 import * as config from '../config';
+import type {Config} from '../config';
 import {errx, err, success_color} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
@@ -24,6 +25,7 @@ import type {
   AttachmentGetCommand,
   AttachmentListCommand,
   AttachmentDeleteCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 
 const grey = chalk.grey;
@@ -167,7 +169,7 @@ function outpathCheck(output: string | undefined, outdir: string | undefined, n_
   return r;
 }
 
-function handleGet(cmd: GetCommand, config: any): any {
+function handleGet(cmd: GetCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const p = parseProjectArg(cmd.project, config);
@@ -248,7 +250,7 @@ function handleGet(cmd: GetCommand, config: any): any {
     });
 }
 
-function handleDescribe(cmd: DescribeCommand, config: any): any {
+function handleDescribe(cmd: DescribeCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const options: any = {};
@@ -376,7 +378,7 @@ function handleDescribe(cmd: DescribeCommand, config: any): any {
   });
 }
 
-function handleAttachmentAdd(cmd: AttachmentAddCommand, config: any): any {
+function handleAttachmentAdd(cmd: AttachmentAddCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   if (!config.submissionEndpoint) {
@@ -411,7 +413,7 @@ function handleAttachmentAdd(cmd: AttachmentAddCommand, config: any): any {
     .catch(std_failure_cb);
 }
 
-function handleAttachmentGet(cmd: AttachmentGetCommand, config: any) {
+function handleAttachmentGet(cmd: AttachmentGetCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -453,7 +455,7 @@ function handleAttachmentGet(cmd: AttachmentGetCommand, config: any) {
     });
 }
 
-function handleAttachmentList(cmd: AttachmentListCommand, config: any) {
+function handleAttachmentList(cmd: AttachmentListCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -484,7 +486,7 @@ function handleAttachmentList(cmd: AttachmentListCommand, config: any) {
     .catch(std_failure_cb);
 }
 
-function handleAttachmentDelete(cmd: AttachmentDeleteCommand, config: any) {
+function handleAttachmentDelete(cmd: AttachmentDeleteCommand, config: Config) {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -583,7 +585,7 @@ function put_benchmark(coroner, cmd: PutCommand, files, p): Promise<any> {
     });
 }
 
-function handlePut(cmd: PutCommand, config: any): Promise<any> {
+function handlePut(cmd: PutCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const form = cmd.form_data;
@@ -733,7 +735,7 @@ function handlePut(cmd: PutCommand, config: any): Promise<any> {
     });
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   get: handleGet,
   put: handlePut,
   describe: handleDescribe,

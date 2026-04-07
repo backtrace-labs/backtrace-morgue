@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import printf from 'printf';
 import type {
   UserResetCommand,
@@ -6,6 +7,7 @@ import type {
   InviteCreateCommand,
   InviteListCommand,
   InviteDeleteCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, err, chalk, success_color} from '../cli/errors';
 import {
@@ -13,6 +15,7 @@ import {
   coronerClientFromGlobal,
   coronerBpgFromGlobal,
   tenantURL,
+  getDefaultUniverse,
 } from '../cli/context';
 import {bpgPostAsync, bpgSingleRequest} from '../cli/bpg-helpers';
 import {sequence, prompt_for} from '../cli/util';
@@ -29,7 +32,7 @@ function userUsage(error_str?: any): never {
   process.exit(1);
 }
 
-function userReset(cmd: UserResetCommand, config: any): void {
+function userReset(cmd: UserResetCommand, config: Config): void {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -48,8 +51,8 @@ function userReset(cmd: UserResetCommand, config: any): void {
 
   /* If no universe specified, use the first one. */
   ctx.universe = cmd.universe || cmd.globalOptions.universe;
-  if (!ctx.universe && config && config.config && config.config.universes)
-    ctx.universe = Object.keys(config.config.universes)[0];
+  if (!ctx.universe)
+    ctx.universe = getDefaultUniverse(config);
   if (!ctx.universe) {
     errx('No universes.');
   }
@@ -127,14 +130,14 @@ function userReset(cmd: UserResetCommand, config: any): void {
 
 function usersAddSignupWhitelist(
   cmd: UsersAddSignupWhitelistCommand,
-  config: any,
+  config: Config,
 ): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
   let universe = cmd.universe || cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  if (!universe) universe = getDefaultUniverse(config);
 
   const model = bpg.get();
 
@@ -176,7 +179,7 @@ function usersAddSignupWhitelist(
 
 async function usersListTeamlessUsers(
   cmd: UsersListTeamlessUsersCommand,
-  config: any,
+  config: Config,
 ): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -227,7 +230,7 @@ function isBacktraceUser(user: any): boolean {
   return user.username === 'Backtrace' || user.email.includes('@backtrace.io');
 }
 
-function inviteList(cmd: InviteListCommand, config: any): any {
+function inviteList(cmd: InviteListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -264,7 +267,7 @@ function inviteList(cmd: InviteListCommand, config: any): any {
   }
 }
 
-function inviteDelete(cmd: InviteDeleteCommand, config: any): any {
+function inviteDelete(cmd: InviteDeleteCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -301,13 +304,13 @@ function inviteDelete(cmd: InviteDeleteCommand, config: any): any {
   console.log(success_color('Invitation successfully deleted.'));
 }
 
-function inviteCreate(cmd: InviteCreateCommand, config: any): any {
+function inviteCreate(cmd: InviteCreateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
   let universe = cmd.globalOptions.universe;
-  if (!universe && config && config.config && config.config.universes)
-    universe = Object.keys(config.config.universes)[0];
+  if (!universe)
+    universe = getDefaultUniverse(config);
 
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
@@ -379,7 +382,7 @@ function inviteCreate(cmd: InviteCreateCommand, config: any): any {
   );
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'user.reset': userReset,
   'users.add-signup-whitelist': usersAddSignupWhitelist,
   'users.list-teamless-users': usersListTeamlessUsers,

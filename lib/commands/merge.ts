@@ -1,5 +1,8 @@
+import type {Config} from '../config';
 import * as util from 'util';
-import type {MergeCommand, UnmergeCommand} from '../cli/generated/types';
+import type {MergeCommand, UnmergeCommand,
+  CommandHandler,
+} from '../cli/generated/types';
 import {errx, success_color} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
@@ -46,7 +49,7 @@ async function _workflowsMerge(coroner, universe, project, fingerprints) {
   }
 }
 
-async function handleMerge(cmd: MergeCommand, config: any): Promise<any> {
+async function handleMerge(cmd: MergeCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const {universe, project} = parseProjectArg(cmd.project, config);
@@ -74,7 +77,7 @@ async function handleMerge(cmd: MergeCommand, config: any): Promise<any> {
   }
 }
 
-function handleUnmerge(cmd: UnmergeCommand, config: any): any {
+function handleUnmerge(cmd: UnmergeCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const {universe, project} = parseProjectArg(cmd.project, config);
@@ -91,7 +94,7 @@ function handleUnmerge(cmd: UnmergeCommand, config: any): any {
   return _coronerMerge(coroner, universe, project, fingerprints, 'unmerge');
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   merge: handleMerge,
   unmerge: handleUnmerge,
 };

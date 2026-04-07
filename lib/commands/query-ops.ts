@@ -1,6 +1,7 @@
 import * as util from 'util';
 import {sprintf} from 'extsprintf';
 import * as config from '../config';
+import type {Config} from '../config';
 import * as crdb from '../crdb';
 import * as BPG from '../bpg';
 import {buildQuery, buildQueryFilterOnly} from '../cli/query';
@@ -17,9 +18,10 @@ import type {
   DeleteCommand,
   CleanCommand,
   NukeCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 
-function handleNuke(cmd: NukeCommand, config: any): any {
+function handleNuke(cmd: NukeCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -82,7 +84,7 @@ function handleNuke(cmd: NukeCommand, config: any): any {
   return;
 }
 
-function handleSet(cmd: SetCommand, config: any): any {
+function handleSet(cmd: SetCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -237,7 +239,7 @@ async function coronerCleanFingerprints(cmd: CleanCommand, coroner, fingerprints
   );
 }
 
-async function coronerCleanAsync(cmd: CleanCommand, config: any): Promise<any> {
+async function coronerCleanAsync(cmd: CleanCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -287,13 +289,13 @@ async function coronerCleanAsync(cmd: CleanCommand, config: any): Promise<any> {
 /**
  * @brief: Implements the clean command.
  */
-async function handleClean(cmd: CleanCommand, config: any): Promise<any> {
+async function handleClean(cmd: CleanCommand, config: Config): Promise<any> {
   await coronerCleanAsync(cmd, config).catch(err => {
     console.error(err);
   });
 }
 
-async function handleDelete(cmd: DeleteCommand, config: any): Promise<any> {
+async function handleDelete(cmd: DeleteCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -355,7 +357,7 @@ async function handleDelete(cmd: DeleteCommand, config: any): Promise<any> {
   }
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   set: handleSet,
   delete: handleDelete,
   clean: handleClean,

@@ -1,8 +1,10 @@
+import type {Config} from '../config';
 import printf from 'printf';
 import type {
   TenantCreateCommand,
   TenantDeleteCommand,
   TenantListCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -14,7 +16,7 @@ import {
 
 const blue = chalk.blue;
 
-function tenantList(cmd: TenantListCommand, config: any): any {
+function tenantList(cmd: TenantListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -31,7 +33,7 @@ function tenantList(cmd: TenantListCommand, config: any): any {
   }
 }
 
-function tenantCreate(cmd: TenantCreateCommand, config: any): any {
+function tenantCreate(cmd: TenantCreateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -57,7 +59,7 @@ function tenantCreate(cmd: TenantCreateCommand, config: any): any {
   console.log(blue('Wait a few minutes for propagation to complete.'));
 }
 
-function tenantDelete(cmd: TenantDeleteCommand, config: any): any {
+function tenantDelete(cmd: TenantDeleteCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -83,7 +85,7 @@ function tenantDelete(cmd: TenantDeleteCommand, config: any): any {
   errx('tenant not found.');
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'tenant.create': tenantCreate,
   'tenant.delete': tenantDelete,
   'tenant.list': tenantList,

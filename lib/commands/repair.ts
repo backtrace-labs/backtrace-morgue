@@ -1,6 +1,9 @@
+import type {Config} from '../config';
 import * as crdb from '../crdb';
 import * as queryCli from '../cli/query';
-import type {RepairCommand, ReprocessCommand} from '../cli/generated/types';
+import type {RepairCommand, ReprocessCommand,
+  CommandHandler,
+} from '../cli/generated/types';
 import {success_color} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
@@ -21,7 +24,7 @@ function unpackQueryObjects(objects: any, qresult: any): void {
   }
 }
 
-function handleRepair(cmd: RepairCommand, config: any): any {
+function handleRepair(cmd: RepairCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const p = parseProjectArg(cmd.project, config);
@@ -43,7 +46,7 @@ function handleRepair(cmd: RepairCommand, config: any): any {
     .catch(std_failure_cb);
 }
 
-function handleReprocess(cmd: ReprocessCommand, config: any): any {
+function handleReprocess(cmd: ReprocessCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const p = parseProjectArg(cmd.project, config);
@@ -86,7 +89,7 @@ function handleReprocess(cmd: ReprocessCommand, config: any): any {
   }
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   repair: handleRepair,
   reprocess: handleReprocess,
 };

@@ -1,9 +1,12 @@
-import type {ErrorCommand} from '../cli/generated/types';
+import type {Config} from '../config';
+import type {ErrorCommand,
+  CommandHandler,
+} from '../cli/generated/types';
 
-function handleError(cmd: ErrorCommand, config: any): any {
+function handleError(cmd: ErrorCommand, config: Config): any {
   throw Error(cmd.message);
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   error: handleError,
 };

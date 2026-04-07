@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import printf from 'printf';
 import {table, TableUserConfig} from 'table';
 import {sprintf} from 'extsprintf';
@@ -11,21 +12,20 @@ import type {
   LatencyActivateCommand,
   LatencyDeactivateCommand,
   LatencyExtractCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, err, chalk, success_color, error_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientFromGlobal} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, getDefaultUniverse} from '../cli/context';
 
 const bold = chalk.bold;
 const green = chalk.green;
 const red = chalk.red;
 
-function getUniverse(cmd: {globalOptions: {universe?: string}}, config: any): string {
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
-  return universe;
+function getUniverse(cmd: {globalOptions: {universe?: string}}, config: Config): string {
+  return getDefaultUniverse(config, cmd.globalOptions.universe);
 }
 
-function auditExtract(cmd: AuditExtractCommand, config: any): any {
+function auditExtract(cmd: AuditExtractCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -113,7 +113,7 @@ function auditExtract(cmd: AuditExtractCommand, config: any): any {
   );
 }
 
-function logList(cmd: LogListCommand, config: any): any {
+function logList(cmd: LogListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -132,7 +132,7 @@ function logList(cmd: LogListCommand, config: any): any {
   );
 }
 
-function logActivate(cmd: LogActivateCommand, config: any): any {
+function logActivate(cmd: LogActivateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -154,7 +154,7 @@ function logActivate(cmd: LogActivateCommand, config: any): any {
   );
 }
 
-function logDeactivate(cmd: LogDeactivateCommand, config: any): any {
+function logDeactivate(cmd: LogDeactivateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -176,7 +176,7 @@ function logDeactivate(cmd: LogDeactivateCommand, config: any): any {
   );
 }
 
-function logExtract(cmd: LogExtractCommand, config: any): any {
+function logExtract(cmd: LogExtractCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -254,7 +254,7 @@ function logExtract(cmd: LogExtractCommand, config: any): any {
   });
 }
 
-function latencyList(cmd: LatencyListCommand, config: any): any {
+function latencyList(cmd: LatencyListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -287,7 +287,7 @@ function latencyList(cmd: LatencyListCommand, config: any): any {
   );
 }
 
-function latencyActivate(cmd: LatencyActivateCommand, config: any): any {
+function latencyActivate(cmd: LatencyActivateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -338,7 +338,7 @@ function latencyActivate(cmd: LatencyActivateCommand, config: any): any {
   );
 }
 
-function latencyDeactivate(cmd: LatencyDeactivateCommand, config: any): any {
+function latencyDeactivate(cmd: LatencyDeactivateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -385,7 +385,7 @@ function latencyDeactivate(cmd: LatencyDeactivateCommand, config: any): any {
   );
 }
 
-function latencyExtract(cmd: LatencyExtractCommand, config: any): any {
+function latencyExtract(cmd: LatencyExtractCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const universe = getUniverse(cmd, config);
@@ -417,7 +417,7 @@ function latencyExtract(cmd: LatencyExtractCommand, config: any): any {
   );
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'audit.extract': auditExtract,
   'log.list': logList,
   'log.activate': logActivate,

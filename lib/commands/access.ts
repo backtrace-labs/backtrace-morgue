@@ -15,20 +15,21 @@ import type {
   LimitResetCommand,
   LimitDeleteCommand,
   LimitCreateCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import * as config from '../config';
+import type {Config} from '../config';
 import {errx, err, chalk, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, getDefaultUniverse} from '../cli/context';
 
 const bold = chalk.bold;
 const blue = chalk.blue;
 const red = chalk.red;
 const yellow = chalk.yellow;
 
-function getUniverseAndBpg(config: any, globalOptions: any) {
+function getUniverseAndBpg(config: Config, globalOptions: any) {
   const coroner = coronerClientFromGlobal(config, globalOptions);
-  let universe = globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, globalOptions.universe);
 
   const bpg = coronerBpgFromGlobal(coroner, globalOptions);
   const model = bpg.get();
@@ -46,7 +47,7 @@ function getUniverseAndBpg(config: any, globalOptions: any) {
   return {coroner, bpg, model, universeId, universe};
 }
 
-function accessTeamCreate(cmd: AccessTeamCreateCommand, config: any) {
+function accessTeamCreate(cmd: AccessTeamCreateCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model, universeId} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -58,7 +59,7 @@ function accessTeamCreate(cmd: AccessTeamCreateCommand, config: any) {
   bpg.commit();
 }
 
-function accessTeamRemove(cmd: AccessTeamRemoveCommand, config: any) {
+function accessTeamRemove(cmd: AccessTeamRemoveCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -71,7 +72,7 @@ function accessTeamRemove(cmd: AccessTeamRemoveCommand, config: any) {
   bpg.commit();
 }
 
-function accessTeamList(cmd: AccessTeamListCommand, config: any) {
+function accessTeamList(cmd: AccessTeamListCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {model, universeId} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -82,7 +83,7 @@ function accessTeamList(cmd: AccessTeamListCommand, config: any) {
     });
 }
 
-function accessTeamDetails(cmd: AccessTeamDetailsCommand, config: any) {
+function accessTeamDetails(cmd: AccessTeamDetailsCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -121,7 +122,7 @@ function accessTeamDetails(cmd: AccessTeamDetailsCommand, config: any) {
     });
 }
 
-function accessTeamAddUser(cmd: AccessTeamAddUserCommand, config: any) {
+function accessTeamAddUser(cmd: AccessTeamAddUserCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -144,7 +145,7 @@ function accessTeamAddUser(cmd: AccessTeamAddUserCommand, config: any) {
   bpg.commit();
 }
 
-function accessTeamRemoveUser(cmd: AccessTeamRemoveUserCommand, config: any) {
+function accessTeamRemoveUser(cmd: AccessTeamRemoveUserCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -174,7 +175,7 @@ function accessTeamRemoveUser(cmd: AccessTeamRemoveUserCommand, config: any) {
   bpg.commit();
 }
 
-function accessProjectAddTeam(cmd: AccessProjectAddTeamCommand, config: any) {
+function accessProjectAddTeam(cmd: AccessProjectAddTeamCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -192,7 +193,7 @@ function accessProjectAddTeam(cmd: AccessProjectAddTeamCommand, config: any) {
   bpg.commit();
 }
 
-function accessProjectRemoveTeam(cmd: AccessProjectRemoveTeamCommand, config: any) {
+function accessProjectRemoveTeam(cmd: AccessProjectRemoveTeamCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -212,7 +213,7 @@ function accessProjectRemoveTeam(cmd: AccessProjectRemoveTeamCommand, config: an
   bpg.commit();
 }
 
-function accessProjectAddUser(cmd: AccessProjectAddUserCommand, config: any) {
+function accessProjectAddUser(cmd: AccessProjectAddUserCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -230,7 +231,7 @@ function accessProjectAddUser(cmd: AccessProjectAddUserCommand, config: any) {
   bpg.commit();
 }
 
-function accessProjectRemoveUser(cmd: AccessProjectRemoveUserCommand, config: any) {
+function accessProjectRemoveUser(cmd: AccessProjectRemoveUserCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {bpg, model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -250,7 +251,7 @@ function accessProjectRemoveUser(cmd: AccessProjectRemoveUserCommand, config: an
   bpg.commit();
 }
 
-function accessProjectDetails(cmd: AccessProjectDetailsCommand, config: any) {
+function accessProjectDetails(cmd: AccessProjectDetailsCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const {model} = getUniverseAndBpg(config, cmd.globalOptions);
 
@@ -285,12 +286,11 @@ function accessProjectDetails(cmd: AccessProjectDetailsCommand, config: any) {
   console.log('--\n');
 }
 
-function limitList(cmd: LimitListCommand, config: any) {
+function limitList(cmd: LimitListCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
@@ -334,12 +334,11 @@ function limitList(cmd: LimitListCommand, config: any) {
   );
 }
 
-function limitReset(cmd: LimitResetCommand, config: any) {
+function limitReset(cmd: LimitResetCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
@@ -373,12 +372,11 @@ function limitReset(cmd: LimitResetCommand, config: any) {
   bpg.commit();
 }
 
-function limitDelete(cmd: LimitDeleteCommand, config: any) {
+function limitDelete(cmd: LimitDeleteCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
@@ -406,12 +404,11 @@ function limitDelete(cmd: LimitDeleteCommand, config: any) {
   bpg.commit();
 }
 
-function limitCreate(cmd: LimitCreateCommand, config: any) {
+function limitCreate(cmd: LimitCreateCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
   const model = bpg.get();
@@ -452,7 +449,7 @@ function limitCreate(cmd: LimitCreateCommand, config: any) {
   console.log(success_color('Limit successfully created.'));
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'access.team.create': accessTeamCreate,
   'access.team.remove': accessTeamRemove,
   'access.team.list': accessTeamList,

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as zlib from 'zlib';
 import * as config from '../config';
+import type {Config} from '../config';
 import * as crdb from '../crdb';
 import * as queryCli from '../cli/query';
 import {table} from 'table';
@@ -11,9 +12,10 @@ import type {
   DeduplicationModifyCommand,
   DeduplicationListCommand,
   CtsCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, err, success_color} from '../cli/errors';
-import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg} from '../cli/context';
+import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg, getDefaultUniverse} from '../cli/context';
 import {std_failure_cb} from '../cli/bpg-helpers';
 
 function callstackUsage(str?: any): never {
@@ -46,7 +48,7 @@ function coronerCallstackParams(cmd: CallstackEvaluateCommand, p, action) {
   return csparams;
 }
 
-async function coronerCallstackEval(cmd: CallstackEvaluateCommand, config: any): Promise<any> {
+async function coronerCallstackEval(cmd: CallstackEvaluateCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -230,7 +232,7 @@ function coronerDeduplicationList(cmd: DeduplicationListCommand, coroner, p, bpg
   }
 }
 
-function setupDeduplication(cmd: any, config: any) {
+function setupDeduplication(cmd: DeduplicationAddCommand | DeduplicationDeleteCommand | DeduplicationModifyCommand | DeduplicationListCommand, config: Config) {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
@@ -265,33 +267,33 @@ function setupDeduplication(cmd: any, config: any) {
   rules.set('languages', 'c');
   rules.set('enabled', 1);
   rules.set('owner', owner);
-  if (cmd.platform) rules.set('platforms', cmd.platform);
+  if ('platform' in cmd && cmd.platform) rules.set('platforms', cmd.platform);
 
   return {coroner, p, bpg, rules};
 }
 
-function handleDeduplicationAdd(cmd: DeduplicationAddCommand, config: any): any {
+function handleDeduplicationAdd(cmd: DeduplicationAddCommand, config: Config): any {
   const result = setupDeduplication(cmd, config);
   if (!result) return;
   const {coroner, p, bpg, rules} = result;
   return coronerDeduplicationAdd(cmd, coroner, p, bpg, rules);
 }
 
-function handleDeduplicationDelete(cmd: DeduplicationDeleteCommand, config: any): any {
+function handleDeduplicationDelete(cmd: DeduplicationDeleteCommand, config: Config): any {
   const result = setupDeduplication(cmd, config);
   if (!result) return;
   const {coroner, p, bpg, rules} = result;
   return coronerDeduplicationDelete(cmd, coroner, p, bpg, rules);
 }
 
-function handleDeduplicationModify(cmd: DeduplicationModifyCommand, config: any): any {
+function handleDeduplicationModify(cmd: DeduplicationModifyCommand, config: Config): any {
   const result = setupDeduplication(cmd, config);
   if (!result) return;
   const {coroner, p, bpg, rules} = result;
   return coronerDeduplicationModify(cmd, coroner, p, bpg, rules);
 }
 
-function handleDeduplicationList(cmd: DeduplicationListCommand, config: any): any {
+function handleDeduplicationList(cmd: DeduplicationListCommand, config: Config): any {
   const result = setupDeduplication(cmd, config);
   if (!result) return;
   const {coroner, p, bpg, rules} = result;
@@ -301,13 +303,13 @@ function handleDeduplicationList(cmd: DeduplicationListCommand, config: any): an
 /**
  * @brief Implements the cts command.
  */
-function coronerCts(cmd: CtsCommand, config: any): any {
+function coronerCts(cmd: CtsCommand, config: Config): any {
   /* First extract a list of all fingerprint values for the given target. */
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
   const p = parseProjectArg(cmd.project, config);
-  const universe = cmd.globalOptions.universe || Object.keys((config as any).config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const attribute = cmd.attribute;
   const value = cmd.value;
@@ -396,7 +398,7 @@ function coronerCts(cmd: CtsCommand, config: any): any {
   });
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'callstack.evaluate': coronerCallstackEval,
   'deduplication.add': handleDeduplicationAdd,
   'deduplication.delete': handleDeduplicationDelete,

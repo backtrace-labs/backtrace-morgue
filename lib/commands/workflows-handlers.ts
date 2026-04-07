@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import {
   abortIfNotLoggedIn,
   coronerClientFromGlobal,
@@ -20,6 +21,7 @@ import type {
   WorkflowsAlertUpdateCommand,
   WorkflowsAlertDeleteCommand,
   GlobalOptions,
+  CommandHandler,
 } from '../cli/generated/types';
 
 // ---------------------------------------------------------------------------
@@ -28,7 +30,7 @@ import type {
 
 async function buildCli(
   globalOptions: GlobalOptions,
-  config: any,
+  config: Config,
 ): Promise<WorkflowsCli> {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, globalOptions);
@@ -39,27 +41,27 @@ async function buildCli(
 // Connection handlers
 // ---------------------------------------------------------------------------
 
-async function connectionCreate(cmd: WorkflowsConnectionCreateCommand, config: any) {
+async function connectionCreate(cmd: WorkflowsConnectionCreateCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.connections.createConnection(cmd);
 }
 
-async function connectionList(cmd: WorkflowsConnectionListCommand, config: any) {
+async function connectionList(cmd: WorkflowsConnectionListCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.connections.getConnections(cmd);
 }
 
-async function connectionGet(cmd: WorkflowsConnectionGetCommand, config: any) {
+async function connectionGet(cmd: WorkflowsConnectionGetCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.connections.getConnection(cmd);
 }
 
-async function connectionUpdate(cmd: WorkflowsConnectionUpdateCommand, config: any) {
+async function connectionUpdate(cmd: WorkflowsConnectionUpdateCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.connections.updateConnection(cmd);
 }
 
-async function connectionDelete(cmd: WorkflowsConnectionDeleteCommand, config: any) {
+async function connectionDelete(cmd: WorkflowsConnectionDeleteCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.connections.deleteConnection(cmd);
 }
@@ -68,27 +70,27 @@ async function connectionDelete(cmd: WorkflowsConnectionDeleteCommand, config: a
 // Integration handlers
 // ---------------------------------------------------------------------------
 
-async function integrationCreate(cmd: WorkflowsIntegrationCreateCommand, config: any) {
+async function integrationCreate(cmd: WorkflowsIntegrationCreateCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.integrations.createIntegration(cmd);
 }
 
-async function integrationList(cmd: WorkflowsIntegrationListCommand, config: any) {
+async function integrationList(cmd: WorkflowsIntegrationListCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.integrations.getIntegrations(cmd);
 }
 
-async function integrationGet(cmd: WorkflowsIntegrationGetCommand, config: any) {
+async function integrationGet(cmd: WorkflowsIntegrationGetCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.integrations.getIntegration(cmd);
 }
 
-async function integrationUpdate(cmd: WorkflowsIntegrationUpdateCommand, config: any) {
+async function integrationUpdate(cmd: WorkflowsIntegrationUpdateCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.integrations.updateIntegration(cmd);
 }
 
-async function integrationDelete(cmd: WorkflowsIntegrationDeleteCommand, config: any) {
+async function integrationDelete(cmd: WorkflowsIntegrationDeleteCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.integrations.deleteIntegration(cmd);
 }
@@ -97,27 +99,27 @@ async function integrationDelete(cmd: WorkflowsIntegrationDeleteCommand, config:
 // Workflows Alert handlers
 // ---------------------------------------------------------------------------
 
-async function alertCreate(cmd: WorkflowsAlertCreateCommand, config: any) {
+async function alertCreate(cmd: WorkflowsAlertCreateCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.alerts.createAlert(cmd);
 }
 
-async function alertList(cmd: WorkflowsAlertListCommand, config: any) {
+async function alertList(cmd: WorkflowsAlertListCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.alerts.getAlerts(cmd);
 }
 
-async function alertGet(cmd: WorkflowsAlertGetCommand, config: any) {
+async function alertGet(cmd: WorkflowsAlertGetCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.alerts.getAlert(cmd);
 }
 
-async function alertUpdate(cmd: WorkflowsAlertUpdateCommand, config: any) {
+async function alertUpdate(cmd: WorkflowsAlertUpdateCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.alerts.updateAlert(cmd);
 }
 
-async function alertDelete(cmd: WorkflowsAlertDeleteCommand, config: any) {
+async function alertDelete(cmd: WorkflowsAlertDeleteCommand, config: Config) {
   const cli = await buildCli(cmd.globalOptions, config);
   await cli.alerts.deleteAlert(cmd);
 }
@@ -126,7 +128,7 @@ async function alertDelete(cmd: WorkflowsAlertDeleteCommand, config: any) {
 // Export
 // ---------------------------------------------------------------------------
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'workflows.connection.create': connectionCreate,
   'workflows.connection.list': connectionList,
   'workflows.connection.get': connectionGet,

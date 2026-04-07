@@ -1,3 +1,4 @@
+import type {Config} from '../config';
 import type {
   TokenCreateCommand,
   TokenListCommand,
@@ -5,6 +6,7 @@ import type {
   SessionListCommand,
   SessionSetCommand,
   SessionUnsetCommand,
+  CommandHandler,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -12,18 +14,19 @@ import {
   coronerClientFromGlobal,
   coronerBpgFromGlobal,
   coronerClient,
+  getDefaultUniverse,
+  requireConfigFile,
 } from '../cli/context';
 
 const bold = chalk.bold;
 const yellow = chalk.yellow;
 const blue = chalk.blue;
 
-function tokenList(cmd: TokenListCommand, config: any): any {
+function tokenList(cmd: TokenListCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const project = cmd.project;
 
@@ -116,7 +119,7 @@ function tokenList(cmd: TokenListCommand, config: any): any {
   }
 }
 
-function tokenDelete(cmd: TokenDeleteCommand, config: any): any {
+function tokenDelete(cmd: TokenDeleteCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
@@ -141,12 +144,11 @@ function tokenDelete(cmd: TokenDeleteCommand, config: any): any {
   bpg.commit();
 }
 
-function tokenCreate(cmd: TokenCreateCommand, config: any): any {
+function tokenCreate(cmd: TokenCreateCommand, config: Config): any {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
 
-  let universe = cmd.globalOptions.universe;
-  if (!universe) universe = Object.keys(config.config.universes)[0];
+  const universe = getDefaultUniverse(config, cmd.globalOptions.universe);
 
   const project = cmd.project;
 
@@ -186,6 +188,7 @@ function tokenCreate(cmd: TokenCreateCommand, config: any): any {
   if (!capabilities || capabilities.length === 0)
     errx('Must specify a capability: error:post sym:post query:post');
 
+  requireConfigFile(config);
   const api_token = bpg.new('api_token');
   api_token.set('id', '0000');
   api_token.set('project', pid);
@@ -224,7 +227,7 @@ function tokenCreate(cmd: TokenCreateCommand, config: any): any {
   }
 }
 
-function sessionList(cmd: SessionListCommand, config: any): any {
+function sessionList(cmd: SessionListCommand, config: Config): any {
   if (!cmd.globalOptions.endpoint && !cmd.globalOptions.universe)
     abortIfNotLoggedIn(config);
 
@@ -248,7 +251,7 @@ function sessionList(cmd: SessionListCommand, config: any): any {
   if (!universe) {
     if (cmd.globalOptions.endpoint) errx('--universe= must be specified');
 
-    universe = Object.keys(config.config.universes)[0];
+    universe = getDefaultUniverse(config);
   }
 
   const qs: any = {token: cmd.globalOptions.token || coroner.config.token};
@@ -278,7 +281,7 @@ function sessionList(cmd: SessionListCommand, config: any): any {
   });
 }
 
-function sessionSet(cmd: SessionSetCommand, config: any): any {
+function sessionSet(cmd: SessionSetCommand, config: Config): any {
   if (!cmd.globalOptions.endpoint && !cmd.globalOptions.universe)
     abortIfNotLoggedIn(config);
 
@@ -302,7 +305,7 @@ function sessionSet(cmd: SessionSetCommand, config: any): any {
   if (!universe) {
     if (cmd.globalOptions.endpoint) errx('--universe= must be specified');
 
-    universe = Object.keys(config.config.universes)[0];
+    universe = getDefaultUniverse(config);
   }
 
   const qs: any = {token: cmd.globalOptions.token || coroner.config.token};
@@ -321,6 +324,7 @@ function sessionSet(cmd: SessionSetCommand, config: any): any {
 
     process.stderr.write(blue('Persisting...'));
 
+    requireConfigFile(config);
     universe_id = config.config.universe.id;
     owner = config.config.user.uid;
 
@@ -403,7 +407,7 @@ function sessionSet(cmd: SessionSetCommand, config: any): any {
   );
 }
 
-function sessionUnset(cmd: SessionUnsetCommand, config: any): any {
+function sessionUnset(cmd: SessionUnsetCommand, config: Config): any {
   if (!cmd.globalOptions.endpoint && !cmd.globalOptions.universe)
     abortIfNotLoggedIn(config);
 
@@ -427,7 +431,7 @@ function sessionUnset(cmd: SessionUnsetCommand, config: any): any {
   if (!universe) {
     if (cmd.globalOptions.endpoint) errx('--universe= must be specified');
 
-    universe = Object.keys(config.config.universes)[0];
+    universe = getDefaultUniverse(config);
   }
 
   const qs: any = {token: cmd.globalOptions.token || coroner.config.token};
@@ -457,7 +461,7 @@ function sessionUnset(cmd: SessionUnsetCommand, config: any): any {
   );
 }
 
-export const handlers: Record<string, (cmd: any, config: any) => any> = {
+export const handlers: Record<string, CommandHandler> = {
   'token.create': tokenCreate,
   'token.list': tokenList,
   'token.delete': tokenDelete,
