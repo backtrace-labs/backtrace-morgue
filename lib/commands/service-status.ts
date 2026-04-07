@@ -9,6 +9,7 @@ import type {
   StatusReloadCommand,
   ControlCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 function serviceList(cmd: ServiceListCommand, config: Config): Promise<any> {
@@ -75,10 +76,10 @@ function coronerControl(cmd: ControlCommand, config: Config): any {
   }
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'service.list': serviceList,
   'service.status': serviceStatus,
   'service.rescan': serviceRescan,
   'status.reload': statusReload,
   'control': coronerControl,
-};
+} satisfies Partial<CommandHandlerMap>;

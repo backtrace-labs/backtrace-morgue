@@ -1192,13 +1192,6 @@ export interface ControlCommand {
 }
 
 /** @internal Hidden command */
-export interface DeduplicationCommand {
-  kind: 'deduplication';
-  globalOptions: GlobalOptions;
-  project: string;
-}
-
-/** @internal Hidden command */
 export interface DeduplicationAddCommand {
   kind: 'deduplication.add';
   globalOptions: GlobalOptions;
@@ -1487,7 +1480,6 @@ export type CliCommand =
   | AuditExtractCommand
   | BpgListCommand
   | ControlCommand
-  | DeduplicationCommand
   | DeduplicationAddCommand
   | DeduplicationDeleteCommand
   | DeduplicationModifyCommand
@@ -1511,4 +1503,17 @@ export type CliCommand =
 
 import type {Config} from '../../config';
 
+/** Union of all valid command kind strings. Derived from CliCommand. */
+export type CommandKind = CliCommand['kind'];
+
+/** Handler function for a specific command type. */
 export type CommandHandler<T extends CliCommand = CliCommand> = (cmd: T, config: Config) => any;
+
+/**
+ * A complete handler map: one entry required for every CommandKind.
+ * Use this in the entry point to get a compile-time guarantee that
+ * all commands are registered and no unknown kinds slip in.
+ */
+export type CommandHandlerMap = {
+  [K in CommandKind]: CommandHandler<Extract<CliCommand, {kind: K}>>;
+};

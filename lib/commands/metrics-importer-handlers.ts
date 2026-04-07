@@ -6,6 +6,7 @@ import type {
   MetricsImporterSourceCheckQueryCommand,
   MetricsImporterLogsCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 async function makeCli(
@@ -43,8 +44,8 @@ async function handleLogs(cmd: MetricsImporterLogsCommand, config: Config) {
   await cli.logs(cmd);
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'metrics-importer.importer.create': handleImporterCreate,
   'metrics-importer.source.check-query': handleSourceCheckQuery,
   'metrics-importer.logs': handleLogs,
-};
+} satisfies Partial<CommandHandlerMap>;

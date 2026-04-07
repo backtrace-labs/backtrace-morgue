@@ -7,6 +7,7 @@ import type {
   ReportDeleteCommand,
   ReportSendCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, chalk, success_color, warn} from '../cli/errors';
 import {
@@ -256,9 +257,9 @@ function handleReportSend(cmd: ReportSendCommand, config: Config): any {
   );
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'report.list': handleReportList,
   'report.create': handleReportCreate,
   'report.delete': handleReportDelete,
   'report.send': handleReportSend,
-};
+} satisfies Partial<CommandHandlerMap>;

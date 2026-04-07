@@ -12,6 +12,7 @@ import {nsToUs, printSamples} from '../cli/util';
 import {coronerPrint} from '../cli/print';
 import type {ListCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 const yellow = chalk.yellow;
@@ -215,6 +216,6 @@ function handleList(cmd: ListCommand, config: Config): any {
   }
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   list: handleList,
-};
+} satisfies Partial<CommandHandlerMap>;

@@ -3,6 +3,7 @@ import type {
   ProjectCreateCommand,
   ProjectsListCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx} from '../cli/errors';
 import {
@@ -103,7 +104,7 @@ async function projectsList(cmd: ProjectsListCommand, config: Config): Promise<a
   );
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'project.create': projectCreate,
   'projects.list': projectsList,
-};
+} satisfies Partial<CommandHandlerMap>;

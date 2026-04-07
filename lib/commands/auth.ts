@@ -5,6 +5,7 @@ import * as config from '../config';
 import type {Config} from '../config';
 import type {LoginCommand, LogoutCommand, SetupCommand, GlobalOptions,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerClient, coronerBpgFromGlobal, saveConfig} from '../cli/context';
@@ -354,8 +355,8 @@ function coronerSetup(cmd: SetupCommand, config: Config): any {
   });
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   login: coronerLogin,
   logout: coronerLogout,
   setup: coronerSetup,
-};
+} satisfies Partial<CommandHandlerMap>;

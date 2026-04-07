@@ -387,10 +387,23 @@ function emitTypes(ir: IR): string {
   }
   w('');
 
-  // Handler type
+  // Derived types
   w('import type {Config} from \'../../config\';');
   w('');
+  w('/** Union of all valid command kind strings. Derived from CliCommand. */');
+  w('export type CommandKind = CliCommand[\'kind\'];');
+  w('');
+  w('/** Handler function for a specific command type. */');
   w('export type CommandHandler<T extends CliCommand = CliCommand> = (cmd: T, config: Config) => any;');
+  w('');
+  w('/**');
+  w(' * A complete handler map: one entry required for every CommandKind.');
+  w(' * Use this in the entry point to get a compile-time guarantee that');
+  w(' * all commands are registered and no unknown kinds slip in.');
+  w(' */');
+  w('export type CommandHandlerMap = {');
+  w('  [K in CommandKind]: CommandHandler<Extract<CliCommand, {kind: K}>>;');
+  w('};');
   w('');
 
   return lines.join('\n');

@@ -2,6 +2,7 @@ import type {Config} from '../config';
 import * as util from 'util';
 import type {MergeCommand, UnmergeCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, success_color} from '../cli/errors';
 import {
@@ -81,7 +82,7 @@ function handleUnmerge(cmd: UnmergeCommand, config: Config): any {
   return _coronerMerge(coroner, universe, project, fingerprints, 'unmerge');
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   merge: handleMerge,
   unmerge: handleUnmerge,
-};
+} satisfies Partial<CommandHandlerMap>;

@@ -13,6 +13,7 @@ import type {
   LatencyDeactivateCommand,
   LatencyExtractCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, err, chalk, success_color, error_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, getDefaultUniverse} from '../cli/context';
@@ -417,7 +418,7 @@ function latencyExtract(cmd: LatencyExtractCommand, config: Config): any {
   );
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'audit.extract': auditExtract,
   'log.list': logList,
   'log.activate': logActivate,
@@ -427,4 +428,4 @@ export const handlers: Record<string, CommandHandler> = {
   'latency.activate': latencyActivate,
   'latency.deactivate': latencyDeactivate,
   'latency.extract': latencyExtract,
-};
+} satisfies Partial<CommandHandlerMap>;

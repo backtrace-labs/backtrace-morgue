@@ -16,6 +16,7 @@ import type {
   RetentionClearCommand,
   RetentionStatusCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 
@@ -735,9 +736,9 @@ function handleRetentionStatus(cmd: RetentionStatusCommand, config: Config): any
   return retentionStatus(cmd, config);
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'retention.list': handleRetentionList,
   'retention.set': handleRetentionSet,
   'retention.clear': handleRetentionClear,
   'retention.status': handleRetentionStatus,
-};
+} satisfies Partial<CommandHandlerMap>;

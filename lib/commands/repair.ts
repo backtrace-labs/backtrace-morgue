@@ -3,6 +3,7 @@ import * as crdb from '../crdb';
 import * as queryCli from '../cli/query';
 import type {RepairCommand, ReprocessCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {success_color} from '../cli/errors';
 import {
@@ -89,7 +90,7 @@ function handleReprocess(cmd: ReprocessCommand, config: Config): any {
   }
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   repair: handleRepair,
   reprocess: handleReprocess,
-};
+} satisfies Partial<CommandHandlerMap>;

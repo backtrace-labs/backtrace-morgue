@@ -22,6 +22,7 @@ import type {
   WorkflowsAlertDeleteCommand,
   GlobalOptions,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 // ---------------------------------------------------------------------------
@@ -128,7 +129,7 @@ async function alertDelete(cmd: WorkflowsAlertDeleteCommand, config: Config) {
 // Export
 // ---------------------------------------------------------------------------
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'workflows.connection.create': connectionCreate,
   'workflows.connection.list': connectionList,
   'workflows.connection.get': connectionGet,
@@ -144,4 +145,4 @@ export const handlers: Record<string, CommandHandler> = {
   'workflows.alert.get': alertGet,
   'workflows.alert.update': alertUpdate,
   'workflows.alert.delete': alertDelete,
-};
+} satisfies Partial<CommandHandlerMap>;

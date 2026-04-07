@@ -18,6 +18,7 @@ import type {
   CleanCommand,
   NukeCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 function handleNuke(cmd: NukeCommand, config: Config): any {
@@ -356,9 +357,9 @@ async function handleDelete(cmd: DeleteCommand, config: Config): Promise<any> {
   }
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   set: handleSet,
   delete: handleDelete,
   clean: handleClean,
   nuke: handleNuke,
-};
+} satisfies Partial<CommandHandlerMap>;

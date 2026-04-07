@@ -7,6 +7,7 @@ import type {Config} from '../config';
 import * as crdb from '../crdb';
 import type {SimilarityCommand, FlamegraphCommand, QueryOptions,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {buildQuery} from '../cli/query';
 import {errx} from '../cli/errors';
@@ -289,7 +290,7 @@ function coronerFlamegraph(cmd: FlamegraphCommand, config: Config): any {
   });
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   similarity: coronerSimilarity,
   flamegraph: coronerFlamegraph,
-};
+} satisfies Partial<CommandHandlerMap>;

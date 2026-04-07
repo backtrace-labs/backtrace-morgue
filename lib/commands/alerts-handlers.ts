@@ -16,6 +16,7 @@ import type {
   AlertsAlertUpdateCommand,
   AlertsAlertDeleteCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 // ---------------------------------------------------------------------------
@@ -93,7 +94,7 @@ async function alertDelete(cmd: AlertsAlertDeleteCommand, config: Config) {
 // Export
 // ---------------------------------------------------------------------------
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'alerts.target.create': targetCreate,
   'alerts.target.list': targetList,
   'alerts.target.get': targetGet,
@@ -104,4 +105,4 @@ export const handlers: Record<string, CommandHandler> = {
   'alerts.alert.create': alertCreate,
   'alerts.alert.update': alertUpdate,
   'alerts.alert.delete': alertDelete,
-};
+} satisfies Partial<CommandHandlerMap>;

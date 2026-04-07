@@ -5,6 +5,7 @@ import type {
   TenantDeleteCommand,
   TenantListCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -83,8 +84,8 @@ function tenantDelete(cmd: TenantDeleteCommand, config: Config): any {
   errx('tenant not found.');
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'tenant.create': tenantCreate,
   'tenant.delete': tenantDelete,
   'tenant.list': tenantList,
-};
+} satisfies Partial<CommandHandlerMap>;

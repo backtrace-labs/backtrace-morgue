@@ -8,6 +8,7 @@ import type {
   InviteListCommand,
   InviteDeleteCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, err, chalk, success_color} from '../cli/errors';
 import {
@@ -360,11 +361,11 @@ function inviteCreate(cmd: InviteCreateCommand, config: Config): any {
   );
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'user.reset': userReset,
   'users.add-signup-whitelist': usersAddSignupWhitelist,
   'users.list-teamless-users': usersListTeamlessUsers,
   'invite.create': inviteCreate,
   'invite.list': inviteList,
   'invite.delete': inviteDelete,
-};
+} satisfies Partial<CommandHandlerMap>;

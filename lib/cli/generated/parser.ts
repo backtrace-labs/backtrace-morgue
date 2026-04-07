@@ -138,7 +138,6 @@ import type {
   AuditExtractCommand,
   BpgListCommand,
   ControlCommand,
-  DeduplicationCommand,
   DeduplicationAddCommand,
   DeduplicationDeleteCommand,
   DeduplicationModifyCommand,
@@ -3082,19 +3081,6 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- deduplication ---
   const cmd_deduplication = program.command('deduplication', { hidden: !revealHidden });
   cmd_deduplication.description('Manage deduplication rules');
-  cmd_deduplication
-    .description('Manage deduplication rules')
-    .argument('<project>', 'Universe/project')
-    .action((project, opts, cmd) => {
-      const g = extractGlobalOptions(cmd);
-      syncGlobalAndCommandFlags(g, opts);
-      if (project !== undefined) { g.project = project; }
-      result = {
-        kind: 'deduplication',
-        globalOptions: g,
-        project,
-      } satisfies DeduplicationCommand;
-    });
   cmd_deduplication.command('add', { hidden: !revealHidden })
     .description('Add deduplication rules')
     .argument('<project>', 'Universe/project')

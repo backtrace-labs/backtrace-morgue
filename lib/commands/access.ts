@@ -16,6 +16,7 @@ import type {
   LimitDeleteCommand,
   LimitCreateCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import * as config from '../config';
 import type {Config} from '../config';
@@ -449,7 +450,7 @@ function limitCreate(cmd: LimitCreateCommand, config: Config) {
   console.log(success_color('Limit successfully created.'));
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'access.team.create': accessTeamCreate,
   'access.team.remove': accessTeamRemove,
   'access.team.list': accessTeamList,
@@ -465,4 +466,4 @@ export const handlers: Record<string, CommandHandler> = {
   'limit.reset': limitReset,
   'limit.delete': limitDelete,
   'limit.create': limitCreate,
-};
+} satisfies Partial<CommandHandlerMap>;

@@ -15,7 +15,7 @@ import {configDir} from '../lib/cli/constants';
 import {initPrint} from '../lib/cli/print';
 import {eHasCode} from '../lib/util';
 import {createProgram} from '../lib/cli/generated/parser';
-import type {CliCommand} from '../lib/cli/generated/types';
+import type {CliCommand, CommandHandler, CommandHandlerMap} from '../lib/cli/generated/types';
 
 // Import all command handlers
 import {handlers as errorHandlers} from '../lib/commands/error';
@@ -72,7 +72,9 @@ initPrint({btClient: client});
 // Command handler registry — all commands dispatched by kind
 // ---------------------------------------------------------------------------
 
-const handlers: Record<string, (cmd: any, config: any) => any> = {
+// satisfies ensures all 153 command kinds have a handler and none are misspelled.
+// The cast to CommandHandlerMap gives us a proper indexed type for runtime lookup.
+const handlers: CommandHandlerMap = {
   ...errorHandlers,
   ...tenantHandlers,
   ...projectHandlers,
@@ -101,7 +103,7 @@ const handlers: Record<string, (cmd: any, config: any) => any> = {
   ...metricsImporterHandlers,
   ...alertsHandlers,
   ...workflowsHandlers,
-};
+} satisfies CommandHandlerMap;
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -146,12 +148,6 @@ function main(): any {
     setEndpoint(undefined, cmd.globalOptions.token);
   }
 
-  const handler = handlers[cmd.kind];
-  if (!handler) {
-    console.error(`Unknown command: ${cmd.kind}`);
-    process.exit(1);
-  }
-
   // Setup
   const abortController = new AbortController();
   client.database.send(abortController.signal);
@@ -166,7 +162,10 @@ function main(): any {
     }
     (async function executeCommand() {
       try {
-        await handler(cmd, config);
+        // Direct indexing of CommandHandlerMap with a union key produces a `never`
+        // parameter (TypeScript intersects all handler signatures). The cast is
+        // safe because satisfies already proved every kind has a matching handler.
+        await (handlers[cmd.kind] as CommandHandler)(cmd, config);
       } catch (e) {
         await client.send(e as Error);
         abortController.abort();

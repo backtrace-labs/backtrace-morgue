@@ -4,6 +4,7 @@ import type {
   ViewCreateCommand,
   ViewDeleteCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import * as config from '../config';
 import type {Config} from '../config';
@@ -142,9 +143,9 @@ function viewDelete(cmd: ViewDeleteCommand, config: Config) {
   bpgPost(state.bpg, request, bpgCbFn('View', 'delete'));
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'attribute.create': attributeCreate,
   'attribute.delete': attributeDelete,
   'view.create': viewCreate,
   'view.delete': viewDelete,
-};
+} satisfies Partial<CommandHandlerMap>;

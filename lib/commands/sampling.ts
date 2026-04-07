@@ -5,6 +5,7 @@ import type {
   SamplingResetCommand,
   SamplingConfigureCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import * as config from '../config';
 import type {Config} from '../config';
@@ -408,8 +409,8 @@ Changes in coronerd.conf will not enable sampling for this project.`);
   }
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'sampling.status': samplingStatus,
   'sampling.reset': samplingReset,
   'sampling.configure': samplingConfigure,
-};
+} satisfies Partial<CommandHandlerMap>;

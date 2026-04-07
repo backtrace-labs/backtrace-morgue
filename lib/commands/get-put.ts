@@ -26,6 +26,7 @@ import type {
   AttachmentListCommand,
   AttachmentDeleteCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 const grey = chalk.grey;
@@ -735,7 +736,7 @@ function handlePut(cmd: PutCommand, config: Config): Promise<any> {
     });
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   get: handleGet,
   put: handlePut,
   describe: handleDescribe,
@@ -743,4 +744,4 @@ export const handlers: Record<string, CommandHandler> = {
   'attachment.get': handleAttachmentGet,
   'attachment.list': handleAttachmentList,
   'attachment.delete': handleAttachmentDelete,
-};
+} satisfies Partial<CommandHandlerMap>;

@@ -4,6 +4,7 @@ import {table, TableUserConfig} from 'table';
 import * as ta from 'time-ago';
 import type {SymbolCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -323,6 +324,6 @@ function handleSymbol(cmd: SymbolCommand, config: Config): any {
   });
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   symbol: handleSymbol,
-};
+} satisfies Partial<CommandHandlerMap>;

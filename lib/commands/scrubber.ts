@@ -5,6 +5,7 @@ import type {
   ScrubberModifyCommand,
   ScrubberDeleteCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -233,9 +234,9 @@ function handleScrubberDelete(cmd: ScrubberDeleteCommand, config: Config): any {
   errx('Scrubber not found');
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'scrubber.list': handleScrubberList,
   'scrubber.create': handleScrubberCreate,
   'scrubber.modify': handleScrubberModify,
   'scrubber.delete': handleScrubberDelete,
-};
+} satisfies Partial<CommandHandlerMap>;

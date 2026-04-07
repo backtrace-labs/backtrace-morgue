@@ -16,6 +16,7 @@ import type {
   ActionsDeleteCommand,
   StabilityCreateMetricCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 function actionsGet(cmd: ActionsGetCommand, config: Config): any {
@@ -248,11 +249,11 @@ function stabilityCreateMetric(cmd: StabilityCreateMetricCommand, config: Config
   console.log('Metric created');
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'actions.get': actionsGet,
   'actions.disable': actionsDisable,
   'actions.enable': actionsEnable,
   'actions.upload': actionsUpload,
   'actions.delete': actionsDelete,
   'stability.create-metric': stabilityCreateMetric,
-};
+} satisfies Partial<CommandHandlerMap>;

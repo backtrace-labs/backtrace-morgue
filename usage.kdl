@@ -2771,7 +2771,7 @@ cmd "control" help="Trigger control operations" hide=#true {
     flag "--smr" help="Trigger grace period"
 }
 
-cmd "deduplication" help="Manage deduplication rules" hide=#true {
+cmd "deduplication" subcommand_required=#true help="Manage deduplication rules" hide=#true {
     arg "<project>" help="Universe/project"
 
     cmd "add" help="Add deduplication rules" {

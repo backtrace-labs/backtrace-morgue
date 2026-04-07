@@ -30,6 +30,7 @@ import type {
   SymboldQueueSizeCommand,
   SymboldQueueSymbolsCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 function makeSymboldClient(cmd: {globalOptions: any}, config: Config): SymboldClient {
@@ -37,7 +38,7 @@ function makeSymboldClient(cmd: {globalOptions: any}, config: Config): SymboldCl
   return new SymboldClient(coroner);
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'symbold.status': (cmd: SymboldStatusCommand, config: Config) => {
     const client = makeSymboldClient(cmd, config);
     return client.status(cmd);
@@ -190,4 +191,4 @@ export const handlers: Record<string, CommandHandler> = {
     const q = new SymboldQueue(client);
     return q.getMissingSymbols(cmd);
   },
-};
+} satisfies Partial<CommandHandlerMap>;

@@ -7,6 +7,7 @@ import type {
   SessionSetCommand,
   SessionUnsetCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {
@@ -460,11 +461,11 @@ function sessionUnset(cmd: SessionUnsetCommand, config: Config): any {
   );
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'token.create': tokenCreate,
   'token.list': tokenList,
   'token.delete': tokenDelete,
   'session.list': sessionList,
   'session.set': sessionSet,
   'session.unset': sessionUnset,
-};
+} satisfies Partial<CommandHandlerMap>;

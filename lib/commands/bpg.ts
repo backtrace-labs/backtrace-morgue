@@ -4,6 +4,7 @@ import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal} from 
 import {bpgPost} from '../cli/bpg-helpers';
 import type {BpgListCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 
 function coronerBpgList(cmd: BpgListCommand, config: Config): any {
@@ -35,6 +36,6 @@ function coronerBpgList(cmd: BpgListCommand, config: Config): any {
   });
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'bpg.list': coronerBpgList,
-};
+} satisfies Partial<CommandHandlerMap>;

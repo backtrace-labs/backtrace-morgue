@@ -13,6 +13,7 @@ import type {
   DeduplicationListCommand,
   CtsCommand,
   CommandHandler,
+  CommandHandlerMap,
 } from '../cli/generated/types';
 import {errx, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg, getDefaultUniverse} from '../cli/context';
@@ -361,11 +362,11 @@ function coronerCts(cmd: CtsCommand, config: Config): any {
   });
 }
 
-export const handlers: Record<string, CommandHandler> = {
+export const handlers = {
   'callstack.evaluate': coronerCallstackEval,
   'deduplication.add': handleDeduplicationAdd,
   'deduplication.delete': handleDeduplicationDelete,
   'deduplication.modify': handleDeduplicationModify,
   'deduplication.list': handleDeduplicationList,
   cts: coronerCts,
-};
+} satisfies Partial<CommandHandlerMap>;
