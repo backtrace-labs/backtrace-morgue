@@ -98,7 +98,7 @@ function handleSet(cmd: SetCommand, config: Config): any {
   const query = aq.query;
 
   delete query.fold;
-  delete query.factor;
+  delete query.group;
 
   if (!queryOpts.time && !queryOpts.age) {
     for (var i = 0; i < query.filter.length; i++) {

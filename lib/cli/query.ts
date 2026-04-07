@@ -4,31 +4,78 @@
 import * as chrono from 'chrono-node';
 
 import * as timeCli from './time';
-import {err, error_color, errx} from './errors';
+import {error_color, errx} from './errors';
+import type {QueryOptions} from './generated/types';
 
-function parseSortTerm(term) {
-  let ordering = 'ascending';
-  let name = term;
+// ---------------------------------------------------------------------------
+// Query types
+// ---------------------------------------------------------------------------
 
-  if (term[0] === '-') {
-    ordering = 'descending';
-    name = term.slice(1);
-  }
+/** A single filter operation: [op] or [op, value] or [op, value, flags]. */
+export type FilterOp = [string] | [string, string | number] | [string, string | number, Record<string, boolean>];
 
-  return {name: name, ordering: ordering};
+/** Filter map: attribute name → array of filter operations. */
+export type FilterMap = Record<string, FilterOp[]>;
+
+/** Sort term for query results. */
+export interface SortTerm {
+  name: string;
+  ordering: 'ascending' | 'descending';
 }
 
-/*
- * Assumes that we start at the 4th argument, and returns a filter object.
- */
-function parseFilterFlags(filter) {
-  if (filter.length < 4) {
+/** Virtual column definition (quantize_uint). */
+export interface VirtualColumn {
+  name: string;
+  type: 'quantize_uint';
+  quantize_uint: {
+    backing_column: string;
+    size: number;
+    offset: number;
+  };
+}
+
+/** The query object sent to the coroner API. */
+export interface Query {
+  template?: string;
+  limit?: string;
+  offset?: string;
+  filter: FilterMap[];
+  order?: SortTerm[];
+  group?: string[];
+  fold?: Record<string, (string | number)[][]>;
+  select?: string[];
+  select_wildcard?: Record<string, boolean>;
+  virtual_columns?: VirtualColumn[];
+  set?: Record<string, string | null>;
+  table?: string;
+}
+
+/** Result of buildQuery / buildQueryFilterOnly. */
+export interface QueryResult {
+  query: Query;
+  age: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Shared parse helpers
+// ---------------------------------------------------------------------------
+
+function parseSortTerm(term: string): SortTerm {
+  if (term[0] === '-') {
+    return {name: term.slice(1), ordering: 'descending'};
+  }
+  return {name: term, ordering: 'ascending'};
+}
+
+function parseFilterFlags(input: string): Record<string, boolean> {
+  const parts = input.split(',');
+  if (parts.length < 4) {
     return {};
   }
 
-  const flags = {};
+  const flags: Record<string, boolean> = {};
   const known_flags = new Set(['case_insensitive']);
-  for (const f of filter.slice(3)) {
+  for (const f of parts.slice(3)) {
     const transformed = f.replace('-', '_');
     if (!known_flags.has(transformed)) {
       errx(`Unknown filter flag ${f}`);
@@ -38,46 +85,35 @@ function parseFilterFlags(filter) {
   return flags;
 }
 
-export function parseFilter(input) {
-  let [attribute, op, value, flags] = input.split(',');
+export function parseFilter(input: string): {attribute: string; filter: FilterOp} {
+  const [attribute, op, value, flags] = input.split(',');
   if (!attribute || !op) {
     errx('Filter must be of form <column>,<operation>[,<value>].');
   }
 
-  if (attribute == '_tx' && value && typeof value === 'string') {
+  let parsedValue: string | number | undefined = value;
+  if (attribute === '_tx' && value && typeof value === 'string') {
     // Convert 0x hex values
     const rr = value.split('x');
     if (rr.length === 2) {
-      value = parseInt(rr[1], 16);
+      parsedValue = parseInt(rr[1], 16);
     }
   }
 
-  /* Some operators don't require an argument. */
-  if (!value) {
-    return {
-      attribute,
-      filter: [op],
-    };
+  if (!parsedValue) {
+    return {attribute, filter: [op]};
   } else if (!flags) {
-    return {
-      attribute,
-      filter: [op, value],
-    };
+    return {attribute, filter: [op, parsedValue]};
   } else {
-    return {
-      attribute,
-      filter: [op, value, parseFilterFlags(input)],
-    };
+    return {attribute, filter: [op, parsedValue, parseFilterFlags(input)]};
   }
 }
 
 // ---------------------------------------------------------------------------
-// Typed query builder (accepts QueryOptions)
+// Query builder internals
 // ---------------------------------------------------------------------------
 
-import type {QueryOptions} from './generated/types';
-
-function quantizeUintFromOpts(opts: QueryOptions) {
+function quantizeUintFromOpts(opts: QueryOptions): VirtualColumn[] {
   const q = opts.quantizeUint;
   if (!q || q.length === 0) return [];
 
@@ -93,20 +129,22 @@ function quantizeUintFromOpts(opts: QueryOptions) {
     const parsedOffset = timeCli.parseTimeInt(offsetStr ?? '0');
     return {
       name,
-      type: 'quantize_uint',
+      type: 'quantize_uint' as const,
       quantize_uint: {backing_column: backing, size: parsedSize, offset: parsedOffset},
     };
   });
 }
 
-function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
-  const query: any = {};
+function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean): QueryResult {
+  if (opts.rawQuery) {
+    return {query: JSON.parse(opts.rawQuery), age: null};
+  }
+
+  const query: Query = {
+    filter: [{}],
+  };
   let d_age: string | null = null;
   let ts_attr = 'timestamp';
-
-  if (opts.rawQuery) {
-    return {query: JSON.parse(opts.rawQuery)};
-  }
 
   if (
     opts.table === 'unique_aggregations' ||
@@ -121,8 +159,6 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
   if (opts.template) query.template = opts.template;
   if (opts.limit) query.limit = opts.limit;
   if (opts.offset) query.offset = opts.offset;
-
-  query.filter = [{}];
 
   // filter is already string[] from commander (no normalization needed)
   if (opts.filter) {
@@ -146,8 +182,8 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
       errx('Cannot mix --time and timestamp filters');
 
     const tm = chrono.parse(opts.time);
-    let ts_s: number;
-    let ts_e: number;
+    let ts_s: number | undefined;
+    let ts_e: number | undefined;
 
     if (tm.length === 0) errx('invalid time specifier "' + opts.time + '"');
 
@@ -167,9 +203,9 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
       ts_e = tm[0].end.date().getTime();
     }
 
-    ts_s = Math.floor(ts_s / 1000);
+    ts_s = Math.floor(ts_s! / 1000);
     if (ts_s === 0) ts_s = 1;
-    ts_e = Math.floor(ts_e / 1000);
+    ts_e = Math.floor(ts_e! / 1000);
 
     query.filter[0][ts_attr] = [
       ['at-least', ts_s],
@@ -183,7 +219,7 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
   query.virtual_columns = quantizeUintFromOpts(opts);
 
   if (opts.template === 'select') {
-    // no-op
+    // no-op: server-side template handles selection
   } else if (opts.select || opts.selectWildcard) {
     if (opts.select) {
       query.select = Array.isArray(opts.select) ? [...opts.select] : [opts.select];
@@ -191,7 +227,7 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
     if (opts.selectWildcard) {
       if (!query.select_wildcard) query.select_wildcard = {};
       const wildcards = Array.isArray(opts.selectWildcard)
-        ? opts.selectWildcard
+        ? [opts.selectWildcard]
         : [opts.selectWildcard];
       for (const w of wildcards) {
         query.select_wildcard[w] = true;
@@ -220,7 +256,7 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
     d_age = opts.age;
   } else if (
     !query.filter[0][ts_attr] ||
-    query.filter[0][ts_attr].length == 0
+    query.filter[0][ts_attr].length === 0
   ) {
     d_age = '1M';
   }
@@ -258,32 +294,36 @@ function buildQueryPrefold(opts: QueryOptions, implicitTimestampOps: boolean) {
   return {query, age: d_age};
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
- * Build a query from typed QueryOptions.
  * Build a query from typed QueryOptions.
  */
 export function buildQuery(
   opts: QueryOptions,
   implicitTimeOps = false,
   doFolds = false,
-) {
+): QueryResult {
   const {query, age} = buildQueryPrefold(opts, implicitTimeOps);
 
   if (!doFolds) return {query, age};
 
-  function fold(query, attribute, label) {
-    if (!query.fold) query.fold = {};
-    if (Array.isArray(attribute) === false) attribute = [attribute];
+  function fold(q: Query, attribute: string | string[], label: string): void {
+    if (!q.fold) q.fold = {};
+    const attrs = Array.isArray(attribute) ? attribute : [attribute];
 
-    for (let i = 0; i < attribute.length; i++) {
-      const modifiers = attribute[i].split(',');
-      const col = modifiers.shift();
-      for (let j = 0; j < modifiers.length; j++) {
-        modifiers[j] = parseInt(modifiers[j]);
-        if (isNaN(modifiers[j])) errx('Modifiers must be integers.');
-      }
-      if (!query.fold[col]) query.fold[col] = [];
-      query.fold[col].push([label].concat(modifiers));
+    for (const attr of attrs) {
+      const parts = attr.split(',');
+      const col = parts.shift()!;
+      const modifiers: number[] = parts.map(m => {
+        const n = parseInt(m);
+        if (isNaN(n)) errx('Modifiers must be integers.');
+        return n;
+      });
+      if (!q.fold[col]) q.fold[col] = [];
+      q.fold[col].push([label, ...modifiers]);
     }
   }
 
@@ -305,9 +345,9 @@ export function buildQuery(
     [opts.count, 'count'],
   ];
 
-  folds.forEach(([attr, op]) => {
+  for (const [attr, op] of folds) {
     if (attr) fold(query, attr, op);
-  });
+  }
 
   return {query, age};
 }
@@ -315,7 +355,7 @@ export function buildQuery(
 /**
  * Filter-only variant of buildQuery for commands like delete/reprocess.
  */
-export function buildQueryFilterOnly(opts: QueryOptions) {
+export function buildQueryFilterOnly(opts: QueryOptions): QueryResult | null {
   if (
     opts.select ||
     opts.filter ||
