@@ -83,6 +83,7 @@ interface IRFlag {
   help: string;
   choices?: string[];
   originalName: string;
+  argName?: string; // the arg's display name from usage.json (e.g. "attribute", "n", "file")
 }
 
 interface LeafCommand {
@@ -179,6 +180,7 @@ function convertFlag(flag: FlagObj): IRFlag {
     help: (flag as any).help_first_line || (flag as any).help || '',
     choices: flag.arg?.choices?.choices,
     originalName: flag.name,
+    argName: flag.arg?.name,
   };
 }
 
@@ -770,12 +772,13 @@ function buildFlagString(flag: IRFlag): string {
     parts.push(`--${l}`);
   }
   let result = parts.join(', ');
-  // Add value placeholder if not boolean
+  // Add value placeholder using the arg's display name from usage.kdl
   if (flag.tsType !== 'boolean') {
+    const placeholder = flag.argName || flag.originalName;
     if (flag.repeatable) {
-      result += ` <${flag.originalName}>`;
+      result += ` <${placeholder}>`;
     } else {
-      result += ` <${flag.originalName}>`;
+      result += ` <${placeholder}>`;
     }
   }
   return result;
