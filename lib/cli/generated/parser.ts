@@ -824,9 +824,6 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   program.command('flamegraph')
     .description('Generate callstack flamegraph')
     .argument('<project>', 'Project name or universe/project')
-    .option('-o, --output <output>', 'Output SVG file')
-    .option('--unique', 'Sample only unique crashes', false)
-    .option('--reverse', 'Sample from leaf functions', false)
     .option('--filter <filter>', 'Filter expression: attribute,operation,value')
     .option('--limit <limit>', 'Number of rows to return')
     .option('--offset <offset>', 'Skip first N rows')
@@ -834,6 +831,20 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--select-wildcard <select-wildcard>', 'Select all attributes of the given type').choices(["physical","derived","virtual"]))
     .option('--age <age>', 'Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)')
     .option('--time <time>', 'Time range using natural language')
+    .option('--histogram <histogram>', 'Show all distinct values')
+    .option('--distribution <distribution>', 'Show truncated histogram')
+    .option('--mean <mean>', 'Calculate mean')
+    .option('--sum <sum>', 'Sum all values')
+    .option('--range <range>', 'Show min and max values')
+    .option('--count <count>', 'Count non-null values')
+    .option('--bin <bin>', 'Linear histogram of values')
+    .option('--head <head>', 'First value in factor')
+    .option('--tail <tail>', 'Last value in factor')
+    .option('--object <object>', 'Maximum object identifier')
+    .addOption(new Option('--last <last>', 'Last object identifier').hideHelp(!revealHidden))
+    .addOption(new Option('--first <first>', 'First object identifier').hideHelp(!revealHidden))
+    .addOption(new Option('--min <min>', 'Min object identifier').hideHelp(!revealHidden))
+    .addOption(new Option('--max <max>', 'Max object identifier').hideHelp(!revealHidden))
     .option('--sort <sort>', 'Sort results: [-](column|fold_term)', collectRepeatable, [])
     .option('--quantize-uint <quantize-uint>', 'Compute quantized column: output_column,input_column,size[,offset]', collectRepeatable, [])
     .addOption(new Option('--raw-query <raw-query>', 'Raw query to use (overrides all other flags)').hideHelp(!revealHidden))
@@ -842,6 +853,9 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--template <template>', 'Use a server-side named query template (e.g. select)')
     .option('--factor <factor>', 'Group by attribute')
     .option('--fingerprint <fingerprint>', 'Filter by fingerprint: exact match (64 chars) or prefix regex')
+    .option('-o, --output <output>', 'Output SVG file')
+    .option('--unique', 'Sample only unique crashes', false)
+    .option('--reverse', 'Sample from leaf functions', false)
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       syncGlobalAndCommandFlags(g, opts);
@@ -849,25 +863,41 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       result = {
         kind: 'flamegraph',
         globalOptions: g,
+        queryOptions: {
+          filter: opts['filter'],
+          limit: opts['limit'],
+          offset: opts['offset'],
+          select: opts['select'],
+          selectWildcard: opts['selectWildcard'],
+          age: opts['age'],
+          time: opts['time'],
+          histogram: opts['histogram'],
+          distribution: opts['distribution'],
+          mean: opts['mean'],
+          sum: opts['sum'],
+          range: opts['range'],
+          count: opts['count'],
+          bin: opts['bin'],
+          head: opts['head'],
+          tail: opts['tail'],
+          object: opts['object'],
+          last: opts['last'],
+          first: opts['first'],
+          min: opts['min'],
+          max: opts['max'],
+          sort: opts['sort'],
+          quantizeUint: opts['quantizeUint'],
+          rawQuery: opts['rawQuery'],
+          table: opts['table'],
+          timestampAttribute: opts['timestampAttribute'],
+          template: opts['template'],
+          factor: opts['factor'],
+          fingerprint: opts['fingerprint'],
+        },
         project,
         output: opts['output'],
         unique: opts['unique'],
         reverse: opts['reverse'],
-        filter: opts['filter'],
-        limit: opts['limit'],
-        offset: opts['offset'],
-        select: opts['select'],
-        selectWildcard: opts['selectWildcard'],
-        age: opts['age'],
-        time: opts['time'],
-        sort: opts['sort'],
-        quantizeUint: opts['quantizeUint'],
-        rawQuery: opts['rawQuery'],
-        table: opts['table'],
-        timestampAttribute: opts['timestampAttribute'],
-        template: opts['template'],
-        factor: opts['factor'],
-        fingerprint: opts['fingerprint'],
       } satisfies FlamegraphCommand;
     });
 

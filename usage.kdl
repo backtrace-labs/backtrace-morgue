@@ -870,19 +870,17 @@ cmd "delete" help="Delete objects by query or ID" {
         arg "<id>"
     }
 
-    // Query filter flags
-    // Filters
+    // Query filter flags (filter-only — no fold/aggregation flags since delete
+    // uses buildQueryFilterOnly which does not process folds)
     flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<filter>"
     }
-    // Pagination
     flag "--limit" help="Number of rows to return" {
         arg "<n>"
     }
     flag "--offset" help="Skip first N rows" {
         arg "<n>"
     }
-    // Selection
     flag "--select" help="Select specific attributes" var=#true {
         arg "<attribute>"
     }
@@ -891,69 +889,18 @@ cmd "delete" help="Delete objects by query or ID" {
             choices physical derived virtual
         }
     }
-    // Aggregations
     flag "--age" help="Relative timestamp (e.g., 1h, 42d, 10s, etc). Valid suffixes: y (years), M (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)" {
         arg "<time>"
     }
     flag "--time" help="Time range using natural language" {
         arg "<range>"
     }
-    flag "--unique" help="Count distinct values" {
-        arg "<attribute>"
-    }
-    flag "--histogram" help="Show all distinct values" {
-        arg "<attribute>"
-    }
-    flag "--distribution" help="Show truncated histogram" {
-        arg "<attribute>"
-    }
-    flag "--mean" help="Calculate mean" {
-        arg "<attribute>"
-    }
-    flag "--sum" help="Sum all values" {
-        arg "<attribute>"
-    }
-    flag "--range" help="Show min and max values" {
-        arg "<attribute>"
-    }
-    flag "--count" help="Count non-null values" {
-        arg "<attribute>"
-    }
-    flag "--bin" help="Linear histogram of values" {
-        // alias "quantize"
-        arg "<attribute>"
-    }
-    flag "--head" help="First value in factor" {
-        arg "<attribute>"
-    }
-    flag "--tail" help="Last value in factor" {
-        arg "<attribute>"
-    }
-    flag "--object" help="Maximum object identifier" {
-        arg "<attribute>"
-    }
-    // Aggregations (undocumented)
-    flag "--last" help="Last object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    flag "--first" help="First object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    flag "--min" help="Min object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    flag "--max" help="Max object identifier" hide=#true {
-        arg "<attribute>"
-    }
-    // Sorting
     flag "--sort" var=#true help="Sort results: [-](column|fold_term)" {
         arg "<term>"
     }
-    // Computed Views
     flag "--quantize-uint" var=#true help="Compute quantized column: output_column,input_column,size[,offset]" {
         arg "<spec>"
     }
-    // Not documented
     flag "--raw-query" help="Raw query to use (overrides all other flags)" hide=#true {
         arg "<query>"
     }

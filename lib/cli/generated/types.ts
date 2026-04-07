@@ -203,25 +203,11 @@ export interface ProjectsListCommand {
 export interface FlamegraphCommand {
   kind: 'flamegraph';
   globalOptions: GlobalOptions;
+  queryOptions: QueryOptions;
   project: string;
   output?: string;
   unique?: boolean;
   reverse?: boolean;
-  filter?: string;
-  limit?: string;
-  offset?: string;
-  select?: string[];
-  selectWildcard?: 'physical' | 'derived' | 'virtual';
-  age?: string;
-  time?: string;
-  sort?: string[];
-  quantizeUint?: string[];
-  rawQuery?: string;
-  table?: string;
-  timestampAttribute?: string;
-  template?: string;
-  factor?: string;
-  fingerprint?: string;
 }
 
 export interface SymboldStatusCommand {

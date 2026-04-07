@@ -264,16 +264,27 @@ function buildIR(root: UsageRoot, whitelist?: Set<string>): IR {
       !hasSubcmds || (cmd.subcommand_required !== true && ownArgs.length > 0);
 
     if (isLeaf && cmd.full_cmd.length > 0) {
-      // Determine if this command uses QueryOptions
-      const nonGlobalFlags = allFlags.filter(f => !f.repeatable || true); // all
+      // Determine if this command uses QueryOptions.
+      // A command gets queryOptions if it has --filter AND at least one of
+      // --age, --time, or --select — the signature of a proper query command.
+      // This avoids false positives for commands like `symbol` that have a
+      // simple --filter flag unrelated to the query system.
+      const nonGlobalFlags = allFlags;
+      const flagNames = new Set(nonGlobalFlags.map(f => f.fieldName));
       const hasQueryFlags =
         queryFieldNames.size > 0 &&
-        [...queryFieldNames].filter(qf =>
-          nonGlobalFlags.some(f => f.fieldName === qf),
-        ).length >= queryFieldNames.size * 0.6; // 60% threshold
+        flagNames.has('filter') &&
+        (flagNames.has('age') || flagNames.has('time') || flagNames.has('select'));
 
+      // Build a map of query option field name → expected type for accurate matching.
+      // A boolean flag like --unique (flamegraph) is NOT the same as --unique <attr> (query).
+      const queryFieldTypes = new Map(queryOptionFlags.map(qf => [qf.fieldName, qf.tsType]));
       const commandFlags = hasQueryFlags
-        ? nonGlobalFlags.filter(f => !queryFieldNames.has(f.fieldName))
+        ? nonGlobalFlags.filter(f => {
+            const queryType = queryFieldTypes.get(f.fieldName);
+            // Only classify as a query flag if both name and type match
+            return !(queryType !== undefined && queryType === f.tsType);
+          })
         : nonGlobalFlags;
 
       leaves.push({
@@ -620,8 +631,12 @@ function emitLeafCommand(
   }
 
   // Collect all flags for this leaf (own + query options if applicable)
+  // Combine query option flags with command-specific flags, excluding query flags
+  // that collide with command-specific flags (e.g. flamegraph has a boolean --unique
+  // while QueryOptions has --unique <attribute> — only the command-specific one wins).
+  const cmdFlagNames = new Set(leaf.flags.map(f => f.fieldName));
   const allFlags = leaf.usesQueryOptions
-    ? [...ir.queryOptionFlags, ...leaf.flags]
+    ? [...ir.queryOptionFlags.filter(qf => !cmdFlagNames.has(qf.fieldName)), ...leaf.flags]
     : leaf.flags;
 
   // Build the chained call
@@ -712,11 +727,14 @@ function emitLeafCommand(
   chainLines.push(`        kind: '${leaf.kind}',`);
   chainLines.push(`        globalOptions: g,`);
 
-  // queryOptions (nested object for query flags)
+  // queryOptions (nested object for query flags, excluding any that collide
+  // with command-specific flags)
   if (leaf.usesQueryOptions) {
     chainLines.push(`        queryOptions: {`);
     for (const qf of ir.queryOptionFlags) {
-      chainLines.push(`          ${qf.fieldName}: opts['${qf.fieldName}'],`);
+      if (!cmdFlagNames.has(qf.fieldName)) {
+        chainLines.push(`          ${qf.fieldName}: opts['${qf.fieldName}'],`);
+      }
     }
     chainLines.push(`        },`);
   }

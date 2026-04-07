@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as config from '../config';
 import type {Config} from '../config';
 import * as crdb from '../crdb';
-import type {SimilarityCommand, FlamegraphCommand, QueryOptions,
+import type {SimilarityCommand, FlamegraphCommand,
   CommandHandler,
   CommandHandlerMap,
 } from '../cli/generated/types';
@@ -186,25 +186,6 @@ async function coronerSimilarity(cmd: SimilarityCommand, config: Config): Promis
   }
 }
 
-function flamegraphQueryOptions(cmd: FlamegraphCommand): QueryOptions {
-  return {
-    filter: cmd.filter,
-    limit: cmd.limit,
-    offset: cmd.offset,
-    select: cmd.select,
-    selectWildcard: cmd.selectWildcard,
-    age: cmd.age,
-    time: cmd.time,
-    sort: cmd.sort,
-    quantizeUint: cmd.quantizeUint,
-    rawQuery: cmd.rawQuery,
-    table: cmd.table,
-    timestampAttribute: cmd.timestampAttribute,
-    template: cmd.template,
-    factor: cmd.factor,
-    fingerprint: cmd.fingerprint,
-  };
-}
 
 function coronerFlamegraph(cmd: FlamegraphCommand, config: Config): any {
   abortIfNotLoggedIn(config);
@@ -212,7 +193,7 @@ function coronerFlamegraph(cmd: FlamegraphCommand, config: Config): any {
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const p = parseProjectArg(cmd.project, config);
 
-  const queryOpts = flamegraphQueryOptions(cmd);
+  const queryOpts = cmd.queryOptions;
   const aq = buildQuery(queryOpts);
   const query = aq.query;
 
