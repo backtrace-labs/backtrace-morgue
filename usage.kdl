@@ -175,13 +175,13 @@ cmd "clean" help="Apply sampling retroactively." {
     flag "--reverse" help="Reverse sort order" {
         arg "<attribute>"
     }
-    flag "--template" help="TODO: (ex: select)" { // TODO
+    flag "--template" help="Use a server-side named query template (e.g. select)" {
         arg "<attribute>"
     }
     flag "--factor" help="Group by attribute" {
         arg "<attribute>"
     }
-    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+    flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
         arg "<value>"
     }
 
@@ -395,13 +395,13 @@ cmd "set" help="Modify object attributes" {
     flag "--reverse" help="Reverse sort order" {
         arg "<attribute>"
     }
-    flag "--template" help="TODO: (ex: select)" { // TODO
+    flag "--template" help="Use a server-side named query template (e.g. select)" {
         arg "<attribute>"
     }
     flag "--factor" help="Group by attribute" {
         arg "<attribute>"
     }
-    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+    flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
         arg "<value>"
     }
 
@@ -572,18 +572,18 @@ cmd "list" help="Query and list objects with filters and aggregations" {
     flag "--reverse" help="Reverse sort order" {
         arg "<attribute>"
     }
-    flag "--template" help="TODO: (ex: select)" { // TODO
+    flag "--template" help="Use a server-side named query template (e.g. select)" {
         arg "<attribute>"
     }
     flag "--factor" help="Group by attribute" {
         arg "<attribute>"
     }
-    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+    flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
         arg "<value>"
     }
 
     // Output options
-    flag "--csv" help="Output to CSV file" {  // TODO: does this actually take a file path?
+    flag "--csv" help="Output results to a CSV file" {
         arg "<file>"
     }
     flag "--json" help="Output JSON format"
@@ -870,7 +870,7 @@ cmd "delete" help="Delete objects by query or ID" {
         arg "<id>"
     }
 
-    // TODO: argvQuery (argvQueryFilterOnly)
+    // Query filter flags
     // Filters
     flag "--filter" help="Filter expression: attribute,operation,value" {
         arg "<filter>"
@@ -966,13 +966,13 @@ cmd "delete" help="Delete objects by query or ID" {
     flag "--reverse" help="Reverse sort order" {
         arg "<attribute>"
     }
-    flag "--template" help="TODO: (ex: select)" { // TODO
+    flag "--template" help="Use a server-side named query template (e.g. select)" {
         arg "<attribute>"
     }
     flag "--factor" help="Group by attribute" {
         arg "<attribute>"
     }
-    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+    flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
         arg "<value>"
     }
 
@@ -1080,13 +1080,13 @@ cmd "flamegraph" help="Generate callstack flamegraph" {
     flag "--timestamp-attribute" help="Attribute to use as timestamp" hide=#true {
         arg "<query>"
     }
-    flag "--template" help="TODO: (ex: select)" { // TODO
+    flag "--template" help="Use a server-side named query template (e.g. select)" {
         arg "<attribute>"
     }
     flag "--factor" help="Group by attribute" {
         arg "<attribute>"
     }
-    flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+    flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
         arg "<value>"
     }
 
@@ -1423,7 +1423,7 @@ cmd "symbold" subcommand_required=#true help="Manage Backtrace symbold service" 
         }
 
         cmd "remove" help="Remove from skiplist" {
-            arg "[id]" help="Item ID" required=#false // TODO: would be nice to specify "required unless all|filter cmd given"
+            arg "[id]" help="Item ID" required=#false
 
             cmd "all" help="Remove all items" {
                 arg "<server_id>" help="Symbol server ID"
@@ -1578,13 +1578,13 @@ cmd "report" subcommand_required=#true help="Manage scheduled reports" {
         flag "--reverse" help="Reverse sort order" {
             arg "<attribute>"
         }
-        flag "--template" help="TODO: (ex: select)" { // TODO
+        flag "--template" help="Use a server-side named query template (e.g. select)" {
             arg "<attribute>"
         }
         flag "--factor" help="Group by attribute" {
             arg "<attribute>"
         }
-        flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+        flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
             arg "<value>"
         }
     }
@@ -1631,7 +1631,7 @@ cmd "retention" subcommand_required=#true help="Configure retention policy" {
     }
 
     cmd "set" help="Set retention policy" {
-        arg "<name>" help="Namespace name" // TODO: might be optional
+        arg "<name>" help="Namespace name"
 
         flag "--dryrun" help="Show command without executing"
         flag "--type" help="Which scope to set the retention policy on" {
@@ -1756,7 +1756,6 @@ cmd "symbol" help="Manage debug symbols" {
     }
 }
 
-// TODO: double check this
 cmd "scrubber" subcommand_required=#true help="Manage data scrubbers" {
     arg "<project>" help="Project name"
 
@@ -2306,13 +2305,13 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--reverse" help="Reverse sort order" {
                 arg "<attribute>"
             }
-            flag "--template" help="TODO: (ex: select)" { // TODO
+            flag "--template" help="Use a server-side named query template (e.g. select)" {
                 arg "<attribute>"
             }
             flag "--factor" help="Group by attribute" {
                 arg "<attribute>"
             }
-            flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+            flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
                 arg "<value>"
             }
         }
@@ -2453,13 +2452,13 @@ cmd "alerts" subcommand_required=#true help="Manage alerts" {
             flag "--reverse" help="Reverse sort order" {
                 arg "<attribute>"
             }
-            flag "--template" help="TODO: (ex: select)" { // TODO
+            flag "--template" help="Use a server-side named query template (e.g. select)" {
                 arg "<attribute>"
             }
             flag "--factor" help="Group by attribute" {
                 arg "<attribute>"
             }
-            flag "--fingerprint" help="Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint" { // TODO: better help/example
+            flag "--fingerprint" help="Filter by fingerprint: exact match (64 chars) or prefix regex" {
                 arg "<value>"
             }
         }
