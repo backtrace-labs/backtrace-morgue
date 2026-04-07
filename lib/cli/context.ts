@@ -45,38 +45,6 @@ export function abortIfNotLoggedIn(cfg?: config.Config): void {
   errx('Must login first.');
 }
 
-/**
- * Returns the universe/project pair to use for coroner commands.
- */
-export function coronerParams(argv: any, cfg: any): any {
-  const p: any = {};
-
-  if (Array.isArray(argv._) === true && argv._.length > 1) {
-    let split;
-
-    split = argv._[1].split('/');
-    if (split.length === 1) {
-      let first;
-
-      /* Try to automatically derive a path from the one argument. */
-      for (first in cfg.config.universes) break;
-      p.universe = first;
-      p.project = argv._[1];
-    } else {
-      p.universe = split[0];
-      p.project = split[1];
-    }
-  }
-  if (argv.token) {
-    p.token = argv.token;
-  } else if (argv['api-token']) {
-    /* argv.token is used for other things as well. */
-    p.token = argv['api-token'];
-  }
-
-  return p;
-}
-
 export function coronerClient(
   cfg: any,
   insecure: boolean,
@@ -91,45 +59,6 @@ export function coronerClient(
     timeout: timeout,
     config: cfg.config,
   });
-}
-
-export function coronerClientArgv(cfg: config.Config, argv: any): CoronerClient {
-  if (argv.token && argv.endpoint) {
-    cfg.config.token = argv.token;
-    cfg.endpoint = argv.endpoint;
-  }
-  return coronerClient(
-    cfg,
-    !!argv.k,
-    !!argv.debug,
-    cfg.endpoint,
-    argv.timeout,
-  );
-}
-
-export function coronerClientArgvSubmit(cfg: config.Config, argv: any): CoronerClient {
-  return coronerClient(
-    cfg,
-    !!argv.k,
-    argv.debug,
-    cfg.submissionEndpoint,
-    argv.timeout,
-  );
-}
-
-export function coronerBpgSetup(coroner: any, argv: any): BPG.BPG {
-  const coronerd = {
-    url: coroner.endpoint,
-    session: {token: '000000000'},
-  };
-  const opts: any = {};
-
-  if (coroner.config && coroner.config.token)
-    coronerd.session.token = coroner.config.token;
-
-  if (argv.debug) opts.debug = true;
-
-  return new BPG.BPG(coronerd, opts);
 }
 
 function makeConfigDir(callback: any): void {
@@ -205,17 +134,21 @@ export function tenantURL(cfg: config.Config, tn: any): string {
   return cfg.endpoint.replace(pattern, replacement);
 }
 
-export function projectIdFromFlags(cfg: any, model: any, argv: any): number {
-  let universe = argv.universe;
+export function projectIdFromFlags(
+  cfg: config.Config,
+  model: any,
+  flags: {universe?: string; project?: string},
+): number {
+  let universe = flags.universe;
   if (!universe) {
-    universe = Object.keys(cfg.config.universes)[0];
+    universe = getDefaultUniverse(cfg);
   }
 
   if (!universe) {
     errx('--universe is required');
   }
 
-  const project = argv.project;
+  const project = flags.project;
   if (!project) {
     errx('--project is required');
   }
@@ -300,7 +233,6 @@ export function coronerClientFromGlobal(
 
 /**
  * Create a submission-endpoint CoronerClient from typed GlobalOptions.
- * Replaces coronerClientArgvSubmit for migrated commands.
  */
 export function coronerClientSubmitFromGlobal(
   cfg: config.Config,

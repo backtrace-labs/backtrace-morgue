@@ -1,10 +1,8 @@
 /*
- * validation and conversion helpers for CLI args.
+ * Validation and conversion helpers for CLI option values.
  *
- * The convention is that option is the human-friendly option name (which is
- * hard to determine programatically) and value the value, i.e.:
- *
- * validateZeroOrOne("--alert-name", argv['alert-name'])
+ * The convention is that option is the human-friendly option name and value
+ * the value, e.g.: validateZeroOrOne("--alert-name", cmd.alertName)
  */
 import {err, errx} from './errors';
 

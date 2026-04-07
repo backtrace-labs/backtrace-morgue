@@ -1,9 +1,8 @@
 /*
- * BPG request helpers, standard callbacks, and the subcmdProcess router.
+ * BPG request helpers and standard callbacks.
  */
 
 import {err, errx, success_color} from './errors';
-import {coronerClientArgv, abortIfNotLoggedIn} from './context';
 
 /* Standardized success/failure callbacks. */
 export function std_success_cb(r: any): any {
@@ -116,29 +115,3 @@ export function bpgObjectFind(objects, type, vals, fields?) {
   });
 }
 
-export function subcmdProcess(argv, config, opts) {
-  let subcmd;
-  let fn = null;
-
-  abortIfNotLoggedIn(config);
-  argv._.shift();
-  if (argv._.length === 0) {
-    return opts.usageFn('No request specified.');
-  }
-
-  subcmd = argv._[0];
-  if (subcmd === '--help' || subcmd == 'help') return opts.usageFn();
-
-  opts.state = {
-    coroner: coronerClientArgv(config, argv),
-    subcmd: subcmd,
-  };
-  if (opts.setupFn) opts.setupFn(config, argv, opts, subcmd);
-
-  fn = opts.subcmds[subcmd];
-  if (fn) {
-    return fn(argv, config, opts);
-  }
-
-  opts.usageFn("Invalid subcommand '" + subcmd + "'.");
-}
