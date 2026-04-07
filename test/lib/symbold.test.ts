@@ -386,13 +386,14 @@ describe('SymboldClient', () => {
       );
     });
 
-    it('should show usage when no project provided', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    it('should exit with error when no project provided', () => {
+      const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      client.showSymbolServerUsage = jest.fn();
       client.status({kind: 'symbold.status', globalOptions: {}, project: ''} as any);
 
-      expect(client.showSymbolServerUsage).toHaveBeenCalled();
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      exitSpy.mockRestore();
       consoleSpy.mockRestore();
     });
   });
