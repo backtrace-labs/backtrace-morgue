@@ -14,7 +14,7 @@ import {
   parseProjectArg,
 } from '../cli/context';
 import {std_success_cb, std_failure_cb} from '../cli/bpg-helpers';
-import {usage, oidToString, oidFromString, objToPath, nsToUs, printSamples} from '../cli/util';
+import {oidToString, oidFromString, objToPath, nsToUs, printSamples} from '../cli/util';
 import {fieldFormat} from '../cli/print';
 import {eHasCode} from '../util';
 import type {

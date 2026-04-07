@@ -11,7 +11,6 @@ import type {SimilarityCommand, FlamegraphCommand, QueryOptions,
 import {buildQuery} from '../cli/query';
 import {errx} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, parseProjectArg, requireConfigFile} from '../cli/context';
-import {usage} from '../cli/util';
 import {flamegraphScript} from '../cli/constants';
 
 const similarityParams = ['threshold', 'intersection', 'distance', 'truncate'] as const;

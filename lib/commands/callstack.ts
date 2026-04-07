@@ -14,25 +14,9 @@ import type {
   CtsCommand,
   CommandHandler,
 } from '../cli/generated/types';
-import {errx, err, success_color} from '../cli/errors';
+import {errx, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerBpgFromGlobal, parseProjectArg, getDefaultUniverse} from '../cli/context';
 import {std_failure_cb} from '../cli/bpg-helpers';
-
-function callstackUsage(str?: any): never {
-  if (str) err(str + '\n');
-  console.error('Usage: morgue callstack <subcommand>:');
-  console.error(
-    '   morgue callstack evaluate <project> [--name=fmt] <object>|<filename>',
-  );
-  console.error('     Evaluate a specific object/file.');
-  console.error('');
-  console.error(
-    '   morgue callstack get [project] [--language=language] <--name=name>',
-  );
-  console.error('     Retrieve the ruleset for a specific name.');
-  console.error('');
-  process.exit(1);
-}
 
 function coronerCallstackParams(cmd: CallstackEvaluateCommand, p, action) {
   const csparams = Object.assign(
@@ -93,27 +77,6 @@ async function coronerCallstackEval(cmd: CallstackEvaluateCommand, config: Confi
     .catch(std_failure_cb);
 }
 
-function deduplicationUsage(str?: any): never {
-  if (str) err(str + '\n');
-  console.error('Usage: morgue deduplication <subcommand>:');
-  console.error(
-    '   morgue deduplication add <universe>/<project> <--name=name> <--rules=rules_file> <--priority=priority>',
-  );
-  console.error('     Add deduplication rules to the project.');
-  console.error('');
-  console.error(
-    '   morgue deduplication delete <universe>/<project> <--name=name>',
-  );
-  console.error('     Remove the deduplication rule from the project.');
-  console.error('');
-  console.error(
-    '   morgue deduplication modify <universe>/<project> <--name=name> [--rules=<rules_file>] [--priority=<priority>]',
-  );
-  console.error('     Modify deduplication rules from the project.');
-  console.error('');
-  process.exit(1);
-}
-
 function coronerDeduplicationAdd(cmd: DeduplicationAddCommand, coroner, p, bpg, rules): any {
   if (fs.existsSync(cmd.rules)) {
     const data = JSON.parse(fs.readFileSync(cmd.rules, 'utf8'));
@@ -127,7 +90,7 @@ function coronerDeduplicationAdd(cmd: DeduplicationAddCommand, coroner, p, bpg, 
     bpg.commit();
     console.log(success_color(`Rule ${cmd.name} created`));
   } else {
-    return deduplicationUsage(`Unknown file ${cmd.rules}`);
+    return errx('Rules file not found: ' + cmd.rules);
   }
 }
 
@@ -252,7 +215,7 @@ function setupDeduplication(cmd: DeduplicationAddCommand | DeduplicationDeleteCo
   }
 
   if (pid === null) {
-    return deduplicationUsage(`Unknown project ${p.project}`);
+    return errx('Unknown project: ' + p.project);
   }
 
   let owner = coroner.config.user.uid;

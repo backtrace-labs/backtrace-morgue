@@ -126,7 +126,6 @@ function tokenDelete(cmd: TokenDeleteCommand, config: Config): any {
   const model = bpg.get();
 
   const id = cmd.token;
-  if (!id) errx('Usage: morgue token delete <id>');
 
   var token;
   for (var i = 0; i < model.api_token.length; i++) {

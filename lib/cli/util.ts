@@ -5,24 +5,7 @@
 import promptLib from 'prompt';
 import {sprintf} from 'extsprintf';
 import printf from 'printf';
-import {chalk, err} from './errors';
-
-export function usage(str?: string): never {
-  if (typeof str === 'string') err(str + '\n');
-  console.error('Usage: morgue <command> [options]');
-  console.error('');
-  console.error('Options:');
-  console.error('  -v, --version       Print version number and exit');
-  console.error('  --debug             Enable verbose debug printing');
-  console.error('  -k                  Disable SSL verification with CA');
-  console.error(
-    '  --timeout ms        Set the timeout on API requests in milliseconds',
-  );
-  console.error('');
-  console.error('Documentation is available at:');
-  console.error('https://github.com/backtrace-labs/backtrace-morgue#readme');
-  process.exit(1);
-}
+import {chalk} from './errors';
 
 export function nsToUs(tm: any): number {
   return Math.round(tm[0] * 1000000 + tm[1] / 1000);

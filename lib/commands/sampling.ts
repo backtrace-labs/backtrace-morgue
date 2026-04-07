@@ -267,7 +267,7 @@ function samplingConfigFromCmd(cmd: SamplingConfigureCommand): any {
   for (const unparsed of backoffList) {
     const split = unparsed.split(',');
     if (split.length !== 2) {
-      errx('Usage of --backoff is --backoff count,interval');
+      errx('--backoff must be of form count,interval');
     }
     const [countStr, intervalStr] = split;
     const interval = timeCli.parseTimeInt(intervalStr);

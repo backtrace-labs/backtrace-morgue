@@ -22,16 +22,6 @@ import {sequence, prompt_for} from '../cli/util';
 import {BACKTRACE_ROLES} from '../cli/constants';
 import * as BPG from '../bpg';
 
-function userUsage(error_str?: any): never {
-  if (typeof error_str === 'string') err(error_str + '\n');
-  console.log('Usage: morgue user reset [options]');
-  console.log('Valid options:');
-  console.log('  --password=P   Specify password to use for reset.');
-  console.log('  --universe=U   Specify universe scope.');
-  console.log('  --user=USER    Specify user to reset password for');
-  process.exit(1);
-}
-
 function userReset(cmd: UserResetCommand, config: Config): void {
   abortIfNotLoggedIn(config);
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
@@ -65,7 +55,7 @@ function userReset(cmd: UserResetCommand, config: Config): void {
     }
   }
   if (!ctx.univ_obj) {
-    userUsage('Must specify known universe.');
+    errx('Must specify known universe.');
   }
 
   if (!ctx.user) {
@@ -276,9 +266,6 @@ function inviteDelete(cmd: InviteDeleteCommand, config: Config): any {
   const universe = cmd.universe;
   const email = cmd.email;
 
-  if (!universe || !email)
-    errx('Usage: morgue invite delete --universe <universe> <email>');
-
   const u = model.universe.find(u => u.get('name') === universe);
   if (!u) errx('Universe not found');
 
@@ -321,15 +308,6 @@ function inviteCreate(cmd: InviteCreateCommand, config: Config): any {
   const role = cmd.role ? cmd.role : 'member';
   const method = cmd.method ? cmd.method : 'password';
   const tenant = cmd.tenant ? cmd.tenant : universe;
-
-  if (!tenant || !username || !email || !metadata || !role || !method)
-    errx(
-      'Usage: morgue invite create <username> <email>\n' +
-        '  --role=<"guest" | "member" | "admin">\n' +
-        '  --metadata=<metadata>\n' +
-        '  --tenant=<tenant name>\n' +
-        '  --method=<password | saml | pam>',
-    );
 
   /* First, validate that a universe with the specified name exists. */
   let un;

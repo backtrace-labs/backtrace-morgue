@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type {SymboldStatusCommand} from './cli/generated/types';
+import {errx} from './cli/errors';
 
 /**
  * Symbold morgue client
@@ -20,13 +21,9 @@ export class SymboldClient {
 
   status(cmd: SymboldStatusCommand) {
     const universeProject = cmd.project;
-    if (!universeProject) {
-      this.showSymbolServerUsage();
-      return;
-    }
     const [universe, project] = universeProject.split('/');
     if (!universe) {
-      return this.showSymbolServerUsage('Missing universe name');
+      errx('Missing universe name');
     }
     const url = `/status/universe/${universe}${
       project ? `/project/${project}` : ''
@@ -175,28 +172,4 @@ export class SymboldClient {
     };
   }
 
-  showStatusHelp(err?: any) {
-    if (err) {
-      console.warn(`${err} \n`);
-    }
-    console.warn(`
-      Usage: morgue symbold status <[universe]/project>
-      returns symbold status for <[universe]/project> objects
-      Example: \n
-      $ morgue symbold status backtrace
-  `);
-  }
-
-  showSymbolServerUsage(err?: any) {
-    if (err) {
-      console.warn(`${err}`);
-    }
-    console.warn(`
-      Usage: morgue symbold <subcommand>:
-          morgue symbold <symbolserver | queue | whitelist | blacklist | skiplist | status> <action>
-
-      If you need detailed information please use help command. For example:
-        $ morgue symbold symbolserver help
-  `);
-  }
 }

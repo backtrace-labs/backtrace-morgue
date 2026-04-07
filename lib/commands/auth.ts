@@ -8,7 +8,6 @@ import type {LoginCommand, LogoutCommand, SetupCommand, GlobalOptions,
 } from '../cli/generated/types';
 import {errx, chalk, success_color} from '../cli/errors';
 import {abortIfNotLoggedIn, coronerClientFromGlobal, coronerClient, coronerBpgFromGlobal, saveConfig} from '../cli/context';
-import {usage} from '../cli/util';
 import * as BPG from '../bpg';
 
 const bold = chalk.bold;
@@ -216,10 +215,6 @@ function loginComplete(coroner, cmd, err, cb?) {
 function coronerLogin(cmd: LoginCommand, config: Config, cb?) {
   const endpoint = cmd.url;
 
-  if (!endpoint) {
-    return usage('Expected endpoint argument.');
-  }
-
   const opts = cmd.globalOptions;
   const coroner = coronerClient(
     config,
@@ -302,11 +297,11 @@ function coronerSetup(cmd: SetupCommand, config: Config): any {
   try {
     pu = url.parse(cmd.url);
   } catch (error) {
-    errx('Usage: morgue setup <url>');
+    errx('Invalid URL.');
   }
 
   if (pu.protocol !== 'http:' && pu.protocol !== 'https:') {
-    errx('Usage: morgue setup <url>');
+    errx('URL must use http or https protocol.');
   }
 
   coroner = coronerClient(config, true, !!opts.debug, cmd.url, opts.timeout ? Number(opts.timeout) : undefined);

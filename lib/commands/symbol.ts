@@ -11,7 +11,6 @@ import {
   coronerClientFromGlobal,
   parseProjectArg,
 } from '../cli/context';
-import {usage} from '../cli/util';
 
 const bold = chalk.bold;
 const yellow = chalk.yellow;
@@ -56,10 +55,6 @@ function handleSymbol(cmd: SymbolCommand, config: Config): any {
     query.action = 'archives';
   } else if (action === 'missing') {
     query.action = 'missing_symbols';
-  } else {
-    errx(
-      'Usage: morgue symbol <project> [archives | list | missing | summary]',
-    );
   }
 
   coroner.symfile(p.universe, p.project, query, (err, result) => {

@@ -39,7 +39,6 @@ function tenantCreate(cmd: TenantCreateCommand, config: Config): any {
   const bpg = coronerBpgFromGlobal(coroner, cmd.globalOptions);
 
   const name = cmd.name;
-  if (!name) errx('Usage: morgue tenant create <tenant name>');
 
   const universe = bpg.new('universe');
   universe.set('id', 0);
@@ -66,7 +65,6 @@ function tenantDelete(cmd: TenantDeleteCommand, config: Config): any {
   const model = bpg.get();
 
   const name = cmd.name;
-  if (!name) errx('Usage: morgue tenant delete <tenant name>');
 
   for (let i = 0; i < model.universe.length; i++) {
     if (model.universe[i].get('name') == name) {

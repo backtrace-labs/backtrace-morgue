@@ -10,6 +10,7 @@ import type {
   SymboldSkiplistRemoveAllCommand,
   SymboldSkiplistRemoveFilterCommand,
 } from '../cli/generated/types';
+import {errx} from '../cli/errors';
 
 type ItemType = 'whitelist' | 'blacklist' | 'skiplist';
 
@@ -34,19 +35,11 @@ export class SymboldSymbolItem {
       console.log({symbolServerId, symbolName});
     }
 
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
+    if (isNaN(Number(symbolServerId))) {
       if (this.symboldClient.debug) {
         console.log('symbol server id is NaN');
       }
-      return this.showSymbolItemUsage('Missing symbol server id');
-    }
-    if (!symbolName) {
-      if (this.symboldClient.debug) {
-        console.log('Symbol name is undefined');
-      }
-      return this.showSymbolItemUsage(
-        'Empty symbol name. Did you use --name parameter?',
-      );
+      errx('Symbol server ID must be a number');
     }
     const url = `/${this.type}/${symbolServerId}`;
 
@@ -60,11 +53,11 @@ export class SymboldSymbolItem {
       | SymboldSkiplistRemoveCommand,
   ) {
     const elementId = cmd.id;
-    if (!elementId || isNaN(Number(elementId))) {
+    if (isNaN(Number(elementId))) {
       if (this.symboldClient.debug) {
         console.log('symbol server id is NaN');
       }
-      return this.showSymbolItemUsage('Missing symbol item id');
+      errx('Element ID must be a number');
     }
     const url = `/${this.type}/${elementId}`;
     this.symboldClient.remove(url);
@@ -82,8 +75,8 @@ export class SymboldSymbolItem {
       console.log('Method parameters');
       console.log({symbolServerId, page, take});
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolItemUsage('Missing symbol server id');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
     const url = `/${this.type}/${symbolServerId}?page=${page}&take=${take}`;
     this.symboldClient.get(url);
@@ -98,11 +91,11 @@ export class SymboldSymbolItem {
       console.log('Filter parameters: ');
       console.log({symbolServerId, text, page, take});
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolItemUsage('Missing symbol server id');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
     if (!text) {
-      return this.showSymbolItemUsage("Search filter isn't defined'");
+      errx('Search filter is required');
     }
     const url = `/skiplist/${symbolServerId}/text/${text}?page=${page}&take=${take}`;
     if (this.symboldClient.debug) {
@@ -113,11 +106,11 @@ export class SymboldSymbolItem {
 
   removeAll(cmd: SymboldSkiplistRemoveAllCommand) {
     const symbolServerId = cmd.server_id;
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
+    if (isNaN(Number(symbolServerId))) {
       if (this.symboldClient.debug) {
         console.log('symbol server id is NaN');
       }
-      return this.showSymbolItemUsage('Missing symbol server id');
+      errx('Symbol server ID must be a number');
     }
     const url = `/skiplist/${symbolServerId}/all`;
     this.symboldClient.remove(url);
@@ -130,62 +123,14 @@ export class SymboldSymbolItem {
       console.log('Method parameters:');
       console.log({symbolServerId, text});
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolItemUsage('Missing symbol server id');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
     if (!text) {
-      return this.showSymbolItemUsage(
-        "Cannot remove symbols when filter isn't defined",
-      );
+      errx('Filter is required');
     }
     const url = `/skiplist/${symbolServerId}/text/${encodeURIComponent(text)}`;
     this.symboldClient.remove(url);
   }
 
-  showSymbolItemUsage(err?: any) {
-    if (err) {
-      console.warn(`
-      ${err} \n
-      `);
-    }
-
-    console.warn(`
-    Usage: morgue symbold ${this.type} <subcommand:
-
-    morgue symbold ${
-      this.type
-    } <list|get> [symbolServerId] <--page=...> <--take=...>
-        return symbol server with id <symbolServerId> ${this.type}
-
-    ${
-      this.type === 'skiplist'
-        ? `morgue symbold ${this.type} find [symbolServerId] [filter] <--page=...> <--take=...>
-        find all elements from skip list that match filter
-        `
-        : ''
-    }
-    morgue symbold ${this.type} <remove | delete> [symbolItemId]
-        remove element from ${this.type}
-    ${
-      this.type === 'skiplist'
-        ? `morgue symbold ${this.type} <remove | delete> all [symbolServerId]
-        delete all skip list entries
-        `
-        : ''
-    }
-    ${
-      this.type === 'skiplist'
-        ? `morgue symbold ${this.type} <remove | delete> filter [symbolServerId] [filter]
-        delete all elements from skip list that match filter
-        `
-        : ''
-    }
-    ${
-      this.type !== 'skiplist'
-        ? `morgue symbold ${this.type} <add | create> [symbolServerId] [--name=symbolName]
-        add element to symbol server ${this.type}
-        `
-        : ''
-    }`);
-  }
 }

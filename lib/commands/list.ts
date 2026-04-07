@@ -8,7 +8,7 @@ import {
   coronerClientFromGlobal,
   parseProjectArg,
 } from '../cli/context';
-import {usage, nsToUs, printSamples} from '../cli/util';
+import {nsToUs, printSamples} from '../cli/util';
 import {coronerPrint} from '../cli/print';
 import type {ListCommand,
   CommandHandler,
@@ -33,7 +33,7 @@ function handleList(cmd: ListCommand, config: Config): any {
 
   const csv = cmd.csv;
   if (csv && !cmd.queryOptions.select && !cmd.queryOptions.selectWildcard)
-    return usage('--csv requires select or select-wildcard parameters');
+    errx('--csv requires --select or --select-wildcard');
 
   const queryOpts = {...cmd.queryOptions};
   if (!queryOpts.table) {

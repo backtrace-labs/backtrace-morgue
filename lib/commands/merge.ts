@@ -9,7 +9,6 @@ import {
   coronerClientFromGlobal,
   parseProjectArg,
 } from '../cli/context';
-import {usage} from '../cli/util';
 import {eMsg} from '../util';
 import {WorkflowsClient} from '../workflows/client';
 
@@ -53,14 +52,8 @@ async function handleMerge(cmd: MergeCommand, config: Config): Promise<any> {
   abortIfNotLoggedIn(config);
 
   const {universe, project} = parseProjectArg(cmd.project, config);
-  if (!universe || !project) {
-    return usage('Missing project, universe arguments');
-  }
 
   const fingerprints = cmd.fingerprints;
-  if (!fingerprints || !fingerprints.length) {
-    return usage('At least one fingerprint must be specified');
-  }
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const isWorkflowsAvailable = await WorkflowsClient.isAvailable(coroner);
@@ -81,14 +74,8 @@ function handleUnmerge(cmd: UnmergeCommand, config: Config): any {
   abortIfNotLoggedIn(config);
 
   const {universe, project} = parseProjectArg(cmd.project, config);
-  if (!universe || !project) {
-    return usage('Missing project, universe arguments');
-  }
 
   const fingerprints = cmd.fingerprints;
-  if (!fingerprints || !fingerprints.length) {
-    return usage('At least one fingerprint must be specified');
-  }
 
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   return _coronerMerge(coroner, universe, project, fingerprints, 'unmerge');

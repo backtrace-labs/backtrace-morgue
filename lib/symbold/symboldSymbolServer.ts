@@ -9,6 +9,7 @@ import type {
   SymboldSymbolserverDisableCommand,
   SymboldSymbolserverEnableCommand,
 } from '../cli/generated/types';
+import {errx} from '../cli/errors';
 
 export class SymboldSymbolServer {
   symboldClient: any;
@@ -19,12 +20,9 @@ export class SymboldSymbolServer {
 
   listServers(cmd: SymboldSymbolserverListCommand) {
     const universeProject = cmd.project;
-    if (!universeProject) {
-      return this.showSymbolServerUsage('Missing universe name');
-    }
     const [universe, project] = universeProject.split('/');
     if (!universe) {
-      return this.showSymbolServerUsage('Missing universe name');
+      errx('Missing universe name');
     }
 
     const page = cmd.page ?? '0';
@@ -42,8 +40,8 @@ export class SymboldSymbolServer {
         `Trying to fetch symbol server detais. Symbol server id: ${symbolServerId}`,
       );
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolServerUsage('Missing symbolserverid');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
 
     const url = `/symbolserver/details/${symbolServerId}`;
@@ -58,8 +56,8 @@ export class SymboldSymbolServer {
       console.log('Trying to fetch symbol server logs. Parameters');
       console.log({symbolServerId, page, take});
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolServerUsage('Missing symbolserverid');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
 
     const url = `/logs/symbolserver/${symbolServerId}?page=${page}&take=${take}`;
@@ -75,11 +73,11 @@ export class SymboldSymbolServer {
       console.log('Trying to fetch symbol server logs. Parameters');
       console.log({symbolServerId, page, take, filter});
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolServerUsage('Missing symbolserverid');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
     if (!filter) {
-      return this.showSymbolServerUsage('Filter is not define!');
+      errx('Filter is required');
     }
     const url = `/logs/symbolserver/${symbolServerId}/text?page=${page}&take=${take}&text=${filter}`;
     this.symboldClient.get(url);
@@ -93,15 +91,9 @@ export class SymboldSymbolServer {
       console.log('Method parameters:');
       console.log({universeProject, symbolServerUrl, cmd});
     }
-    if (!universeProject) {
-      return this.showSymbolServerUsage('Missing universe name');
-    }
-    if (!symbolServerUrl) {
-      return this.showSymbolServerUsage('url parameter is required');
-    }
     const [universe, project] = universeProject.split('/');
     if (!universe) {
-      return this.showSymbolServerUsage('Missing universe name');
+      errx('Missing universe name');
     }
 
     const serverCredentials = this.buildServerCredentials(cmd);
@@ -137,11 +129,11 @@ export class SymboldSymbolServer {
       console.log('Method parameters');
       console.log({id, cmd});
     }
-    if (!id || isNaN(Number(id))) {
+    if (isNaN(Number(id))) {
       if (this.symboldClient.debug) {
         console.log('Id is NaN');
       }
-      return this.showSymbolServerUsage('id parameter is required');
+      errx('Symbol server ID must be a number');
     }
 
     const serverCredentials = this.buildServerCredentials(cmd);
@@ -175,8 +167,8 @@ export class SymboldSymbolServer {
     if (this.symboldClient.debug) {
       console.log(`Trying to delete symbol server with id ${symbolServerId}`);
     }
-    if (!symbolServerId || isNaN(Number(symbolServerId))) {
-      return this.showSymbolServerUsage('Missing symbolserverid');
+    if (isNaN(Number(symbolServerId))) {
+      errx('Symbol server ID must be a number');
     }
 
     const url = `/symbolserver/${symbolServerId}`;
@@ -196,11 +188,11 @@ export class SymboldSymbolServer {
       console.log('Method parameters');
       console.log({action, id});
     }
-    if (!id || isNaN(Number(id))) {
+    if (isNaN(Number(id))) {
       if (this.symboldClient.debug) {
         console.log('id is NaN');
       }
-      return this.showSymbolServerUsage('id parameter is required');
+      errx('Symbol server ID must be a number');
     }
 
     const url = `/symbolserver/${id}/${action}`;
@@ -246,54 +238,4 @@ export class SymboldSymbolServer {
     return undefined;
   }
 
-  showSymbolServerUsage(err?: any) {
-    if (err) {
-      console.warn(`${err} \n`);
-    }
-
-    console.warn(`
-    Usage: morgue symbold symbolserver:
-        morgue symbold symbolserver list <[universe]/project> [--page=...] [--take=...]
-            list universe/project symbol server
-
-        morgue symbold symbolserver details <symbolserverid>
-            return a detailed information about symbol server
-
-        morgue symbold symbolserver logs <symbolserverid> [--page=...] [--take=...]
-            return first [take] logs from page [page] for symbol server with id <symbolserverid>
-
-        morgue symbold symbolserver logs <symbolserverid> filter <filter> [--page=...] [--take=...]
-            return first [take] logs that match filter criteria from page [page] for symbol server with id <symbolserverid>
-
-        morgue symbold symbolserver <delete | remove> <symbolServerId>
-            remove symbol server with id <symbolServerId>
-
-        morgue symbold symbolserver <create | add> <[universe]/project> <symbolserverurl>
-            [--name=...] [--numberOfConcurrentDownload=...] [--retryLimit=...] [--retryTimeout=...] [--whitelist=...] [--force]
-            [--servercredentials.username=...] [--servercredentials.password=...]
-            [--aws.bucketname=...] [--aws.lowerfile=...] [--aws.lowerid=...] [aws.accesskey=...]  [--aws.usepdb=...]
-            [aws.secret=...] [--proxy.host=...] [--proxy.port=...] [--proxy.username=...]  [--proxy.password=...]
-
-            add new symbol server to symbold. Example:
-            $ morgue symbold symbolserver add universe/project https://symbolServerUrl.com --retryLimit=4 --retryTimeout 40
-
-
-        morgue symbold symbolserver update <symbolserverid>
-            [--name=...] [--numberOfConcurrentDownload=...] [--retryLimit=...] [--retryTimeout=...] [--whitelist=...]
-            [--servercredentials.username=...] [--servercredentials.password=...]
-            [--aws.bucketname=...] [--aws.lowerfile=...] [--aws.lowerid=...]  [--aws.usepdb=...]
-            [--proxy.host=...] [--proxy.port=...] [--proxy.username=...]  [--proxy.password=...]
-
-            update symbol server with [symboldserverid] id. Example
-            $ morgue symbold symbolserver update 1 --retryLimit=4 --retryTimeout 40
-
-        morgue symbold symbolserver disable <symbolserverid>
-            disable symbol server with id <symboldserverid> id
-
-        morgue symbold symbolserver enable <symbolserverid>
-            enable symbol server with <symbolserverid> id
-
-	Note: Pagination via --page/--take starts with page 0.
-    `);
-  }
 }

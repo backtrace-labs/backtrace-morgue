@@ -388,7 +388,7 @@ function limitDelete(cmd: LimitDeleteCommand, config: Config) {
       break;
     }
   }
-  if (!un) errx('Usage: morgue limit delete --universe=<universe>');
+  if (!un) errx('Universe not found.');
 
   let limit: any;
   for (var i = 0; i < model.limits.length; i++) {

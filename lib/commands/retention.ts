@@ -1,6 +1,6 @@
 import * as config from '../config';
 import type {Config} from '../config';
-import {err, errx, success_color, error_color} from '../cli/errors';
+import {err, errx, success_color} from '../cli/errors';
 import {
   abortIfNotLoggedIn,
   coronerClientFromGlobal,
@@ -18,70 +18,6 @@ import type {
   CommandHandler,
 } from '../cli/generated/types';
 
-function retentionUsage(str?: string): never {
-  if (str) err(str + '\n');
-  console.error(
-    'Usage: morgue retention <list|set|status|clear> <name> [options]',
-  );
-  console.error('');
-  console.error('Options for set/clear:');
-  console.error('  --type=T         Specify retention type (default: project)');
-  console.error('                   valid: instance, universe, project');
-  console.error('');
-  console.error('Options for status:');
-  console.error(
-    '  --type=T         Specify retention type (default depends on user access)',
-  );
-  console.error('                   valid: universe, project');
-  console.error('');
-  console.error('Options for set:');
-  console.error(
-    "  --dryrun         Show the command that will be issued, but don't send it.",
-  );
-  console.error(
-    '  --rules=N        Specify number of rules to set, which may be referenced',
-  );
-  console.error(
-    '                   by rule actions/criteria, zero-indexed.  If a rule is not',
-  );
-  console.error(
-    '                   referenced, rule #0 (the first) will be assumed.',
-  );
-  console.error('  --age=[R,]O,T[,TE]');
-  console.error(
-    '                   Specifies the matching object age for rule R.',
-  );
-  console.error(
-    '                   O is the match operation, which may be one of:',
-  );
-  console.error("                     'at-least', 'range'");
-  console.error(
-    '                   T is the time, and for range, TE is the end time.',
-  );
-  console.error(
-    '  --max-age=[R,]N  Specify time limit for objects, N, in seconds, for rule R.',
-  );
-  console.error('                   Same as --age=[R,]at-least,N.');
-  console.error(
-    '  --compress[=R]   Specify that the rule compresses matching object data.',
-  );
-  console.error(
-    '  --delete=[R,S]   Specify that rule R deletes subsets S (comma-separated).',
-  );
-  console.error(
-    '                   By default, if no subset is specified, all are deleted.',
-  );
-  console.error('                   Valid subsets:');
-  console.error("                   - physical: Object's physical data.");
-  console.error("                   - crdb: Object's attribute data.");
-  console.error('  --physical-only[=R]');
-  console.error('                   Same as --delete=[R,]physical.');
-  console.error(
-    '                   Specifies that the policy only delete physical copies;',
-  );
-  console.error('                   event data will be retained.');
-  process.exit(1);
-}
 
 function retentionTypeFor(parent_type: any): string {
   if (parent_type === 'universe') return 'universe_retention';
@@ -145,7 +81,7 @@ function checkRuleId(n_rules, field, str) {
   const ruleId = parseInt(ruleIdStr);
 
   if (isNaN(ruleId) === true || ruleId < 0 || ruleId >= n_rules) {
-    retentionUsage(
+    errx(
       `${field}: '${ruleIdStr}' is not >= 0 and < ${n_rules} rules`,
     );
   }
@@ -239,10 +175,10 @@ function retentionSet(bpg, objects, cmd: RetentionSetCommand, config: Config): a
         return c.type === 'object-age';
       })
     ) {
-      return retentionUsage('Age is a required parameter for every rule.');
+      return errx('Age is a required parameter for every rule.');
     }
     if (rule.actions.length === 0) {
-      return retentionUsage('Must specify at least one action for every rule.');
+      return errx('Must specify at least one action for every rule.');
     }
   }
 
@@ -257,7 +193,7 @@ function retentionSet(bpg, objects, cmd: RetentionSetCommand, config: Config): a
     const id_attr = rtn_ptype === 'project' ? 'pid' : 'id';
     rtn_parent = retentionParent(objects, rtn_ptype, rtn_pname);
     if (!rtn_parent) {
-      return retentionUsage('Unknown ' + rtn_ptype + " '" + rtn_pname + "'.");
+      return errx('Unknown ' + rtn_ptype + " '" + rtn_pname + "'.");
     }
     rtn_parent_id = rtn_parent.get(id_attr);
     obj = bpgObjectFind(objects, rtn_type, rtn_parent_id, rtn_ptype);
@@ -424,13 +360,11 @@ function retentionList(bpg, objects): any {
   }
 }
 
-function usageRetentionStatus(str?: string): any {
-  if (str) console.log(error_color(str));
-  console.log(
-    error_color('Usage: retention status [--type universe|project] [name]'),
-  );
-  console.log('Specifying a type requires a name without a slash.');
-  return;
+function usageRetentionStatus(str?: string): never {
+  if (str) {
+    errx(str);
+  }
+  errx('--type must be "universe" or "project", and a name must be provided.');
 }
 
 function epochsec_to_datestr(sec: any): string {
@@ -701,7 +635,7 @@ function retentionStatusDump(cmd: RetentionStatusCommand, obj, name, level, inde
  * retention status [--type universe|project] [name]
  * -> api/control?action=rpstatus, parse response JSON
  */
-function retentionStatus(cmd: RetentionStatusCommand, config: Config) {
+function retentionStatus(cmd: RetentionStatusCommand, config: Config): void {
   const coroner = coronerClientFromGlobal(config, cmd.globalOptions);
   const params: any = {action: 'rpstatus'};
   const name = cmd.name;

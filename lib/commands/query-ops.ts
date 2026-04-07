@@ -12,7 +12,6 @@ import {
   parseProjectArg,
 } from '../cli/context';
 import {std_success_cb, std_failure_cb} from '../cli/bpg-helpers';
-import {usage} from '../cli/util';
 import type {
   SetCommand,
   DeleteCommand,

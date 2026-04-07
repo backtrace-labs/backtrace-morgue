@@ -10,7 +10,7 @@ import {
   coronerClientFromGlobal,
   parseProjectArg,
 } from '../cli/context';
-import {usage, oidToString} from '../cli/util';
+import {oidToString} from '../cli/util';
 import {std_failure_cb} from '../cli/bpg-helpers';
 
 function unpackQueryObjects(objects: any, qresult: any): void {
