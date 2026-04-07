@@ -180,6 +180,39 @@ function extractGlobalOptions(cmd: Command): GlobalOptions {
   };
 }
 
+/**
+ * Bidirectional sync between global options and command-local options.
+ *
+ * Some flags (like --universe, --project, --token) exist both as global flags
+ * and as command-specific flags. Commander treats these as separate: a flag
+ * before the command name goes to the global, and after goes to the subcommand.
+ * But from the user's perspective there is no meaningful distinction — they
+ * expect `morgue --universe X nuke` and `morgue nuke --universe X` to behave
+ * identically.
+ *
+ * More critically, if code reads globalOptions.universe in one place and
+ * cmd.universe in another, a mismatch could lead to operating on the wrong
+ * universe — potentially disastrous for destructive commands like nuke/delete.
+ *
+ * This function ensures the two are always in sync:
+ *   1. Command-local value wins if present (user placed it closest to the command).
+ *   2. Otherwise, inherit the global value.
+ *   3. The winning value is written back to both globalOptions and opts,
+ *      so all downstream code sees the same value regardless of which it reads.
+ */
+function syncGlobalAndCommandFlags(g: GlobalOptions, opts: Record<string, any>): void {
+  if (opts['endpoint'] !== undefined) { g.endpoint = opts['endpoint']; }
+  else if (g.endpoint !== undefined) { opts['endpoint'] = g.endpoint; }
+  if (opts['token'] !== undefined) { g.token = opts['token']; }
+  else if (g.token !== undefined) { opts['token'] = g.token; }
+  if (opts['universe'] !== undefined) { g.universe = opts['universe']; }
+  else if (g.universe !== undefined) { opts['universe'] = g.universe; }
+  if (opts['project'] !== undefined) { g.project = opts['project']; }
+  else if (g.project !== undefined) { opts['project'] = g.project; }
+  if (opts['timeout'] !== undefined) { g.timeout = opts['timeout']; }
+  else if (g.timeout !== undefined) { opts['timeout'] = g.timeout; }
+}
+
 export function createProgram(): { program: Command; getResult: () => CliCommand | undefined } {
   let result: CliCommand | undefined;
   const program = new Command('morgue');
@@ -195,7 +228,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- login ---
   program.command('login')
-    .argument('<url>', 'url')
+    .argument('<url>', 'Server URL (e.g., http://localhost)')
     .action((url, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -217,7 +250,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- clean ---
   program.command('clean')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name or universe/project')
     .option('--filter <filter>', 'Filter expression: attribute,operation,value')
     .option('--limit <limit>', 'Number of rows to return')
     .option('--offset <offset>', 'Skip first N rows')
@@ -255,6 +288,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--verbose', 'Verbose output', false)
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'clean',
         globalOptions: g,
@@ -301,8 +336,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- describe ---
   program.command('describe')
-    .argument('<project>', 'project')
-    .argument('[substring]', 'substring')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('[substring]', 'Filter by substring')
     .option('-r', 'Show disabled attributes', false)
     .option('-u', 'Show only custom attributes', false)
     .option('-a', 'Show all attributes including unused', false)
@@ -311,6 +346,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--table <table>', 'Table to query against').hideHelp(!revealHidden))
     .action((project, substring, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'describe',
         globalOptions: g,
@@ -327,8 +364,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- get ---
   program.command('get')
-    .argument('<project>', 'project')
-    .argument('<object_id>', 'object_id')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('<object_id>', 'Object identifier')
     .option('-o, --output <output>', 'Output to file')
     .option('--resource <resource>', 'Fetch specific resource')
     .addOption(new Option('--outdir <outdir>', 'Output directory for multiple objects').hideHelp(!revealHidden))
@@ -336,6 +373,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--last <last>', 'Last object ID in range').hideHelp(!revealHidden))
     .action((project, object_id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'get',
         globalOptions: g,
@@ -351,8 +390,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- put ---
   program.command('put')
-    .argument('<project>', 'project')
-    .argument('<file>', 'file')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('<file>', 'File to upload')
     .addOption(new Option('--format <format>', 'File format').choices(["btt","minidump","json","plcrash","symbols","symbols-proguard","sourcemap"]))
     .addOption(new Option('--compression <compression>', 'Compression: gzip|deflate').choices(["gzip","deflate"]))
     .option('--kv <kv>', 'Key-value pairs: key1:value1,key2:value2')
@@ -369,6 +408,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--printids', 'Print object IDs after upload').default(false).hideHelp(!revealHidden))
     .action((project, file, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'put',
         globalOptions: g,
@@ -393,9 +434,9 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- set ---
   program.command('set')
-    .argument('<project>', 'project')
-    .argument('<query>', 'query')
-    .argument('<assignment>', 'assignment')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('<query>', 'Query or object ID')
+    .argument('<assignment>', 'key=value assignment')
     .option('--filter <filter>', 'Filter expression: attribute,operation,value')
     .option('--limit <limit>', 'Number of rows to return')
     .option('--offset <offset>', 'Skip first N rows')
@@ -429,6 +470,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--fingerprint <fingerprint>', 'Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint')
     .action((project, query, assignment, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'set',
         globalOptions: g,
@@ -474,13 +517,15 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- attachment ---
   const cmd_attachment = program.command('attachment');
   cmd_attachment.command('add')
-    .argument('<project>', 'project')
-    .argument('<oid>', 'oid')
-    .argument('<filename>', 'filename')
+    .argument('<project>', 'Project name')
+    .argument('<oid>', 'Object ID')
+    .argument('<filename>', 'File to attach')
     .option('--content-type <content-type>', 'Content-Type for attachment')
     .option('--attachment-name <attachment-name>', 'Attachment name')
     .action((project, oid, filename, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'attachment.add',
         globalOptions: g,
@@ -492,12 +537,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AttachmentAddCommand;
     });
   cmd_attachment.command('get')
-    .argument('<project>', 'project')
-    .argument('<oid>', 'oid')
+    .argument('<project>', 'Project name')
+    .argument('<oid>', 'Object ID')
     .option('--attachment-id <attachment-id>', 'Attachment ID')
     .option('--attachment-name <attachment-name>', 'Attachment name')
     .action((project, oid, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'attachment.get',
         globalOptions: g,
@@ -508,10 +555,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AttachmentGetCommand;
     });
   cmd_attachment.command('list')
-    .argument('<project>', 'project')
-    .argument('<oid>', 'oid')
+    .argument('<project>', 'Project name')
+    .argument('<oid>', 'Object ID')
     .action((project, oid, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'attachment.list',
         globalOptions: g,
@@ -520,12 +569,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AttachmentListCommand;
     });
   cmd_attachment.command('delete')
-    .argument('<project>', 'project')
-    .argument('<oid>', 'oid')
+    .argument('<project>', 'Project name')
+    .argument('<oid>', 'Object ID')
     .option('--attachment-id <attachment-id>', 'Attachment ID')
     .option('--attachment-name <attachment-name>', 'Attachment name')
     .action((project, oid, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'attachment.delete',
         globalOptions: g,
@@ -538,8 +589,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- list ---
   program.command('list')
-    .argument('<project>', 'project')
-    .argument('[substring]', 'substring')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('[substring]', 'Optional substring filter')
     .option('--filter <filter>', 'Filter expression: attribute,operation,value')
     .option('--limit <limit>', 'Number of rows to return')
     .option('--offset <offset>', 'Skip first N rows')
@@ -584,6 +635,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--samples <samples>', 'Number of benchmark samples').hideHelp(!revealHidden))
     .action((project, substring, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'list',
         globalOptions: g,
@@ -638,8 +691,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- delete ---
   program.command('delete')
-    .argument('<project>', 'project')
-    .argument('[target...]', 'target')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('[target...]', 'Query or object IDs')
     .option('--filter <filter>', 'Filter expression: attribute,operation,value')
     .option('--limit <limit>', 'Number of rows to return')
     .option('--offset <offset>', 'Skip first N rows')
@@ -678,6 +731,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--chunklen <chunklen>', 'Batch size for deletions').hideHelp(!revealHidden))
     .action((project, target, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'delete',
         globalOptions: g,
@@ -727,7 +782,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- project ---
   const cmd_project = program.command('project');
   cmd_project.command('create')
-    .argument('<name>', 'name')
+    .argument('<name>', 'Project name')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -750,7 +805,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- flamegraph ---
   program.command('flamegraph')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name or universe/project')
     .option('-o, --output <output>', 'Output SVG file')
     .option('--unique', 'Sample only unique crashes', false)
     .option('--reverse', 'Sample from leaf functions', false)
@@ -771,6 +826,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--fingerprint <fingerprint>', 'Filter by an exact fingerprint, or a regex anchored to the beginning of the fingerprint')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'flamegraph',
         globalOptions: g,
@@ -799,9 +856,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- symbold ---
   const cmd_symbold = program.command('symbold');
   cmd_symbold.command('status')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'symbold.status',
         globalOptions: g,
@@ -810,11 +869,13 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_symbold_symbolserver = cmd_symbold.command('symbolserver');
   cmd_symbold_symbolserver.command('list')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .option('--page <page>', 'Page number')
     .option('--take <take>', 'Items per page')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'symbold.symbolserver.list',
         globalOptions: g,
@@ -824,7 +885,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverListCommand;
     });
   cmd_symbold_symbolserver.command('details')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Symbol server ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -835,7 +896,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_symbold_symbolserver_logs = cmd_symbold_symbolserver.command('logs');
   cmd_symbold_symbolserver_logs
-    .argument('<id>', 'id')
+    .argument('<id>', 'Symbol server ID')
     .option('--take <take>', 'Number of logs')
     .option('--page <page>', 'Page number')
     .action((id, opts, cmd) => {
@@ -849,8 +910,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverLogsCommand;
     });
   cmd_symbold_symbolserver.command('add')
-    .argument('<project>', 'project')
-    .argument('<url>', 'url')
+    .argument('<project>', 'Project name')
+    .argument('<url>', 'Symbol server URL')
     .option('--name <name>', 'Server name')
     .option('--concurrentdownload <concurrentdownload>', 'Max concurrent downloads')
     .option('--retrylimit <retrylimit>', 'Retry limit')
@@ -873,6 +934,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--retrytimeout <retrytimeout>', 'Download retry timeout')
     .action((project, url, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'symbold.symbolserver.add',
         globalOptions: g,
@@ -881,7 +944,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
         name: opts['name'],
         concurrentdownload: opts['concurrentdownload'],
         retrylimit: opts['retrylimit'],
-        timeout: opts['timeout'],
+        timeout: g.timeout,
         whitelist: opts['whitelist'],
         retain: opts['retain'],
         servercredentialsUsername: opts['servercredentialsUsername'],
@@ -901,7 +964,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverAddCommand;
     });
   cmd_symbold_symbolserver.command('update')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Symbol server ID')
     .option('--name <name>', 'Server name')
     .option('--symbolServerUrl <symbolServerUrl>', 'Symbol server URL')
     .option('--concurrentdownload <concurrentdownload>', 'Max concurrent downloads')
@@ -924,6 +987,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--proxy.password <proxy.password>', 'Proxy password')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'symbold.symbolserver.update',
         globalOptions: g,
@@ -932,7 +996,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
         symbolServerUrl: opts['symbolServerUrl'],
         concurrentdownload: opts['concurrentdownload'],
         retrylimit: opts['retrylimit'],
-        timeout: opts['timeout'],
+        timeout: g.timeout,
         retrytimeout: opts['retrytimeout'],
         whitelist: opts['whitelist'],
         retain: opts['retain'],
@@ -951,7 +1015,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverUpdateCommand;
     });
   cmd_symbold_symbolserver.command('delete')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Symbol server ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -961,7 +1025,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverDeleteCommand;
     });
   cmd_symbold_symbolserver.command('disable')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Symbol server ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -971,7 +1035,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverDisableCommand;
     });
   cmd_symbold_symbolserver.command('enable')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Symbol server ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -982,7 +1046,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_symbold_whitelist = cmd_symbold.command('whitelist');
   cmd_symbold_whitelist.command('add')
-    .argument('<server_id>', 'server_id')
+    .argument('<server_id>', 'Symbol server ID')
     .option('--name <name>', 'Item name')
     .action((server_id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -994,7 +1058,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldWhitelistAddCommand;
     });
   cmd_symbold_whitelist.command('remove')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Item ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1004,7 +1068,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldWhitelistRemoveCommand;
     });
   cmd_symbold_whitelist.command('list')
-    .argument('<server_id>', 'server_id')
+    .argument('<server_id>', 'Symbol server ID')
     .option('--page <page>', 'Page number')
     .option('--take <take>', 'Items per page')
     .action((server_id, opts, cmd) => {
@@ -1019,7 +1083,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_symbold_blacklist = cmd_symbold.command('blacklist');
   cmd_symbold_blacklist.command('add')
-    .argument('<server_id>', 'server_id')
+    .argument('<server_id>', 'Symbol server ID')
     .option('--name <name>', 'Item name')
     .action((server_id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -1031,7 +1095,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldBlacklistAddCommand;
     });
   cmd_symbold_blacklist.command('remove')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Item ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1041,7 +1105,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldBlacklistRemoveCommand;
     });
   cmd_symbold_blacklist.command('list')
-    .argument('<server_id>', 'server_id')
+    .argument('<server_id>', 'Symbol server ID')
     .option('--page <page>', 'Page number')
     .option('--take <take>', 'Items per page')
     .action((server_id, opts, cmd) => {
@@ -1056,8 +1120,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_symbold_skiplist = cmd_symbold.command('skiplist');
   cmd_symbold_skiplist.command('find')
-    .argument('<server_id>', 'server_id')
-    .argument('<filter>', 'filter')
+    .argument('<server_id>', 'Symbol server ID')
+    .argument('<filter>', 'Filter string')
     .option('--page <page>', 'Page number')
     .option('--take <take>', 'Items per page')
     .action((server_id, filter, opts, cmd) => {
@@ -1073,7 +1137,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_symbold_skiplist_remove = cmd_symbold_skiplist.command('remove');
   cmd_symbold_skiplist_remove
-    .argument('[id]', 'id')
+    .argument('[id]', 'Item ID')
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1092,11 +1156,13 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldQueueListCommand;
     });
   cmd_symbold_queue.command('add')
-    .argument('<project>', 'project')
-    .argument('<symbol>', 'symbol')
-    .argument('<oid>', 'oid')
+    .argument('<project>', 'Universe/project')
+    .argument('<symbol>', 'Missing symbol')
+    .argument('<oid>', 'Object ID')
     .action((project, symbol, oid, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'symbold.queue.add',
         globalOptions: g,
@@ -1122,8 +1188,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldQueueSymbolsCommand;
     });
   cmd_symbold_symbolserver_logs.command('filter')
-    .argument('<id>', 'id')
-    .argument('<filter>', 'filter')
+    .argument('<id>', 'Symbol server ID')
+    .argument('<filter>', 'Filter string')
     .option('--take <take>', 'Number of logs')
     .option('--page <page>', 'Page number')
     .action((id, filter, opts, cmd) => {
@@ -1138,8 +1204,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSymbolserverLogsFilterCommand;
     });
   cmd_symbold_skiplist_remove.command('all')
-    .argument('[id]', 'id')
-    .argument('<server_id>', 'server_id')
+    .argument('[id]', 'Item ID')
+    .argument('<server_id>', 'Symbol server ID')
     .action((id, server_id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1150,9 +1216,9 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SymboldSkiplistRemoveAllCommand;
     });
   cmd_symbold_skiplist_remove.command('filter')
-    .argument('[id]', 'id')
-    .argument('<server_id>', 'server_id')
-    .argument('<filter>', 'filter')
+    .argument('[id]', 'Item ID')
+    .argument('<server_id>', 'Symbol server ID')
+    .argument('<filter>', 'Filter criteria')
     .action((id, server_id, filter, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1167,9 +1233,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- report ---
   const cmd_report = program.command('report');
   cmd_report.command('list')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'report.list',
         globalOptions: g,
@@ -1177,7 +1245,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ReportListCommand;
     });
   cmd_report.command('create')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .option('--filter <filter>', 'Filter expression: attribute,operation,value')
     .option('--limit <limit>', 'Number of rows to return')
     .option('--offset <offset>', 'Skip first N rows')
@@ -1218,6 +1286,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--include-users', 'Whether to include users in the report').default(false).hideHelp(!revealHidden))
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'report.create',
         globalOptions: g,
@@ -1265,10 +1335,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ReportCreateCommand;
     });
   cmd_report.command('delete')
-    .argument('<project>', 'project')
-    .argument('<id>', 'id')
+    .argument('<project>', 'Project name')
+    .argument('<id>', 'Report ID')
     .action((project, id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'report.delete',
         globalOptions: g,
@@ -1277,11 +1349,13 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ReportDeleteCommand;
     });
   cmd_report.command('send')
-    .argument('<project>', 'project')
-    .argument('<id>', 'id')
-    .argument('<email>', 'email')
+    .argument('<project>', 'Project name')
+    .argument('<id>', 'Report ID')
+    .argument('<email>', 'Recipient email address')
     .action((project, id, email, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'report.send',
         globalOptions: g,
@@ -1293,10 +1367,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- merge ---
   program.command('merge')
-    .argument('<project>', 'project')
-    .argument('<fingerprints...>', 'fingerprints')
+    .argument('<project>', 'Project name')
+    .argument('<fingerprints...>', 'Fingerprints to merge')
     .action((project, fingerprints, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'merge',
         globalOptions: g,
@@ -1307,10 +1383,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- unmerge ---
   program.command('unmerge')
-    .argument('<project>', 'project')
-    .argument('<fingerprints...>', 'fingerprints')
+    .argument('<project>', 'Project name')
+    .argument('<fingerprints...>', 'Fingerprints to unmerge')
     .action((project, fingerprints, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'unmerge',
         globalOptions: g,
@@ -1321,9 +1399,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- repair ---
   program.command('repair')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name or universe/project')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'repair',
         globalOptions: g,
@@ -1333,12 +1413,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- reprocess ---
   program.command('reprocess')
-    .argument('<project>', 'project')
-    .argument('[target...]', 'target')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('[target...]', 'Query or object IDs')
     .option('--first <first>', 'First object ID')
     .option('--last <last>', 'Last object ID')
     .action((project, target, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'reprocess',
         globalOptions: g,
@@ -1360,7 +1442,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies RetentionListCommand;
     });
   cmd_retention.command('set')
-    .argument('<name>', 'name')
+    .argument('<name>', 'Namespace name')
     .option('--dryrun', 'Show command without executing', false)
     .addOption(new Option('--type <type>', 'Which scope to set the retention policy on').choices(["instance","universe","project"]))
     .option('--rules <rules>', 'Number of rules')
@@ -1386,7 +1468,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies RetentionSetCommand;
     });
   cmd_retention.command('status')
-    .argument('[name]', 'name')
+    .argument('[name]', 'Namespace name')
     .addOption(new Option('--type <type>', 'Type: universe|project').choices(["universe","project"]))
     .option('--recursive', 'Show recursive status for child namespaces', false)
     .option('--raw', 'Output raw JSON', false)
@@ -1408,7 +1490,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies RetentionStatusCommand;
     });
   cmd_retention.command('clear')
-    .argument('<name>', 'name')
+    .argument('<name>', 'Namespace name')
     .addOption(new Option('--type <type>', 'Type: project').choices(["instance","universe","project"]))
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -1430,11 +1512,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--verbose', 'Show additional accept/reject statistics', false)
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'sampling.status',
         globalOptions: g,
         fingerprint: opts['fingerprint'],
-        project: opts['project'],
+        project: g.project,
         maxGroups: opts['maxGroups'],
         all: opts['all'],
         verbose: opts['verbose'],
@@ -1445,11 +1528,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Specific project')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'sampling.reset',
         globalOptions: g,
         fingerprint: opts['fingerprint'],
-        project: opts['project'],
+        project: g.project,
       } satisfies SamplingResetCommand;
     });
   cmd_sampling.command('configure')
@@ -1465,11 +1549,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--reset-interval <reset-interval>', 'Reset interval')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'sampling.configure',
         globalOptions: g,
-        project: opts['project'],
-        universe: opts['universe'],
+        project: g.project,
+        universe: g.universe,
         disable: opts['disable'],
         clear: opts['clear'],
         attribute: opts['attribute'],
@@ -1483,14 +1568,16 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- symbol ---
   program.command('symbol')
-    .argument('<project>', 'project')
-    .argument('[action]', 'action')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('[action]', 'Action to perform')
     .option('--tag <tag>', 'Filter by tag')
     .option('--filter <filter>', 'Filter symbols')
     .option('--json', 'JSON output', false)
     .option('-o, --output <output>', 'Output to file')
     .action((project, action, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'symbol',
         globalOptions: g,
@@ -1506,9 +1593,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- scrubber ---
   const cmd_scrubber = program.command('scrubber');
   cmd_scrubber.command('list')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'scrubber.list',
         globalOptions: g,
@@ -1516,7 +1605,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ScrubberListCommand;
     });
   cmd_scrubber.command('create')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .option('--name <name>', 'Scrubber name')
     .option('--regexp <regexp>', 'Pattern to match')
     .addOption(new Option('--builtin <builtin>', 'Which builtin to use').choices(["ssn","ccn","key","env","all"]))
@@ -1525,6 +1614,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--enable <enable>', 'Enable scrubber')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'scrubber.create',
         globalOptions: g,
@@ -1538,8 +1629,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ScrubberCreateCommand;
     });
   cmd_scrubber.command('modify')
-    .argument('<project>', 'project')
-    .argument('<id>', 'id')
+    .argument('<project>', 'Project name')
+    .argument('<id>', 'Scrubber ID')
     .option('--name <name>', 'Scrubber name')
     .option('--regexp <regexp>', 'New pattern')
     .option('--builtin <builtin>', 'Builtin type (not modifiable)')
@@ -1548,6 +1639,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--enable <enable>', 'Enable/disable')
     .action((project, id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'scrubber.modify',
         globalOptions: g,
@@ -1562,10 +1655,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ScrubberModifyCommand;
     });
   cmd_scrubber.command('delete')
-    .argument('<project>', 'project')
-    .argument('<id>', 'id')
+    .argument('<project>', 'Project name')
+    .argument('<id>', 'Scrubber ID')
     .action((project, id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'scrubber.delete',
         globalOptions: g,
@@ -1576,7 +1671,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- setup ---
   program.command('setup')
-    .argument('<url>', 'url')
+    .argument('<url>', 'Server URL')
     .addOption(new Option('--setup-json <setup-json>', 'Path to JSON file with setup configuration').hideHelp(!revealHidden))
     .action((url, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -1594,11 +1689,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Project name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'nuke',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies NukeCommand;
     });
 
@@ -1610,10 +1706,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--metadata <metadata>', 'Token metadata JSON')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'token.create',
         globalOptions: g,
-        project: opts['project'],
+        project: g.project,
         capability: opts['capability'],
         metadata: opts['metadata'],
       } satisfies TokenCreateCommand;
@@ -1623,17 +1720,20 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Project name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'token.list',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies TokenListCommand;
     });
   cmd_token.command('delete')
-    .argument('<token>', 'token')
+    .argument('<token>', 'Token SHA256 or prefix')
     .action((token, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (token !== undefined) { g.token = token; }
       result = {
         kind: 'token.delete',
         globalOptions: g,
@@ -1650,10 +1750,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--role <role>', 'User role')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'user.reset',
         globalOptions: g,
-        universe: opts['universe'],
+        universe: g.universe,
         user: opts['user'],
         password: opts['password'],
         role: opts['role'],
@@ -1669,10 +1770,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--method <method>', 'Auth method')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'users.add-signup-whitelist',
         globalOptions: g,
-        universe: opts['universe'],
+        universe: g.universe,
         domain: opts['domain'],
         role: opts['role'],
         method: opts['method'],
@@ -1690,7 +1792,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- tenant ---
   const cmd_tenant = program.command('tenant');
   cmd_tenant.command('create')
-    .argument('<name>', 'name')
+    .argument('<name>', 'Tenant name')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1700,7 +1802,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies TenantCreateCommand;
     });
   cmd_tenant.command('delete')
-    .argument('<name>', 'name')
+    .argument('<name>', 'Tenant name')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1720,8 +1822,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- similarity ---
   program.command('similarity')
-    .argument('<project>', 'project')
-    .argument('[filter]', 'filter')
+    .argument('<project>', 'Project name or universe/project')
+    .argument('[filter]', 'Filter expression')
     .option('--threshold <threshold>', 'Min callstack length')
     .option('--truncate <truncate>', 'Shorten callstack before comparing')
     .option('--intersection <intersection>', 'Min common symbols')
@@ -1730,6 +1832,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--json', 'Return JSON result', false)
     .action((project, filter, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'similarity',
         globalOptions: g,
@@ -1747,8 +1851,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- invite ---
   const cmd_invite = program.command('invite');
   cmd_invite.command('create')
-    .argument('<username>', 'username')
-    .argument('<email>', 'email')
+    .argument('<username>', 'Username')
+    .argument('<email>', 'Email address')
     .addOption(new Option('--role <role>', 'Role to assign the user').choices(["guest","member","admin"]))
     .option('--metadata <metadata>', 'Additional metadata')
     .option('--tenant <tenant>', 'Tenant name')
@@ -1775,28 +1879,31 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies InviteListCommand;
     });
   cmd_invite.command('delete')
-    .argument('<email>', 'email')
+    .argument('<email>', 'Email address of invitation to delete')
     .option('--universe <universe>', 'Universe name')
     .action((email, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'invite.delete',
         globalOptions: g,
         email,
-        universe: opts['universe'],
+        universe: g.universe,
       } satisfies InviteDeleteCommand;
     });
 
   // --- callstack ---
   const cmd_callstack = program.command('callstack');
   cmd_callstack.command('evaluate')
-    .argument('<project>', 'project')
-    .argument('<target>', 'target')
+    .argument('<project>', 'Project name')
+    .argument('<target>', 'Object ID or JSON file')
     .option('--name <name>', 'Callstack format name')
     .option('--language <language>', 'Language filter')
     .option('--platform <platform>', 'Platform filter')
     .action((project, target, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'callstack.evaluate',
         globalOptions: g,
@@ -1812,7 +1919,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   const cmd_access = program.command('access');
   const cmd_access_team = cmd_access.command('team');
   cmd_access_team.command('create')
-    .argument('<team>', 'team')
+    .argument('<team>', 'Team name')
     .action((team, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1822,7 +1929,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessTeamCreateCommand;
     });
   cmd_access_team.command('remove')
-    .argument('<team>', 'team')
+    .argument('<team>', 'Team name')
     .action((team, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1832,7 +1939,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessTeamRemoveCommand;
     });
   cmd_access_team.command('details')
-    .argument('<team>', 'team')
+    .argument('<team>', 'Team name')
     .action((team, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1842,8 +1949,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessTeamDetailsCommand;
     });
   cmd_access_team.command('add-user')
-    .argument('<team>', 'team')
-    .argument('<user>', 'user')
+    .argument('<team>', 'Team name')
+    .argument('<user>', 'Username')
     .action((team, user, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1854,8 +1961,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessTeamAddUserCommand;
     });
   cmd_access_team.command('remove-user')
-    .argument('<team>', 'team')
-    .argument('<user>', 'user')
+    .argument('<team>', 'Team name')
+    .argument('<user>', 'Username')
     .action((team, user, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -1875,11 +1982,13 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     });
   const cmd_access_project = cmd_access.command('project');
   cmd_access_project.command('add-team')
-    .argument('<project>', 'project')
-    .argument('<team>', 'team')
-    .argument('<role>', 'role')
+    .argument('<project>', 'Project name')
+    .argument('<team>', 'Team name')
+    .argument('<role>', 'Role to assign to the user')
     .action((project, team, role, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'access.project.add-team',
         globalOptions: g,
@@ -1889,10 +1998,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessProjectAddTeamCommand;
     });
   cmd_access_project.command('remove-team')
-    .argument('<project>', 'project')
-    .argument('<team>', 'team')
+    .argument('<project>', 'Project name')
+    .argument('<team>', 'Team name')
     .action((project, team, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'access.project.remove-team',
         globalOptions: g,
@@ -1901,11 +2012,13 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessProjectRemoveTeamCommand;
     });
   cmd_access_project.command('add-user')
-    .argument('<project>', 'project')
-    .argument('<user>', 'user')
-    .argument('<role>', 'role')
+    .argument('<project>', 'Project name')
+    .argument('<user>', 'Username')
+    .argument('<role>', 'Role to assign to the user')
     .action((project, user, role, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'access.project.add-user',
         globalOptions: g,
@@ -1915,10 +2028,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessProjectAddUserCommand;
     });
   cmd_access_project.command('remove-user')
-    .argument('<project>', 'project')
-    .argument('<user>', 'user')
+    .argument('<project>', 'Project name')
+    .argument('<user>', 'Username')
     .action((project, user, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'access.project.remove-user',
         globalOptions: g,
@@ -1927,9 +2042,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AccessProjectRemoveUserCommand;
     });
   cmd_access_project.command('details')
-    .argument('<project>', 'project')
+    .argument('<project>', 'Project name')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'access.project.details',
         globalOptions: g,
@@ -1947,11 +2064,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--attribute <attribute>', 'Attribute: name,value')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'stability.create-metric',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
         metricGroup: opts['metricGroup'],
         name: opts['name'],
         attribute: opts['attribute'],
@@ -1967,10 +2085,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--limit <limit>', 'Log limit')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'metrics-importer.logs',
         globalOptions: g,
-        project: opts['project'],
+        project: g.project,
         sourceId: opts['sourceId'],
         importerId: opts['importerId'],
         limit: opts['limit'],
@@ -1983,11 +2102,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--query <query>', 'Query to validate')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'metrics-importer.source.check-query',
         globalOptions: g,
         source: opts['source'],
-        project: opts['project'],
+        project: g.project,
         query: opts['query'],
       } satisfies MetricsImporterSourceCheckQueryCommand;
     });
@@ -2003,10 +2123,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--delay <delay>', 'Delay in seconds')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'metrics-importer.importer.create',
         globalOptions: g,
-        project: opts['project'],
+        project: g.project,
         source: opts['source'],
         name: opts['name'],
         startAt: opts['startAt'],
@@ -2026,10 +2147,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--workflow-name <workflow-name>', 'Workflow name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'alerts.target.create',
         globalOptions: g,
-        project: opts['project'],
+        project: g.project,
         name: opts['name'],
         workflowName: opts['workflowName'],
       } satisfies AlertsTargetCreateCommand;
@@ -2255,6 +2377,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--trigger <trigger>', 'Trigger spec: column,index,op,warn,crit')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'alerts.alert.create',
         globalOptions: g,
@@ -2291,8 +2414,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
           factor: opts['factor'],
           fingerprint: opts['fingerprint'],
         },
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
         name: opts['name'],
         enabled: opts['enabled'],
         queryPeriod: opts['queryPeriod'],
@@ -2336,7 +2459,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsConnectionListCommand;
     });
   cmd_workflows_connection.command('get')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Connection ID')
     .option('--raw', 'Output raw JSON', false)
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2348,7 +2471,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsConnectionGetCommand;
     });
   cmd_workflows_connection.command('update')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Connection ID')
     .option('--name <name>', 'New name')
     .option('--options <options>', 'New options')
     .option('--from-file <from-file>', 'Load from file')
@@ -2366,7 +2489,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsConnectionUpdateCommand;
     });
   cmd_workflows_connection.command('delete')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Connection ID')
     .option('--raw', 'Output raw JSON', false)
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2391,10 +2514,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--raw', 'Output raw JSON', false)
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'workflows.integration.create',
         globalOptions: g,
-        project: opts['project'],
+        project: g.project,
         name: opts['name'],
         plugin: opts['plugin'],
         options: opts['options'],
@@ -2417,7 +2541,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsIntegrationListCommand;
     });
   cmd_workflows_integration.command('get')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Integration ID')
     .option('--raw', 'Output raw JSON', false)
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2429,7 +2553,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsIntegrationGetCommand;
     });
   cmd_workflows_integration.command('update')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Integration ID')
     .option('--options <options>', 'New options')
     .option('--state <state>', 'New state')
     .option('--connection <connection>', 'New connection ID')
@@ -2449,7 +2573,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsIntegrationUpdateCommand;
     });
   cmd_workflows_integration.command('delete')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Integration ID')
     .option('--raw', 'Output raw JSON', false)
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2472,7 +2596,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsAlertListCommand;
     });
   cmd_workflows_alert.command('get')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Alert ID')
     .option('--raw', 'Output raw JSON', false)
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2496,10 +2620,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--raw', 'Output raw JSON', false)
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'workflows.alert.create',
         globalOptions: g,
-        project: opts['project'],
+        project: g.project,
         name: opts['name'],
         conditionName: opts['conditionName'],
         frequency: opts['frequency'],
@@ -2512,7 +2637,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsAlertCreateCommand;
     });
   cmd_workflows_alert.command('update')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Alert ID')
     .option('--name <name>', 'New name')
     .option('--from-file <from-file>', 'Load from file')
     .option('--raw', 'Output raw JSON', false)
@@ -2528,7 +2653,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies WorkflowsAlertUpdateCommand;
     });
   cmd_workflows_alert.command('delete')
-    .argument('<id>', 'id')
+    .argument('<id>', 'Alert ID')
     .option('--raw', 'Output raw JSON', false)
     .action((id, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2547,11 +2672,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Project name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'actions.get',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies ActionsGetCommand;
     });
   cmd_actions.command('disable')
@@ -2559,11 +2685,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Project name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'actions.disable',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies ActionsDisableCommand;
     });
   cmd_actions.command('enable')
@@ -2571,25 +2698,27 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Project name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'actions.enable',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies ActionsEnableCommand;
     });
   cmd_actions.command('upload')
-    .argument('<path>', 'path')
+    .argument('<path>', 'Config file path')
     .option('--universe <universe>', 'Universe name')
     .option('--project <project>', 'Project name')
     .action((path, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'actions.upload',
         globalOptions: g,
         path,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies ActionsUploadCommand;
     });
   cmd_actions.command('delete')
@@ -2597,24 +2726,27 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .option('--project <project>', 'Project name')
     .action((opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
       result = {
         kind: 'actions.delete',
         globalOptions: g,
-        universe: opts['universe'],
-        project: opts['project'],
+        universe: g.universe,
+        project: g.project,
       } satisfies ActionsDeleteCommand;
     });
 
   // --- attribute ---
   const cmd_attribute = program.command('attribute');
   cmd_attribute.command('create')
-    .argument('<project>', 'project')
-    .argument('<name>', 'name')
+    .argument('<project>', 'Project name')
+    .argument('<name>', 'Attribute name')
     .option('--description <description>', 'Attribute description')
     .addOption(new Option('--type <type>', 'Attribute value type').choices(["bitmap","uint8","uint16","uint32","uint64","uint128","uuid","dictionary"]))
     .addOption(new Option('--format <format>', 'Attribute display format').choices(["none","commit","semver","callstack","hostname","bytes","kilobytes","gigabytes","nanoseconds","milliseconds","seconds","unix_timestamp","js_timestamp","gps_timestamp","memory_address","labels","sha256","uuid","ipv4","ipv6"]))
     .action((project, name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'attribute.create',
         globalOptions: g,
@@ -2626,10 +2758,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies AttributeCreateCommand;
     });
   cmd_attribute.command('delete')
-    .argument('<project>', 'project')
-    .argument('<name>', 'name')
+    .argument('<project>', 'Project name')
+    .argument('<name>', 'Attribute name')
     .action((project, name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'attribute.delete',
         globalOptions: g,
@@ -2641,12 +2775,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- view ---
   const cmd_view = program.command('view');
   cmd_view.command('create')
-    .argument('<project>', 'project')
-    .argument('<name>', 'name')
+    .argument('<project>', 'Project name')
+    .argument('<name>', 'View name')
     .option('--queries <queries>', 'Queries JSON file')
     .option('--payload <payload>', 'Payload JSON file')
     .action((project, name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'view.create',
         globalOptions: g,
@@ -2657,10 +2793,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies ViewCreateCommand;
     });
   cmd_view.command('delete')
-    .argument('<project>', 'project')
-    .argument('<name>', 'name')
+    .argument('<project>', 'Project name')
+    .argument('<name>', 'View name')
     .action((project, name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'view.delete',
         globalOptions: g,
@@ -2671,7 +2809,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- error ---
   program.command('error', { hidden: !revealHidden })
-    .argument('<message>', 'message')
+    .argument('<message>', 'Error message')
     .action((message, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -2692,7 +2830,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies LogListCommand;
     });
   cmd_log.command('activate', { hidden: !revealHidden })
-    .argument('<name>', 'name')
+    .argument('<name>', 'Log name')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -2702,7 +2840,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies LogActivateCommand;
     });
   cmd_log.command('deactivate', { hidden: !revealHidden })
-    .argument('<name>', 'name')
+    .argument('<name>', 'Log name')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -2712,7 +2850,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies LogDeactivateCommand;
     });
   cmd_log.command('extract', { hidden: !revealHidden })
-    .argument('<name>', 'name')
+    .argument('<name>', 'Log name')
     .option('--json', 'Output JSON format', false)
     .option('--table', 'Output as table', false)
     .action((name, opts, cmd) => {
@@ -2744,7 +2882,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- bpg ---
   const cmd_bpg = program.command('bpg', { hidden: !revealHidden });
   cmd_bpg.command('list', { hidden: !revealHidden })
-    .argument('<type>', 'type')
+    .argument('<type>', 'BPG type (e.g. configuration/project)')
     .option('--raw <raw>', 'Raw BPG JSON request')
     .action((type, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2771,9 +2909,11 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- deduplication ---
   const cmd_deduplication = program.command('deduplication', { hidden: !revealHidden });
   cmd_deduplication
-    .argument('<project>', 'project')
+    .argument('<project>', 'Universe/project')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'deduplication',
         globalOptions: g,
@@ -2781,7 +2921,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies DeduplicationCommand;
     });
   cmd_deduplication.command('add', { hidden: !revealHidden })
-    .argument('<project>', 'project')
+    .argument('<project>', 'Universe/project')
     .option('--name <name>', 'Rule name')
     .option('--rules <rules>', 'Rules JSON file')
     .option('--priority <priority>', 'Rule priority')
@@ -2789,6 +2929,8 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
     .addOption(new Option('--owner <owner>', 'Owner user ID').hideHelp(!revealHidden))
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'deduplication.add',
         globalOptions: g,
@@ -2801,10 +2943,12 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies DeduplicationAddCommand;
     });
   cmd_deduplication.command('delete', { hidden: !revealHidden })
-    .argument('<project>', 'project')
+    .argument('<project>', 'Universe/project')
     .option('--name <name>', 'Rule name')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'deduplication.delete',
         globalOptions: g,
@@ -2813,12 +2957,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies DeduplicationDeleteCommand;
     });
   cmd_deduplication.command('modify', { hidden: !revealHidden })
-    .argument('<project>', 'project')
+    .argument('<project>', 'Universe/project')
     .option('--name <name>', 'Rule name')
     .option('--rules <rules>', 'Rules JSON file')
     .option('--priority <priority>', 'Rule priority')
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'deduplication.modify',
         globalOptions: g,
@@ -2829,11 +2975,13 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies DeduplicationModifyCommand;
     });
   cmd_deduplication.command('list', { hidden: !revealHidden })
-    .argument('<project>', 'project')
+    .argument('<project>', 'Universe/project')
     .option('--name <name>', 'Filter by rule name')
     .option('--verbose', 'Show detailed rule info', false)
     .action((project, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'deduplication.list',
         globalOptions: g,
@@ -2846,7 +2994,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
   // --- latency ---
   const cmd_latency = program.command('latency', { hidden: !revealHidden });
   cmd_latency.command('list', { hidden: !revealHidden })
-    .argument('[pattern]', 'pattern')
+    .argument('[pattern]', 'Regex filter')
     .action((pattern, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -2856,7 +3004,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies LatencyListCommand;
     });
   cmd_latency.command('activate', { hidden: !revealHidden })
-    .argument('<name>', 'name')
+    .argument('<name>', 'Histogram name')
     .option('--samples <samples>', 'Number of samples')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2868,7 +3016,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies LatencyActivateCommand;
     });
   cmd_latency.command('deactivate', { hidden: !revealHidden })
-    .argument('<name>', 'name')
+    .argument('<name>', 'Histogram name')
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {
@@ -2878,7 +3026,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies LatencyDeactivateCommand;
     });
   cmd_latency.command('extract', { hidden: !revealHidden })
-    .argument('<name>', 'name')
+    .argument('<name>', 'Histogram name')
     .option('--raw', 'Output raw values', false)
     .action((name, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
@@ -2892,12 +3040,14 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
 
   // --- cts ---
   program.command('cts', { hidden: !revealHidden })
-    .argument('<project>', 'project')
-    .argument('<attribute>', 'attribute')
-    .argument('<value>', 'value')
+    .argument('<project>', 'Project name')
+    .argument('<attribute>', 'Attribute name')
+    .argument('<value>', 'Target value')
     .option('--query', 'Show query JSON without executing', false)
     .action((project, attribute, value, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
+      syncGlobalAndCommandFlags(g, opts);
+      if (project !== undefined) { g.project = project; }
       result = {
         kind: 'cts',
         globalOptions: g,
@@ -2927,7 +3077,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SessionListCommand;
     });
   cmd_session.command('set', { hidden: !revealHidden })
-    .argument('<resources_json>', 'resources_json')
+    .argument('<resources_json>', 'JSON object of resources')
     .addOption(new Option('--persist <persist>', 'Persist to configuration').choices(["universe","user"]))
     .option('--uid <uid>', 'User ID for persistence')
     .action((resources_json, opts, cmd) => {
@@ -2941,7 +3091,7 @@ export function createProgram(): { program: Command; getResult: () => CliCommand
       } satisfies SessionSetCommand;
     });
   cmd_session.command('unset', { hidden: !revealHidden })
-    .argument('<resource_names...>', 'resource_names')
+    .argument('<resource_names...>', 'Resource names to unset')
     .action((resource_names, opts, cmd) => {
       const g = extractGlobalOptions(cmd);
       result = {

@@ -39,6 +39,8 @@ interface ArgObj {
   name: string;
   required: boolean;
   hide: boolean;
+  help?: string;
+  help_first_line?: string;
   default?: string[];
   choices?: { choices: string[] };
   var?: boolean;
@@ -65,6 +67,7 @@ interface IRArg {
   required: boolean;
   variadic: boolean;
   originalName: string;
+  help: string;
   choices?: string[];
   defaultValue?: string[];
 }
@@ -95,6 +98,7 @@ interface LeafCommand {
 
 interface IR {
   globalFlags: IRFlag[];
+  globalFlagFieldNames: Set<string>; // camelCase field names of global flags
   queryOptionFlags: IRFlag[];
   leaves: LeafCommand[];
   hiddenPaths: Set<string>; // dot-joined paths of hidden commands (for intermediate nodes)
@@ -184,6 +188,7 @@ function convertArg(arg: ArgObj): IRArg {
     required: arg.required,
     variadic: arg.var === true,
     originalName: arg.name,
+    help: arg.help_first_line || arg.help || '',
     choices: arg.choices?.choices,
     defaultValue: arg.default,
   };
@@ -304,7 +309,8 @@ function buildIR(root: UsageRoot, whitelist?: Set<string>): IR {
     walk(root.cmd.subcommands[key], [], [], 1, false);
   }
 
-  return {globalFlags, queryOptionFlags, leaves, hiddenPaths};
+  const globalFlagFieldNames = new Set(globalFlags.map(f => f.fieldName));
+  return {globalFlags, globalFlagFieldNames, queryOptionFlags, leaves, hiddenPaths};
 }
 
 // ---------------------------------------------------------------------------
@@ -432,6 +438,40 @@ function emitParser(ir: IR): string {
     }
   }
   w('  };');
+  w('}');
+  w('');
+
+  // Helper: bidirectional sync of global and command flags
+  // Build the list of global field names for the sync function
+  const globalFieldNames = ir.globalFlags
+    .filter(f => f.tsType !== 'boolean')
+    .map(f => f.fieldName);
+
+  w('/**');
+  w(' * Bidirectional sync between global options and command-local options.');
+  w(' *');
+  w(' * Some flags (like --universe, --project, --token) exist both as global flags');
+  w(' * and as command-specific flags. Commander treats these as separate: a flag');
+  w(' * before the command name goes to the global, and after goes to the subcommand.');
+  w(' * But from the user\'s perspective there is no meaningful distinction — they');
+  w(' * expect `morgue --universe X nuke` and `morgue nuke --universe X` to behave');
+  w(' * identically.');
+  w(' *');
+  w(' * More critically, if code reads globalOptions.universe in one place and');
+  w(' * cmd.universe in another, a mismatch could lead to operating on the wrong');
+  w(' * universe — potentially disastrous for destructive commands like nuke/delete.');
+  w(' *');
+  w(' * This function ensures the two are always in sync:');
+  w(' *   1. Command-local value wins if present (user placed it closest to the command).');
+  w(' *   2. Otherwise, inherit the global value.');
+  w(' *   3. The winning value is written back to both globalOptions and opts,');
+  w(' *      so all downstream code sees the same value regardless of which it reads.');
+  w(' */');
+  w('function syncGlobalAndCommandFlags(g: GlobalOptions, opts: Record<string, any>): void {');
+  for (const name of globalFieldNames) {
+    w(`  if (opts['${name}'] !== undefined) { g.${name} = opts['${name}']; }`);
+    w(`  else if (g.${name} !== undefined) { opts['${name}'] = g.${name}; }`);
+  }
   w('}');
   w('');
 
@@ -576,7 +616,7 @@ function emitLeafCommand(
     const bracket = arg.variadic
       ? arg.required ? `<${arg.originalName}...>` : `[${arg.originalName}...]`
       : arg.required ? `<${arg.originalName}>` : `[${arg.originalName}]`;
-    chainLines.push(`    .argument('${bracket}', '${esc(arg.fieldName)}')`);
+    chainLines.push(`    .argument('${bracket}', '${esc(arg.help || arg.fieldName)}')`);
   }
 
   // Add flags
@@ -628,6 +668,23 @@ function emitLeafCommand(
   chainLines.push(`    .action((${actionParams}) => {`);
   chainLines.push(`      const g = extractGlobalOptions(cmd);`);
 
+  // Identify command flags and positional args that share a name with global flags.
+  // These need syncing (see syncGlobalAndCommandFlags comment in emitParser).
+  const overlappingFlags = leaf.flags.filter(f => ir.globalFlagFieldNames.has(f.fieldName));
+  const overlappingArgs = leaf.args.filter(a => ir.globalFlagFieldNames.has(a.fieldName));
+  const needsSync = overlappingFlags.length > 0 || overlappingArgs.length > 0;
+
+  if (needsSync) {
+    chainLines.push(`      syncGlobalAndCommandFlags(g, opts);`);
+  }
+
+  // Positional args that match global flags: the positional value (which is
+  // always present for required args) should be synced back to globalOptions.
+  // This ensures `morgue clean myproject` sets globalOptions.project = 'myproject'.
+  for (const arg of overlappingArgs) {
+    chainLines.push(`      if (${arg.fieldName} !== undefined) { g.${arg.fieldName} = ${arg.fieldName}; }`);
+  }
+
   // Build result object
   chainLines.push(`      result = {`);
   chainLines.push(`        kind: '${leaf.kind}',`);
@@ -649,7 +706,12 @@ function emitLeafCommand(
 
   // Non-query flags from opts
   for (const flag of leaf.flags) {
-    chainLines.push(`        ${flag.fieldName}: opts['${flag.fieldName}'],`);
+    if (overlappingFlags.includes(flag)) {
+      // Use the synced value from globalOptions (which syncGlobalAndCommandFlags already resolved)
+      chainLines.push(`        ${flag.fieldName}: g.${flag.fieldName},`);
+    } else {
+      chainLines.push(`        ${flag.fieldName}: opts['${flag.fieldName}'],`);
+    }
   }
 
   chainLines.push(`      } satisfies ${leaf.typeName};`);
