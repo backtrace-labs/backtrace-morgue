@@ -377,6 +377,12 @@ function emitTypes(ir: IR): string {
   }
   w('');
 
+  // Handler type
+  w('import type {Config} from \'../../config\';');
+  w('');
+  w('export type CommandHandler<T extends CliCommand = CliCommand> = (cmd: T, config: Config) => any;');
+  w('');
+
   return lines.join('\n');
 }
 

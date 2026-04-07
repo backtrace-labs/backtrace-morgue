@@ -1508,3 +1508,7 @@ export type CliCommand =
   | ServiceStatusCommand
   | ServiceRescanCommand
   | StatusReloadCommand;
+
+import type {Config} from '../../config';
+
+export type CommandHandler<T extends CliCommand = CliCommand> = (cmd: T, config: Config) => any;
