@@ -19,21 +19,21 @@ export interface QueryOptions {
   selectWildcard?: 'physical' | 'derived' | 'virtual';
   age?: string;
   time?: string;
-  unique?: string;
-  histogram?: string;
-  distribution?: string;
-  mean?: string;
-  sum?: string;
-  range?: string;
-  count?: string;
-  bin?: string;
-  head?: string;
-  tail?: string;
-  object?: string;
-  last?: string;
-  first?: string;
-  min?: string;
-  max?: string;
+  unique?: string[];
+  histogram?: string[];
+  distribution?: string[];
+  mean?: string[];
+  sum?: string[];
+  range?: string[];
+  count?: string[];
+  bin?: string[];
+  head?: string[];
+  tail?: string[];
+  object?: string[];
+  last?: string[];
+  first?: string[];
+  min?: string[];
+  max?: string[];
   sort?: string[];
   quantizeUint?: string[];
   rawQuery?: string;
@@ -187,6 +187,8 @@ export interface DeleteCommand {
   all?: boolean;
   sync?: boolean;
   chunklen?: string;
+  first?: string;
+  last?: string;
 }
 
 export interface ProjectCreateCommand {
