@@ -47,6 +47,15 @@ import {handlers as metricsImporterHandlers} from '../lib/commands/metrics-impor
 import {handlers as alertsHandlers} from '../lib/commands/alerts-handlers';
 import {handlers as workflowsHandlers} from '../lib/commands/workflows-handlers';
 
+// Provide package info explicitly so @backtrace/node doesn't fail when
+// installed globally (where its package.json walk-up can't find ours).
+if (!process.env.npm_package_name) {
+  process.env.npm_package_name = packageJson.name;
+}
+if (!process.env.npm_package_version) {
+  process.env.npm_package_version = packageJson.version;
+}
+
 const backtraceDatabaseDirectory = path.join(configDir, 'backtrace');
 const client = bt.BacktraceClient.initialize({
   url: 'https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json',
