@@ -15,6 +15,7 @@ import {configDir} from '../lib/cli/constants';
 import {initPrint} from '../lib/cli/print';
 import {eHasCode} from '../lib/util';
 import {createProgram} from '../lib/cli/generated/parser';
+import {installCompletion} from '../lib/cli/completion';
 import type {CliCommand, CommandHandler, CommandHandlerMap} from '../lib/cli/generated/types';
 
 // Import all command handlers
@@ -56,26 +57,36 @@ if (!process.env.npm_package_version) {
   process.env.npm_package_version = packageJson.version;
 }
 
-const backtraceDatabaseDirectory = path.join(configDir, 'backtrace');
-const client = bt.BacktraceClient.initialize({
-  url: 'https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json',
-  timeout: 1500,
-  userAttributes: {
-    version: packageJson.version,
-  },
-  database: {
-    enable: true,
-    path: backtraceDatabaseDirectory,
-    autoSend: false,
-    captureNativeCrashes: true,
-    createDatabaseDirectory: true,
-  },
-  metrics: {
-    enable: false,
-  },
-});
+// A shell-completion invocation (`morgue complete ...`, issued by the generated
+// completion script) takes a minimal, side-effect-free path: no Backtrace error
+// reporting client, no telemetry, no config load — just the parser plus tab's
+// completion handling. This keeps tab completion fast and quiet.
+const isCompletion = process.argv.slice(2).includes('complete');
 
-initPrint({btClient: client});
+const backtraceDatabaseDirectory = path.join(configDir, 'backtrace');
+const client = isCompletion
+  ? undefined
+  : bt.BacktraceClient.initialize({
+      url: 'https://submit.backtrace.io/backtrace/2cfca2efffd862c7ad7188be8db09d8697bd098a3561cd80a56fe5c4819f5d14/json',
+      timeout: 1500,
+      userAttributes: {
+        version: packageJson.version,
+      },
+      database: {
+        enable: true,
+        path: backtraceDatabaseDirectory,
+        autoSend: false,
+        captureNativeCrashes: true,
+        createDatabaseDirectory: true,
+      },
+      metrics: {
+        enable: false,
+      },
+    });
+
+if (client) {
+  initPrint({btClient: client});
+}
 
 // ---------------------------------------------------------------------------
 // Command handler registry — all commands dispatched by kind
@@ -129,6 +140,16 @@ main();
 function main(): any {
   const {program, getResult} = createProgram();
   program.version(packageJson.version, '-v, --version');
+
+  // Completion fast path: wire up tab and let it handle `complete [shell]`
+  // (script generation) and `complete -- <words>` (candidate emission). None of
+  // the regular command-dispatch machinery below runs.
+  if (isCompletion) {
+    installCompletion(program)
+      .then(() => program.parse())
+      .catch(() => process.exit(1));
+    return;
+  }
 
   program.exitOverride();
   let cmd: CliCommand | undefined;

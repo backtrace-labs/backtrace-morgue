@@ -28,6 +28,7 @@
   ],
   "dependencies": {
     "@backtrace/node": "^0.3.1",
+    "@bomb.sh/tab": "^0.0.15",
     "assign-deep": "^1.0.1",
     "axios": "^1.10.0",
     "btoa": "^1.1.2",
@@ -53,6 +54,11 @@
   "preferGlobal": true,
   "bin": {
     "morgue": "./dist/bin/morgue.js"
+  },
+  "overrides": {
+    "@bomb.sh/tab": {
+      "commander": "$commander"
+    }
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
